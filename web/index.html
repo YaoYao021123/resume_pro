@@ -1,0 +1,2216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume Generator Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #faf9f5;
+  --bg-warm: #f5f3ee;
+  --surface: #fff;
+  --surface-hover: #f9f8f4;
+  --border: #e8e6dc;
+  --border-hover: #d4d1c7;
+  --text: #141413;
+  --text-secondary: #5c5b57;
+  --text-muted: #9c9a93;
+  --accent: #d97757;
+  --accent-hover: #c4684b;
+  --accent-light: rgba(217,119,87,0.08);
+  --accent-mid: rgba(217,119,87,0.15);
+  --blue: #6a9bcc;
+  --green: #788c5d;
+  --green-light: rgba(120,140,93,0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font-heading: 'Poppins', Arial, sans-serif;
+  --font-body: 'Lora', Georgia, serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ SVG Icon Base ═══ */
+.icon-svg {
+  width: 18px; height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex-shrink: 0;
+}
+
+/* ═══ Layout ═══ */
+.app { display: flex; min-height: 100vh; }
+
+/* ═══ Sidebar ═══ */
+.sidebar {
+  width: 256px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+.sidebar-header {
+  padding: 28px 24px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h1 {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.sidebar-header h1 span { color: var(--accent); }
+.sidebar-header p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-family: var(--font-heading);
+  font-weight: 400;
+}
+
+/* ═══ Progress ═══ */
+.progress-section {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.progress-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.8s var(--ease-out);
+  width: 0%;
+}
+
+/* ═══ Nav ═══ */
+.nav-list {
+  flex: 1;
+  padding: 12px 0;
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  color: var(--text-secondary);
+  transition: all 0.25s var(--ease-out);
+  border-right: 2px solid transparent;
+  user-select: none;
+}
+.nav-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.nav-item.active {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-right-color: var(--accent);
+  font-weight: 500;
+}
+.nav-item .icon-svg {
+  width: 17px; height: 17px;
+  transition: color 0.25s;
+}
+.nav-item.active .icon-svg { color: var(--accent); }
+.nav-check {
+  margin-left: auto;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.4s var(--ease-out);
+}
+.nav-check.done {
+  background: var(--green);
+  border-color: var(--green);
+}
+.nav-check.done svg { opacity: 1; }
+.nav-check svg { width: 10px; height: 10px; stroke: #fff; stroke-width: 2.5; opacity: 0; transition: opacity 0.3s; }
+.nav-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 24px;
+}
+
+/* ═══ Main ═══ */
+.main {
+  margin-left: 256px;
+  flex: 1;
+  padding: 40px 52px 80px;
+  max-width: 940px;
+  /* Center within the right panel (viewport minus sidebar) */
+  margin-right: auto;
+  margin-left: calc(256px + max(0px, (100vw - 256px - 940px) / 2));
+}
+.page { display: none; }
+.page.active { display: block; animation: pageIn 0.6s var(--ease-out) both; }
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-title {
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.page-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+/* ═══ Form ═══ */
+.form-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 20px;
+  transition: border-color 0.3s;
+}
+.form-section:hover { border-color: var(--border-hover); }
+.form-section h2 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-section h2 .icon-svg { width: 16px; height: 16px; color: var(--text-muted); }
+.form-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.form-row label {
+  font-size: 13px;
+  font-family: var(--font-heading);
+  color: var(--text-secondary);
+  text-align: right;
+  font-weight: 400;
+}
+.form-row label .optional {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  display: block;
+  font-weight: 400;
+}
+.form-row-wide { grid-template-columns: 1fr; }
+.form-row-wide label { text-align: left; margin-bottom: 6px; }
+
+input[type="text"], input[type="email"], input[type="tel"], textarea, select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: var(--font-body);
+  transition: border-color 0.3s, box-shadow 0.3s;
+  background: var(--surface);
+  color: var(--text);
+}
+input::placeholder, textarea::placeholder { color: var(--text-muted); font-style: italic; }
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+textarea { resize: vertical; min-height: 56px; }
+select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
+
+.input-half {
+  display: grid;
+  grid-template-columns: 1fr 24px 1fr;
+  align-items: center;
+}
+.input-half span { text-align: center; color: var(--text-muted); font-size: 14px; }
+
+/* ═══ Entry Cards ═══ */
+.entry-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 22px;
+  margin-bottom: 14px;
+  background: var(--bg);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.entry-card:hover { border-color: var(--border-hover); box-shadow: 0 2px 8px rgba(20,20,19,0.04); }
+.entry-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.entry-card .card-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ═══ Award Row ═══ */
+.award-row {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 100px 28px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.award-row input { font-size: 13px; padding: 8px 10px; }
+
+/* ═══ Work Cards (Horizontal) ═══ */
+.work-cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.work-card {
+  flex: 0 0 calc(50% - 5px);
+  min-width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  position: relative;
+  transition: all 0.3s var(--ease-out);
+  animation: cardReveal 0.4s var(--ease-out) both;
+}
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.work-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(217,119,87,0.08); }
+.work-card .card-text {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.55;
+  padding-right: 24px;
+  word-break: break-word;
+}
+.work-card .card-close {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 22px; height: 22px;
+  border: none; background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.work-card .card-close:hover { background: rgba(217,119,87,0.1); color: var(--accent); }
+.work-card .card-close svg { width: 14px; height: 14px; }
+.work-card-input-wrap {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.work-card-input-wrap input { flex: 1; }
+
+/* ═══ Publication Card ═══ */
+.pub-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin-bottom: 14px;
+  background: var(--bg);
+  transition: border-color 0.3s;
+}
+.pub-card:hover { border-color: var(--border-hover); }
+.pub-card .pub-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.pub-card .pub-row-full { margin-bottom: 0; }
+.pub-card label {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pub-card .pub-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.pub-card .pub-title-label {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.pub-upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+  margin-bottom: 12px;
+}
+.pub-upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+.pub-upload-zone .uz-icon { margin-bottom: 8px; color: var(--text-muted); transition: color 0.3s; }
+.pub-upload-zone:hover .uz-icon { color: var(--accent); }
+.pub-upload-zone .main-text { font-size: 13.5px; font-family: var(--font-heading); color: var(--text-secondary); font-weight: 500; }
+.pub-upload-zone .sub-text { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ═══ Buttons ═══ */
+.btn {
+  padding: 9px 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-family: var(--font-heading);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+  font-weight: 500;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(217,119,87,0.2); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+.btn-danger {
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.btn-danger:hover { background: rgba(217,119,87,0.08); color: var(--accent); }
+.btn-add {
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-add:hover { color: var(--accent-hover); }
+.btn-add svg { width: 14px; height: 14px; }
+.btn-group { display: flex; gap: 12px; margin-top: 28px; }
+
+/* ═══ Mode Switcher ═══ */
+.mode-switcher {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.mode-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: var(--surface);
+  font-size: 13px;
+  font-family: var(--font-heading);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.3s var(--ease-out);
+  text-align: center;
+  font-weight: 400;
+}
+.mode-btn:not(:last-child) { border-right: 1px solid var(--border); }
+.mode-btn:hover { background: var(--surface-hover); color: var(--text-secondary); }
+.mode-btn.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+.mode-content { display: none; }
+.mode-content.active { display: block; }
+
+/* ═══ Drop Zone ═══ */
+.drop-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out);
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.drop-zone .dz-icon { margin-bottom: 10px; color: var(--text-muted); transition: color 0.3s; }
+.drop-zone:hover .dz-icon { color: var(--accent); }
+.drop-zone .main-text { font-size: 14px; font-family: var(--font-heading); color: var(--text-secondary); font-weight: 500; }
+.drop-zone .sub-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.drop-zone input[type="file"] { display: none; }
+
+/* ═══ File List ═══ */
+.file-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: border-color 0.3s;
+}
+.file-item:hover { border-color: var(--border-hover); }
+.file-item .file-info { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.file-item .file-info .icon-svg { color: var(--text-muted); }
+.file-item .file-name { color: var(--text); font-family: var(--font-heading); font-weight: 400; }
+.file-item .file-size { color: var(--text-muted); font-size: 11px; }
+.materials-group { margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); }
+.materials-group .group-title { font-size: 13px; font-family: var(--font-heading); font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.materials-group .material-file { font-size: 12px; color: var(--text-muted); padding: 2px 0; padding-left: 12px; }
+
+/* ═══ Upload Preview ═══ */
+.upload-preview { margin-top: 12px; }
+.preview-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; color: var(--text-secondary); }
+.preview-item .status { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-family: var(--font-heading); }
+.preview-item .status.success { background: var(--green-light); color: var(--green); }
+.preview-item .status.error { background: rgba(217,119,87,0.1); color: var(--accent); }
+.preview-item .status.pending { background: var(--bg-warm); color: var(--text-muted); }
+
+/* ═══ Toast ═══ */
+.toast {
+  position: fixed; top: 24px; right: 24px;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-family: var(--font-heading);
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-16px);
+  transition: all 0.5s var(--ease-out);
+  max-width: 380px;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(20,20,19,0.12);
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--surface); color: var(--green); border: 1px solid rgba(120,140,93,0.3); }
+.toast.error { background: var(--surface); color: var(--accent); border: 1px solid rgba(217,119,87,0.3); }
+
+.empty-state { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13.5px; font-style: italic; }
+
+/* ═══ Obsidian-style Tags ═══ */
+.tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  min-height: 44px;
+  cursor: text;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  align-items: center;
+}
+.tag-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 8px;
+  background: var(--accent-light);
+  border: 1px solid rgba(217,119,87,0.18);
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: var(--font-heading);
+  color: var(--accent);
+  white-space: nowrap;
+  animation: cardReveal 0.25s var(--ease-out) both;
+  user-select: none;
+  transition: all 0.2s;
+}
+.tag-chip::before {
+  content: '#';
+  opacity: 0.5;
+  font-weight: 600;
+}
+.tag-chip:hover {
+  background: var(--accent-mid);
+  border-color: rgba(217,119,87,0.3);
+}
+.tag-chip .tag-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; height: 16px;
+  border: none; background: none;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 50%;
+  margin-left: 2px;
+  opacity: 0.5;
+  transition: all 0.2s;
+  padding: 0;
+}
+.tag-chip .tag-remove:hover { opacity: 1; background: rgba(217,119,87,0.15); }
+.tag-chip .tag-remove svg { width: 10px; height: 10px; }
+.tag-input-field {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: transparent;
+  min-width: 120px;
+  flex: 1;
+  padding: 2px 0;
+}
+.tag-input-field::placeholder { color: var(--text-muted); font-style: italic; }
+
+/* ═══ Landing ═══ */
+.landing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 140px);
+  text-align: center;
+  padding: 40px 20px;
+  position: relative;
+}
+.landing-ornament {
+  position: absolute;
+  width: 320px; height: 320px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: ornamentSpin 60s linear infinite;
+}
+.landing-ornament::after {
+  content: '';
+  position: absolute;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+@keyframes ornamentSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.landing-label {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  animation: wordReveal 0.8s var(--ease-out) 0.1s both;
+  position: relative;
+}
+.landing h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 18px;
+  color: var(--text);
+  animation: wordReveal 0.8s var(--ease-out) 0.2s both;
+  position: relative;
+}
+.landing h2 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.landing .subtitle {
+  font-size: clamp(15px, 1.5vw, 17px);
+  color: var(--text-secondary);
+  max-width: 440px;
+  line-height: 1.7;
+  margin-bottom: 36px;
+  animation: wordReveal 0.8s var(--ease-out) 0.35s both;
+  position: relative;
+}
+@keyframes wordReveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.landing-actions {
+  display: flex; gap: 14px;
+  animation: wordReveal 0.8s var(--ease-out) 0.5s both;
+  position: relative;
+}
+.btn-hero {
+  padding: 14px 32px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.4s var(--ease-out);
+  letter-spacing: -0.005em;
+}
+.btn-hero-primary {
+  background: var(--text);
+  color: var(--bg);
+}
+.btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(20,20,19,0.15); }
+.btn-hero-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-hero-secondary:hover { border-color: var(--text); transform: translateY(-2px); }
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 56px;
+  max-width: 600px;
+  width: 100%;
+  animation: wordReveal 0.8s var(--ease-out) 0.65s both;
+  position: relative;
+}
+.landing-feature {
+  padding: 22px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  text-align: left;
+  transition: all 0.4s var(--ease-out);
+}
+.landing-feature:hover { border-color: var(--border-hover); transform: translateY(-3px); box-shadow: 0 4px 20px rgba(20,20,19,0.06); }
+.landing-feature .feat-icon { margin-bottom: 12px; color: var(--accent); }
+.landing-feature .feat-title { font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.landing-feature .feat-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
+
+/* ═══ AI Progress ═══ */
+.ai-progress-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 20px;
+  background: var(--surface);
+}
+.ai-progress-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 22px;
+}
+.ai-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dotPulse 2s ease infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217,119,87,0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(217,119,87,0); }
+}
+.ai-label { font-family: var(--font-heading); font-size: 14px; font-weight: 600; color: var(--text); }
+.ai-status { margin-left: auto; font-size: 12px; color: var(--text-muted); font-family: var(--font-heading); }
+.ai-steps { display: flex; flex-direction: column; gap: 10px; }
+.ai-step {
+  display: flex; align-items: center; gap: 14px;
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  transition: all 0.4s var(--ease-out);
+}
+.ai-step.active { border-color: var(--accent); background: var(--accent-light); }
+.ai-step.done { border-color: rgba(120,140,93,0.3); background: var(--green-light); }
+.ai-step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-family: var(--font-heading); font-weight: 600;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.4s var(--ease-out);
+}
+.ai-step.active .ai-step-num { border-color: var(--accent); color: var(--accent); background: rgba(217,119,87,0.1); }
+.ai-step.done .ai-step-num { border-color: var(--green); color: #fff; background: var(--green); }
+.ai-step-text { font-size: 13px; font-family: var(--font-heading); color: var(--text-muted); font-weight: 400; transition: color 0.3s; }
+.ai-step.active .ai-step-text { color: var(--text); font-weight: 500; }
+.ai-step.done .ai-step-text { color: var(--green); }
+.ai-step-bar {
+  flex: 1; height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-left: auto;
+  max-width: 72px;
+}
+.ai-step-bar-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.6s var(--ease-out);
+}
+.ai-step.done .ai-step-bar-fill { background: var(--green); width: 100%; }
+
+/* ═══ JD Section ═══ */
+.jd-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; }
+.jd-tabs {
+  display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; margin-bottom: 18px;
+}
+.jd-tab {
+  flex: 1; padding: 9px;
+  border: none; background: var(--surface);
+  font-size: 12px; font-family: var(--font-heading); color: var(--text-muted);
+  cursor: pointer; transition: all 0.3s var(--ease-out); text-align: center; font-weight: 500;
+}
+.jd-tab:not(:last-child) { border-right: 1px solid var(--border); }
+.jd-tab:hover { color: var(--text-secondary); background: var(--surface-hover); }
+.jd-tab.active { background: var(--accent-light); color: var(--accent); }
+.jd-content { display: none; }
+.jd-content.active { display: block; }
+.jd-textarea {
+  width: 100%; min-height: 200px; padding: 16px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-body); font-size: 14px;
+  resize: vertical; line-height: 1.75;
+}
+.jd-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+/* ═══ Review Page ═══ */
+.review-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.review-section:hover { border-color: var(--border-hover); box-shadow: 0 2px 12px rgba(20,20,19,0.04); }
+.review-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.review-section-header h3 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.review-section-header h3 .icon-svg { width: 16px; height: 16px; color: var(--text-muted); }
+.review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 24px;
+}
+.review-field { display: flex; flex-direction: column; gap: 2px; }
+.review-label {
+  font-size: 11px;
+  font-family: var(--font-heading);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.review-value {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.review-card {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.review-card:last-child { border-bottom: none; }
+.review-card-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.review-card-meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+}
+.review-card-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+.review-card-tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.review-tag, .review-skill-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  background: var(--accent-light);
+  border: 1px solid rgba(217,119,87,0.15);
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: var(--font-heading);
+  color: var(--accent);
+}
+.review-card-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+}
+.review-card-inline:last-child { border-bottom: none; }
+.review-tags-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ═══ 面经 Section ═══ */
+.mj-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px; margin-bottom: 20px;
+  position: relative;
+}
+.mj-section .optional-badge {
+  position: absolute; top: -10px; right: 20px;
+  background: var(--bg-warm); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2px 14px;
+  font-size: 11px; font-family: var(--font-heading);
+  color: var(--text-muted); font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+/* ═══ Tarot Gallery ═══ */
+.gallery-deck {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  perspective: 1200px;
+  padding: 20px 0 40px;
+}
+.tarot-card {
+  width: 200px;
+  height: 280px;
+  position: relative;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 0.8s var(--ease-out);
+}
+.tarot-card:hover { transform: translateY(-12px); }
+.tarot-card.flipped { transform: rotateY(180deg); }
+.tarot-card.flipped:hover { transform: rotateY(180deg) translateY(-8px); }
+.tarot-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(20,20,19,0.12);
+}
+/* Card Back — mystical pattern with per-card accent */
+.tarot-back {
+  background: linear-gradient(145deg, #141413 0%, #2a2926 50%, #141413 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--card-accent, rgba(217,119,87,0.3));
+}
+.tarot-back::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid var(--card-accent-dim, rgba(217,119,87,0.15));
+  border-radius: 12px;
+}
+.tarot-back .tarot-circle {
+  position: relative;
+  width: 100px; height: 100px;
+  border: 1.5px solid var(--card-accent-mid, rgba(217,119,87,0.2));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: tarotGlow 4s ease-in-out infinite alternate;
+  margin-bottom: 18px;
+}
+@keyframes tarotGlow {
+  from { box-shadow: 0 0 20px var(--card-glow-dim, rgba(217,119,87,0.1)); border-color: var(--card-accent-dim, rgba(217,119,87,0.15)); }
+  to { box-shadow: 0 0 40px var(--card-glow, rgba(217,119,87,0.25)); border-color: var(--card-accent, rgba(217,119,87,0.35)); }
+}
+.tarot-back .tarot-symbol {
+  color: var(--card-color, var(--accent));
+  opacity: 0.9;
+}
+.tarot-back .tarot-numeral {
+  position: absolute;
+  top: 16px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--card-color-bright, rgba(217,119,87,0.8));
+  letter-spacing: 0.12em;
+  z-index: 1;
+}
+.tarot-back .tarot-label {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--card-color-bright, rgba(217,119,87,0.9));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px var(--card-glow, rgba(217,119,87,0.3));
+  text-align: center;
+  max-width: 85%;
+  line-height: 1.4;
+}
+.tarot-back .tarot-role {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  color: var(--card-color-bright, rgba(217,119,87,0.7));
+  margin-top: 5px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  max-width: 85%;
+}
+/* Card Front — resume preview */
+.tarot-front {
+  transform: rotateY(180deg);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  position: relative;
+}
+.tarot-front .tf-delete {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 24px; height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0;
+  z-index: 2;
+}
+.tarot-front:hover .tf-delete { opacity: 1; }
+.tf-delete:hover { background: #fde8e8; color: #d44; border-color: #d44; }
+.tarot-front .tf-company {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.tarot-front .tf-role {
+  font-size: 12px;
+  color: var(--card-color, var(--accent));
+  font-family: var(--font-heading);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.tarot-front .tf-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.tarot-front .tf-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+.tarot-front .tf-preview-line {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  width: var(--w, 80%);
+}
+.tarot-front .tf-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.tarot-front .tf-actions .btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11px;
+  text-align: center;
+}
+.gallery-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.gallery-empty .ge-icon {
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+.gallery-empty .ge-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.gallery-empty .ge-desc { font-size: 14px; }
+
+/* ═══ PDF Viewer Modal ═══ */
+.pdf-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,20,19,0.5);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s var(--ease-out);
+}
+.pdf-modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.pdf-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 800px;
+  height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(20,20,19,0.18);
+  transform: translateY(20px) scale(0.97);
+  transition: transform 0.4s var(--ease-out);
+}
+.pdf-modal-overlay.open .pdf-modal {
+  transform: translateY(0) scale(1);
+}
+.pdf-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.pdf-modal-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pdf-modal-title .accent { color: var(--accent); font-weight: 500; }
+.pdf-modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pdf-modal-close {
+  width: 32px; height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.pdf-modal-close:hover { background: var(--bg-warm); color: var(--text); border-color: var(--border-hover); }
+.pdf-modal-body {
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-warm);
+}
+.pdf-modal-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* ═══ Responsive ═══ */
+@media (max-width: 768px) {
+  .sidebar { width: 56px; }
+  .sidebar-header h1, .sidebar-header p, .progress-label, .nav-item span:nth-child(2), .nav-check { display: none; }
+  .nav-item { padding: 14px 16px; justify-content: center; }
+  .main { margin-left: 56px; padding: 24px 16px 60px; max-width: none; }
+  .form-row { grid-template-columns: 1fr; }
+  .form-row label { text-align: left; }
+  .award-row { grid-template-columns: 1fr; }
+  .landing h2 { font-size: 28px; }
+  .landing-features { grid-template-columns: 1fr; }
+  .work-card { flex: 0 0 100%; }
+  .tarot-card { width: 160px; height: 224px; }
+  .gallery-deck { gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ Inline SVG Defs ═══ -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0112 0v1"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="M2 10l10-6 10 6-10 6z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/><path d="M22 10v6"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><path d="M2 13h20"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8M8 11h6"/></symbol>
+  <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="4 12 9 17 20 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-gallery" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 15l5-5 4 4 4-4 7 7"/><circle cx="8.5" cy="8.5" r="1.5"/></symbol>
+  <symbol id="i-cards" viewBox="0 0 24 24"><rect x="4" y="2" width="14" height="20" rx="2.5" stroke-width="1.5"/><rect x="7" y="4" width="14" height="20" rx="2.5" stroke-width="1.5" opacity="0.4"/></symbol>
+  <symbol id="i-interview" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 9h8M8 13h4"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Resume<span>Gen</span></h1>
+      <p>简历数据管理</p>
+    </div>
+    <div class="progress-section">
+      <div class="progress-label"><span>Progress</span><span id="progress-text">0%</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <nav class="nav-list" id="nav-list">
+      <div class="nav-item active" onclick="goTo('home')" data-nav="home">
+        <svg class="icon-svg"><use href="#i-home"/></svg><span>Home</span>
+        <span class="nav-check" id="check-home"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-divider" data-divider="top"></div>
+      <!-- Dynamic zone: generate + review will be promoted here when data ready -->
+      <div id="nav-promoted" style="display:none"></div>
+      <div class="nav-item" onclick="goTo('basic')" data-nav="basic">
+        <svg class="icon-svg"><use href="#i-user"/></svg><span>基本信息</span>
+        <span class="nav-check" id="check-basic"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('directions')" data-nav="directions">
+        <svg class="icon-svg"><use href="#i-compass"/></svg><span>求职方向</span>
+        <span class="nav-check" id="check-directions"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('education')" data-nav="education">
+        <svg class="icon-svg"><use href="#i-school"/></svg><span>教育背景</span>
+        <span class="nav-check" id="check-education"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-item" onclick="goTo('experiences')" data-nav="experiences">
+        <svg class="icon-svg"><use href="#i-briefcase"/></svg><span>实习/工作经历</span>
+        <span class="nav-check" id="check-experiences"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('projects')" data-nav="projects">
+        <svg class="icon-svg"><use href="#i-folder"/></svg><span>项目经历</span>
+        <span class="nav-check" id="check-projects"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('publications')" data-nav="publications">
+        <svg class="icon-svg"><use href="#i-book"/></svg><span>论文发表</span>
+        <span class="nav-check" id="check-publications"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-item" onclick="goTo('awards')" data-nav="awards">
+        <svg class="icon-svg"><use href="#i-award"/></svg><span>获奖情况</span>
+        <span class="nav-check" id="check-awards"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('skills')" data-nav="skills">
+        <svg class="icon-svg"><use href="#i-cpu"/></svg><span>技能</span>
+        <span class="nav-check" id="check-skills"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-divider" id="nav-divider-bottom"></div>
+      <div class="nav-item" onclick="goTo('review')" data-nav="review" id="nav-review">
+        <svg class="icon-svg"><use href="#i-layout"/></svg><span>数据总览</span>
+        <span class="nav-check" id="check-review"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('gallery')" data-nav="gallery" id="nav-gallery">
+        <svg class="icon-svg"><use href="#i-cards"/></svg><span>简历画廊</span>
+        <span class="nav-check" id="check-gallery"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('generate')" data-nav="generate" id="nav-generate">
+        <svg class="icon-svg" style="color:var(--accent)"><use href="#i-sparkle"/></svg><span>生成简历</span>
+        <span class="nav-check" id="check-generate"><svg><use href="#i-check"/></svg></span>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <!-- Home -->
+    <div class="page active" id="page-home">
+      <div class="landing">
+        <div class="landing-ornament"></div>
+        <div class="landing-label">AI-Powered Resume Engine</div>
+        <h2>精准匹配，<em>智能生成</em><br>你的专属简历</h2>
+        <p class="subtitle">上传 JD，AI 自动筛选经历、改写描述、排版输出单页 PDF。</p>
+        <div class="landing-actions">
+          <button class="btn-hero btn-hero-primary" onclick="goTo('basic')">开始填写资料</button>
+          <button class="btn-hero btn-hero-secondary" onclick="goTo('generate')">直接生成简历</button>
+          <button class="btn-hero btn-hero-secondary" onclick="goTo('gallery')" style="border-color:rgba(120,140,93,0.3);color:var(--green)">
+            <svg class="icon-svg" style="width:16px;height:16px;margin-right:4px;stroke:var(--green)"><use href="#i-cards"/></svg>简历画廊
+          </button>
+        </div>
+        <div class="landing-features">
+          <div class="landing-feature">
+            <div class="feat-icon"><svg class="icon-svg" style="width:22px;height:22px"><use href="#i-zap"/></svg></div>
+            <div class="feat-title">JD 智能匹配</div>
+            <div class="feat-desc">分析岗位关键词，精准筛选最相关经历</div>
+          </div>
+          <div class="landing-feature">
+            <div class="feat-icon"><svg class="icon-svg" style="width:22px;height:22px"><use href="#i-edit"/></svg></div>
+            <div class="feat-title">Bullet 改写</div>
+            <div class="feat-desc">STAR 格式智能改写，保留量化数据</div>
+          </div>
+          <div class="landing-feature">
+            <div class="feat-icon"><svg class="icon-svg" style="width:22px;height:22px"><use href="#i-layout"/></svg></div>
+            <div class="feat-title">单页 PDF</div>
+            <div class="feat-desc">LaTeX 排版自动调优，确保不超页</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="page" id="page-basic">
+      <div class="page-title">基本信息</div>
+      <div class="page-desc">填写姓名、联系方式等基础信息</div>
+      <div class="form-section">
+        <div class="form-row"><label>姓名（中文）</label><input type="text" id="name_zh" placeholder="张三" oninput="updateProgress()"></div>
+        <div class="form-row"><label>姓名（英文）</label><input type="text" id="name_en" placeholder="San Zhang"></div>
+        <div class="form-row"><label>邮箱</label><input type="email" id="email" placeholder="example@email.com" oninput="updateProgress()"></div>
+        <div class="form-row"><label>电话</label><input type="tel" id="phone" placeholder="+86 138xxxx0000" oninput="updateProgress()"></div>
+        <div class="form-row"><label>LinkedIn <span class="optional">可选</span></label><input type="text" id="linkedin" placeholder="linkedin.com/in/yourname"></div>
+        <div class="form-row"><label>GitHub <span class="optional">可选</span></label><input type="text" id="github" placeholder="github.com/yourname"></div>
+        <div class="form-row"><label>个人网站 <span class="optional">可选</span></label><input type="text" id="website" placeholder="yourwebsite.com"></div>
+      </div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('directions')">下一步 →</button></div>
+    </div>
+
+    <!-- 求职方向 -->
+    <div class="page" id="page-directions">
+      <div class="page-title">求职方向</div>
+      <div class="page-desc">填写目标岗位方向，用于智能匹配</div>
+      <div class="form-section">
+        <div class="form-row"><label>主要方向</label><input type="text" id="dir_primary" placeholder="产品经理、数据分析..." oninput="updateProgress()"></div>
+        <div class="form-row"><label>兴趣方向 <span class="optional">可选</span></label><input type="text" id="dir_secondary" placeholder="运营、市场营销..."></div>
+      </div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('basic')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('education')">下一步 →</button></div>
+    </div>
+
+    <!-- 教育背景 -->
+    <div class="page" id="page-education">
+      <div class="page-title">教育背景</div>
+      <div class="page-desc">按时间倒序填写，最新学历在前</div>
+      <div class="form-section"><div id="education-list"></div><button class="btn btn-add" onclick="addEducation()"><svg><use href="#i-plus"/></svg> 添加学历</button></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('directions')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('experiences')">下一步 →</button></div>
+    </div>
+
+    <!-- 实习/工作经历 -->
+    <div class="page" id="page-experiences">
+      <div class="page-title">实习/工作经历</div>
+      <div class="page-desc">添加实习/工作经历，支持表单录入或文件上传</div>
+      <div class="form-section"><h2><svg class="icon-svg"><use href="#i-file"/></svg> 已有经历</h2><div id="experience-file-list"><div class="empty-state">加载中...</div></div></div>
+      <div class="form-section" id="materials-section" style="display:none"><h2>原始工作材料</h2><div id="materials-list"></div></div>
+      <div class="form-section">
+        <h2><svg class="icon-svg"><use href="#i-plus"/></svg> 添加新经历</h2>
+        <div class="mode-switcher"><button class="mode-btn active" onclick="switchMode('form')">表单录入</button><button class="mode-btn" onclick="switchMode('upload')">文件上传</button></div>
+        <div class="mode-content active" id="mode-form">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <label style="font-size:13px;font-family:var(--font-heading);color:var(--text-secondary);white-space:nowrap;font-weight:500;">公司/机构名</label>
+            <input type="text" id="exp-company" placeholder="如：字节跳动" style="max-width:220px;">
+          </div>
+          <div class="entry-card">
+            <div class="form-row"><label>所在城市</label><input type="text" id="exp-city" placeholder="北京"></div>
+            <div class="form-row"><label>部门 <span class="optional">可选</span></label><input type="text" id="exp-dept" placeholder="产品部"></div>
+            <div class="form-row"><label>职位</label><input type="text" id="exp-role" placeholder="产品经理实习"></div>
+            <div class="form-row"><label>时间</label><div class="input-half"><input type="text" id="exp-time-start" placeholder="YYYY/MM"><span>—</span><input type="text" id="exp-time-end" placeholder="YYYY/MM 或 至今"></div></div>
+            <div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔，用于匹配 JD</span></label><input type="text" id="exp-tags" placeholder="互联网, 产品, B端, 数据分析, AI"></div>
+            <div style="margin-top:18px">
+              <label style="font-size:14px;font-weight:600;color:var(--text);font-family:var(--font-heading);">工作内容</label>
+              <p style="font-size:12.5px;color:var(--text-muted);margin:4px 0 0;">逐条添加工作要点，生成时 AI 会智能整合改写</p>
+              <div class="work-card-input-wrap"><input type="text" id="work-card-input" placeholder="输入一条工作要点，回车添加"><button class="btn btn-secondary" onclick="addWorkCard()" style="padding:9px 16px">添加</button></div>
+              <div id="work-cards" class="work-cards-container"></div>
+            </div>
+            <div class="form-row form-row-wide" style="margin-top:16px"><label>补充说明 <span class="optional">可选</span></label><textarea id="exp-notes" rows="2" placeholder="亮点、适合展示的场景等"></textarea></div>
+          </div>
+          <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveExperienceForm()">保存经历</button><button class="btn btn-secondary" onclick="resetExperienceForm()" style="margin-left:8px">清空</button></div>
+        </div>
+        <div class="mode-content" id="mode-upload">
+          <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <div class="dz-icon"><svg class="icon-svg" style="width:28px;height:28px"><use href="#i-upload"/></svg></div>
+            <div class="main-text">拖拽文件到此处，或点击选择</div>
+            <div class="sub-text">支持 .md .pdf .zip</div>
+            <input type="file" id="file-input" multiple accept=".md,.pdf,.zip">
+          </div>
+          <div class="form-row" style="margin-top:14px"><label>关联公司名称</label><input type="text" id="upload-company" placeholder="上传 PDF/ZIP 时必填"></div>
+          <div id="upload-preview" class="upload-preview"></div>
+          <div style="margin-top:12px"><button class="btn btn-primary" id="upload-btn" onclick="uploadFiles()" disabled>上传文件</button></div>
+          <div id="upload-results" class="upload-preview" style="margin-top:10px"></div>
+        </div>
+      </div>
+      <div class="btn-group"><button class="btn btn-secondary" onclick="goTo('education')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('projects')">下一步 →</button></div>
+    </div>
+
+    <!-- 项目经历 -->
+    <div class="page" id="page-projects">
+      <div class="page-title">项目经历</div>
+      <div class="page-desc">填写课题研究、个人项目等 (可选)</div>
+      <div class="form-section"><div id="projects-list"></div><button class="btn btn-add" onclick="addProject()"><svg><use href="#i-plus"/></svg> 添加项目</button></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('experiences')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('publications')">下一步 →</button></div>
+    </div>
+
+    <!-- 论文发表 -->
+    <div class="page" id="page-publications">
+      <div class="page-title">论文发表</div>
+      <div class="page-desc">填写已发表论文，支持上传 PDF 自动解析 (可选)</div>
+      <div class="form-section">
+        <h2><svg class="icon-svg"><use href="#i-upload"/></svg> 上传论文 PDF</h2>
+        <div class="pub-upload-zone" onclick="document.getElementById('pub-file-input').click()">
+          <div class="uz-icon"><svg class="icon-svg" style="width:24px;height:24px"><use href="#i-file"/></svg></div>
+          <div class="main-text">点击上传论文 PDF，自动提取信息</div>
+          <div class="sub-text">支持 .pdf</div>
+          <input type="file" id="pub-file-input" accept=".pdf" style="display:none">
+        </div>
+        <div id="pub-upload-status" style="font-size:12px;color:var(--text-muted);"></div>
+      </div>
+      <div class="form-section"><h2><svg class="icon-svg"><use href="#i-book"/></svg> 论文列表</h2><div id="publications-list"></div><button class="btn btn-add" onclick="addPublication()"><svg><use href="#i-plus"/></svg> 手动添加论文</button></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('projects')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('awards')">下一步 →</button></div>
+    </div>
+
+    <!-- 获奖情况 -->
+    <div class="page" id="page-awards">
+      <div class="page-title">获奖情况</div>
+      <div class="page-desc">填写奖学金、竞赛获奖等</div>
+      <div class="form-section">
+        <div style="margin-bottom:8px"><div class="award-row" style="font-size:10px;color:var(--text-muted);font-family:var(--font-heading);text-transform:uppercase;letter-spacing:0.05em;font-weight:500;"><span>奖项名称</span><span>颁发机构</span><span>时间</span><span></span></div></div>
+        <div id="awards-list"></div>
+        <button class="btn btn-add" onclick="addAward()"><svg><use href="#i-plus"/></svg> 添加奖项</button>
+      </div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('publications')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('skills')">下一步 →</button></div>
+    </div>
+
+    <!-- 技能 -->
+    <div class="page" id="page-skills">
+      <div class="page-title">技能</div>
+      <div class="page-desc">添加技能标签，按回车或逗号添加</div>
+      <div class="form-section">
+        <div class="form-row form-row-wide"><label>编程与技术</label>
+          <div class="tag-input-wrap" id="tags-tech" onclick="this.querySelector('.tag-input-field').focus()">
+            <input class="tag-input-field" data-tag-category="tech" placeholder="输入技能后按回车添加，如 Python">
+          </div>
+        </div>
+        <div class="form-row form-row-wide"><label>软件工具</label>
+          <div class="tag-input-wrap" id="tags-software" onclick="this.querySelector('.tag-input-field').focus()">
+            <input class="tag-input-field" data-tag-category="software" placeholder="如 Tableau, Figma...">
+          </div>
+        </div>
+        <div class="form-row form-row-wide"><label>外语水平</label>
+          <div class="tag-input-wrap" id="tags-languages" onclick="this.querySelector('.tag-input-field').focus()">
+            <input class="tag-input-field" data-tag-category="languages" placeholder="如 英语 IELTS 7.5, 日语 N2...">
+          </div>
+        </div>
+      </div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('awards')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('review')">下一步 →</button></div>
+    </div>
+
+    <!-- 数据总览 Review -->
+    <div class="page" id="page-review">
+      <div class="page-title">数据总览</div>
+      <div class="page-desc">检查所有已填写信息，点击各区域可快速跳转编辑</div>
+      <div id="review-content"><div class="empty-state">加载中...</div></div>
+      <div class="btn-group"><button class="btn btn-secondary" onclick="goTo('skills')">← 上一步</button><button class="btn btn-primary" onclick="goTo('generate')">前往生成简历 →</button></div>
+    </div>
+
+    <!-- 生成简历 -->
+    <div class="page" id="page-generate">
+      <div class="page-title">AI 简历生成</div>
+      <div class="page-desc">上传 JD 和面经，AI 自动生成针对性简历</div>
+
+      <!-- JD Section (Required) -->
+      <div class="jd-section">
+        <h2 style="font-family:var(--font-heading);font-size:14px;font-weight:600;color:var(--text);margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <svg class="icon-svg" style="width:16px;height:16px;color:var(--text-muted)"><use href="#i-file"/></svg> 岗位描述 (JD)
+          <span style="font-size:10px;background:var(--accent);color:#fff;padding:2px 8px;border-radius:10px;font-weight:500;letter-spacing:0.04em;">必填</span>
+        </h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+          <div class="form-row" style="margin-bottom:0;grid-template-columns:60px 1fr;">
+            <label style="text-align:right;font-size:13px;color:var(--text-secondary);">公司</label>
+            <input type="text" id="gen-company" placeholder="如：美团、字节跳动">
+          </div>
+          <div class="form-row" style="margin-bottom:0;grid-template-columns:60px 1fr;">
+            <label style="text-align:right;font-size:13px;color:var(--text-secondary);">岗位</label>
+            <input type="text" id="gen-role" placeholder="如：算法工程师">
+          </div>
+        </div>
+        <div class="jd-tabs">
+          <button class="jd-tab active" onclick="switchJdTab('paste', this)">粘贴文本</button>
+          <button class="jd-tab" onclick="switchJdTab('file', this)">上传文件</button>
+          <button class="jd-tab" onclick="switchJdTab('url', this)">输入链接</button>
+        </div>
+        <div class="jd-content active" id="jd-paste"><textarea class="jd-textarea" id="jd-text" placeholder="在此粘贴完整的岗位描述 (JD)...&#10;&#10;包括岗位名称、职责描述、任职要求等"></textarea></div>
+        <div class="jd-content" id="jd-file">
+          <div class="drop-zone" onclick="document.getElementById('jd-file-input').click()" style="padding:36px 20px;">
+            <div class="dz-icon"><svg class="icon-svg" style="width:28px;height:28px"><use href="#i-upload"/></svg></div>
+            <div class="main-text">点击上传 JD 文件</div>
+            <div class="sub-text">支持 .pdf .txt .md .docx</div>
+            <input type="file" id="jd-file-input" accept=".pdf,.txt,.md,.docx" style="display:none">
+          </div>
+        </div>
+        <div class="jd-content" id="jd-url">
+          <input type="text" id="jd-url-input" placeholder="输入招聘页面链接，如 https://..." style="margin-bottom:8px;">
+          <p style="font-size:12px;color:var(--text-muted);font-style:italic;">将自动抓取页面中的 JD 内容</p>
+        </div>
+      </div>
+
+      <!-- 面经 Section (Optional) -->
+      <div class="mj-section">
+        <span class="optional-badge">可选</span>
+        <h2 style="font-family:var(--font-heading);font-size:14px;font-weight:600;color:var(--text);margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+          <svg class="icon-svg" style="width:16px;height:16px;color:var(--text-muted)"><use href="#i-interview"/></svg> 面经 / 面试经验
+        </h2>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">提供面经可帮助 AI 更精准地对齐面试考察重点，优化 bullet 表述</p>
+        <div class="jd-tabs">
+          <button class="jd-tab active" onclick="switchMjTab('paste', this)">粘贴文本</button>
+          <button class="jd-tab" onclick="switchMjTab('file', this)">上传文件</button>
+        </div>
+        <div class="jd-content active" id="mj-paste"><textarea class="jd-textarea" id="mj-text" placeholder="在此粘贴面经内容...&#10;&#10;面试问题、考察要点、难点等" style="min-height:140px"></textarea></div>
+        <div class="jd-content" id="mj-file">
+          <div class="drop-zone" onclick="document.getElementById('mj-file-input').click()" style="padding:28px 20px;">
+            <div class="dz-icon"><svg class="icon-svg" style="width:24px;height:24px"><use href="#i-upload"/></svg></div>
+            <div class="main-text">上传面经文件</div>
+            <div class="sub-text">支持 .pdf .txt .md</div>
+            <input type="file" id="mj-file-input" accept=".pdf,.txt,.md" style="display:none">
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-group"><button class="btn btn-primary" onclick="startGenerate()" id="btn-generate" style="padding:12px 36px;font-size:15px;">开始生成</button></div>
+
+      <div class="ai-progress-section" id="ai-progress" style="display:none;">
+        <div class="ai-progress-header"><div class="ai-dot"></div><div class="ai-label">AI 正在工作</div><div class="ai-status" id="ai-status-text">准备中...</div></div>
+        <div class="ai-steps" id="ai-steps">
+          <div class="ai-step" data-step="1"><div class="ai-step-num">1</div><div class="ai-step-text">分析 JD 关键词</div><div class="ai-step-bar"><div class="ai-step-bar-fill"></div></div></div>
+          <div class="ai-step" data-step="2"><div class="ai-step-num">2</div><div class="ai-step-text">匹配最佳经历</div><div class="ai-step-bar"><div class="ai-step-bar-fill"></div></div></div>
+          <div class="ai-step" data-step="3"><div class="ai-step-num">3</div><div class="ai-step-text">改写 Bullet Points</div><div class="ai-step-bar"><div class="ai-step-bar-fill"></div></div></div>
+          <div class="ai-step" data-step="4"><div class="ai-step-num">4</div><div class="ai-step-text">生成 LaTeX 排版</div><div class="ai-step-bar"><div class="ai-step-bar-fill"></div></div></div>
+          <div class="ai-step" data-step="5"><div class="ai-step-num">5</div><div class="ai-step-text">编译 PDF & 调优</div><div class="ai-step-bar"><div class="ai-step-bar-fill"></div></div></div>
+          <div class="ai-step" data-step="6"><div class="ai-step-num">6</div><div class="ai-step-text">填充率检查</div><div class="ai-step-bar"><div class="ai-step-bar-fill"></div></div></div>
+        </div>
+      </div>
+      <div id="ai-result" style="display:none;"></div>
+    </div>
+
+    <!-- 简历画廊 -->
+    <div class="page" id="page-gallery">
+      <div class="page-title">简历画廊</div>
+      <div class="page-desc">点击卡牌翻转，查看已生成的简历</div>
+      <div id="gallery-content">
+        <div class="gallery-empty">
+          <div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div>
+          <div class="ge-title">尚无简历</div>
+          <div class="ge-desc">生成简历后，它们会以卡牌形式出现在这里</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="pdf-modal-overlay" id="pdf-modal" onclick="if(event.target===this)closePdfModal()">
+  <div class="pdf-modal">
+    <div class="pdf-modal-header">
+      <div class="pdf-modal-title">
+        <svg class="icon-svg" style="width:16px;height:16px;color:var(--accent)"><use href="#i-file"/></svg>
+        <span id="pdf-modal-name">简历预览</span>
+      </div>
+      <div class="pdf-modal-actions">
+        <button class="btn btn-secondary" id="pdf-modal-download" style="padding:6px 14px;font-size:12px">
+          <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-upload"/></svg>下载
+        </button>
+        <button class="pdf-modal-close" onclick="closePdfModal()">
+          <svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="pdf-modal-body">
+      <iframe id="pdf-modal-iframe" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let selectedFiles = [], educationCounter = 0, awardCounter = 0, currentPage = 'home', projectCounter = 0, pubCounter = 0, workCardCounter = 0;
+
+function goTo(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === page));
+  if (page === 'experiences') loadExperiences();
+  if (page === 'review') loadReviewPage();
+  if (page === 'gallery') loadGallery();
+  window.scrollTo(0, 0);
+}
+
+function updateProgress() {
+  const checks = {
+    basic: !!(document.getElementById('name_zh').value.trim() && document.getElementById('email').value.trim() && document.getElementById('phone').value.trim()),
+    education: !!document.querySelector('#education-list .entry-card [data-field="school"]')?.value?.trim(),
+    awards: document.querySelectorAll('#awards-list .award-row').length > 0 && !!document.querySelector('#awards-list .award-row [data-field="name"]')?.value?.trim(),
+    skills: !!(document.querySelectorAll('#tags-tech .tag-chip').length || document.querySelectorAll('#tags-software .tag-chip').length),
+    directions: !!document.getElementById('dir_primary').value.trim(),
+    projects: document.querySelectorAll('#projects-list .entry-card').length > 0 && !!document.querySelector('#projects-list .entry-card [data-field="name"]')?.value?.trim(),
+    publications: document.querySelectorAll('#publications-list .pub-card').length > 0 && !!document.querySelector('#publications-list .pub-card [data-field="title"]')?.value?.trim(),
+    experiences: false
+  };
+  fetch('/api/experiences').then(r => r.json()).then(d => { checks.experiences = (d.experiences || []).length > 0; renderProgress(checks); }).catch(() => renderProgress(checks));
+}
+
+function renderProgress(checks) {
+  const steps = Object.keys(checks);
+  const done = steps.filter(k => checks[k]).length;
+  const pct = Math.round((done / steps.length) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = pct + '%';
+  steps.forEach(k => { const el = document.getElementById('check-' + k); if (el) el.classList.toggle('done', !!checks[k]); });
+  // Promote generate + review to top when data is mostly complete
+  promoteNavIfReady(pct);
+}
+
+let navPromoted = false;
+function promoteNavIfReady(pct) {
+  const promoted = document.getElementById('nav-promoted');
+  const navGen = document.getElementById('nav-generate');
+  const navReview = document.getElementById('nav-review');
+  const dividerBottom = document.getElementById('nav-divider-bottom');
+  if (!promoted || !navGen || !navReview) return;
+  if (pct >= 75 && !navPromoted) {
+    navPromoted = true;
+    promoted.style.display = '';
+    promoted.innerHTML = '';
+    const genClone = navGen.cloneNode(true);
+    const revClone = navReview.cloneNode(true);
+    genClone.id = 'nav-generate-top';
+    revClone.id = 'nav-review-top';
+    genClone.onclick = () => goTo('generate');
+    revClone.onclick = () => goTo('review');
+    promoted.appendChild(genClone);
+    promoted.appendChild(revClone);
+    const div = document.createElement('div');
+    div.className = 'nav-divider';
+    promoted.appendChild(div);
+    navGen.style.display = 'none';
+    navReview.style.display = 'none';
+    if (dividerBottom) dividerBottom.style.display = 'none';
+    // Sync active state
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === currentPage));
+  } else if (pct < 75 && navPromoted) {
+    navPromoted = false;
+    promoted.style.display = 'none';
+    promoted.innerHTML = '';
+    navGen.style.display = '';
+    navReview.style.display = '';
+    if (dividerBottom) dividerBottom.style.display = '';
+  }
+}
+
+function showToast(msg, type='success') { const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type} show`; setTimeout(()=>t.classList.remove('show'),3000); }
+
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile'); const data = await res.json(); if (data.error) return;
+    const b=data.basic||{}; ['name_zh','name_en','email','phone','linkedin','github','website'].forEach(k => document.getElementById(k).value = b[k]||'');
+    document.getElementById('education-list').innerHTML=''; educationCounter=0; (data.education||[]).forEach(e=>addEducation(e)); if(!data.education||data.education.length===0) addEducation();
+    document.getElementById('awards-list').innerHTML=''; awardCounter=0; (data.awards||[]).forEach(a=>addAward(a)); if(!data.awards||data.awards.length===0) addAward();
+    document.getElementById('projects-list').innerHTML=''; projectCounter=0; (data.projects||[]).forEach(p=>addProject(p));
+    document.getElementById('publications-list').innerHTML=''; pubCounter=0; (data.publications||[]).forEach(p=>addPublication(p));
+    const s=data.skills||{}; loadSkillTags('tech',s.tech||''); loadSkillTags('software',s.software||''); loadSkillTags('languages',s.languages||'');
+    const d=data.directions||{}; document.getElementById('dir_primary').value=d.primary||''; document.getElementById('dir_secondary').value=d.secondary||'';
+    updateProgress();
+  } catch(e) { showToast('加载失败: '+e.message,'error'); }
+}
+
+async function saveProfile() {
+  const data = { basic:{name_zh:val('name_zh'),name_en:val('name_en'),email:val('email'),phone:val('phone'),linkedin:val('linkedin'),github:val('github'),website:val('website')}, education:collectEducation(), awards:collectAwards(), projects:collectProjects(), publications:collectPublications(), skills:{tech:collectTagsStr('tech'),software:collectTagsStr('software'),languages:collectTagsStr('languages')}, directions:{primary:val('dir_primary'),secondary:val('dir_secondary')} };
+  if(!data.basic.name_zh){showToast('请填写中文姓名','error');goTo('basic');return;}
+  if(!data.basic.email){showToast('请填写邮箱','error');goTo('basic');return;}
+  if(!data.basic.phone){showToast('请填写电话','error');goTo('basic');return;}
+  try { const res=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); const r=await res.json(); if(r.error) showToast(r.error,'error'); else {showToast('个人信息已保存');updateProgress();} } catch(e){showToast('保存失败','error');}
+}
+
+function addEducation(data=null) {
+  educationCounter++; const idx=educationCounter, d=data||{}, card=document.createElement('div'); card.className='entry-card'; card.id=`edu-${idx}`;
+  card.innerHTML=`<div class="card-header"><span class="card-title">学历 ${idx}</span><button class="btn btn-danger" onclick="removeEntry('edu-${idx}')">删除</button></div>
+  <div class="form-row"><label>学校</label><input type="text" data-field="school" value="${esc(d.school)}" oninput="updateProgress()"></div>
+  <div class="form-row"><label>学历</label><select data-field="degree"><option value="">请选择</option><option value="博士" ${d.degree==='博士'?'selected':''}>博士</option><option value="硕士" ${d.degree==='硕士'?'selected':''}>硕士</option><option value="本科" ${d.degree==='本科'?'selected':''}>本科</option><option value="大专" ${d.degree==='大专'?'selected':''}>大专</option></select></div>
+  <div class="form-row"><label>专业</label><input type="text" data-field="major" value="${esc(d.major)}"></div>
+  <div class="form-row"><label>学院</label><input type="text" data-field="department" value="${esc(d.department)}"></div>
+  <div class="form-row"><label>时间</label><div class="input-half"><input type="text" data-field="time_start" value="${esc(d.time_start)}" placeholder="YYYY/MM"><span>—</span><input type="text" data-field="time_end" value="${esc(d.time_end)}" placeholder="YYYY/MM"></div></div>
+  <div class="form-row"><label>GPA <span class="optional">可选</span></label><input type="text" data-field="gpa" value="${esc(d.gpa)}" placeholder="X.X/4.0"></div>
+  <div class="form-row"><label>排名 <span class="optional">可选</span></label><input type="text" data-field="rank" value="${esc(d.rank)}" placeholder="前 X%"></div>
+  <div class="form-row form-row-wide"><label>主修课程 <span class="optional">分号分隔</span></label><textarea data-field="courses" rows="2" placeholder="课程1；课程2；课程3">${esc(d.courses)}</textarea></div>`;
+  document.getElementById('education-list').appendChild(card);
+}
+function collectEducation() { return Array.from(document.querySelectorAll('#education-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{school:g('school').trim(),degree:g('degree').trim(),major:g('major').trim(),department:g('department').trim(),time_start:g('time_start').trim(),time_end:g('time_end').trim(),gpa:g('gpa').trim(),rank:g('rank').trim(),courses:g('courses').trim()};}); }
+
+function addAward(data=null) { awardCounter++; const d=data||{}, row=document.createElement('div'); row.className='award-row'; row.id=`award-${awardCounter}`; row.innerHTML=`<input type="text" data-field="name" value="${esc(d.name)}" placeholder="奖项名称" oninput="updateProgress()"><input type="text" data-field="issuer" value="${esc(d.issuer)}" placeholder="颁发机构"><input type="text" data-field="date" value="${esc(d.date)}" placeholder="YYYY/MM"><button class="btn btn-danger" onclick="removeEntry('award-${awardCounter}')" style="padding:2px 4px"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button>`; document.getElementById('awards-list').appendChild(row); }
+function collectAwards() { return Array.from(document.querySelectorAll('#awards-list .award-row')).map(r=>{const g=f=>(r.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),issuer:g('issuer').trim(),date:g('date').trim()};}).filter(a=>a.name); }
+
+function addProject(data=null) { projectCounter++; const idx=projectCounter,d=data||{},card=document.createElement('div'); card.className='entry-card'; card.id=`proj-${idx}`; card.innerHTML=`<div class="card-header"><span class="card-title">项目 ${idx}</span><button class="btn btn-danger" onclick="removeEntry('proj-${idx}')">删除</button></div><div class="form-row"><label>项目名称</label><input type="text" data-field="name" value="${esc(d.name)}" oninput="updateProgress()"></div><div class="form-row"><label>角色</label><input type="text" data-field="role" value="${esc(d.role)}" placeholder="负责人 / 核心成员"></div><div class="form-row"><label>时间</label><div class="input-half"><input type="text" data-field="time_start" value="${esc(d.time_start)}" placeholder="YYYY/MM"><span>—</span><input type="text" data-field="time_end" value="${esc(d.time_end)}" placeholder="YYYY/MM"></div></div><div class="form-row form-row-wide"><label>描述</label><textarea data-field="desc" rows="3" placeholder="项目背景、贡献、成果">${esc(d.desc)}</textarea></div><div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔</span></label><input type="text" data-field="tags" value="${esc(d.tags)}" placeholder="NLP, Python, 深度学习"></div>`; document.getElementById('projects-list').appendChild(card); }
+function collectProjects() { return Array.from(document.querySelectorAll('#projects-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),role:g('role').trim(),time_start:g('time_start').trim(),time_end:g('time_end').trim(),desc:g('desc').trim(),tags:g('tags').trim()};}).filter(p=>p.name); }
+
+function addPublication(data=null) { pubCounter++; const d=data||{},card=document.createElement('div'); card.className='pub-card'; card.id=`pub-${pubCounter}`; card.innerHTML=`<div class="pub-header"><span class="pub-title-label">论文 ${pubCounter}</span><button class="btn btn-danger" onclick="removeEntry('pub-${pubCounter}')">删除</button></div><div class="pub-row"><div><label>论文标题</label><input type="text" data-field="title" value="${esc(d.title)}" placeholder="论文标题" oninput="updateProgress()"></div><div><label>期刊/会议</label><input type="text" data-field="venue" value="${esc(d.venue)}" placeholder="ACL 2025"></div></div><div class="pub-row"><div><label>作者</label><input type="text" data-field="authors" value="${esc(d.authors)}" placeholder="Li M., et al."></div><div><label>年份</label><input type="text" data-field="year" value="${esc(d.year)}" placeholder="2025"></div></div><div class="pub-row-full"><label>论文内容描述</label><textarea data-field="description" rows="3" placeholder="简述研究问题、方法与贡献...">${esc(d.description)}</textarea></div>`; document.getElementById('publications-list').appendChild(card); }
+function collectPublications() { return Array.from(document.querySelectorAll('#publications-list .pub-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{title:g('title').trim(),authors:g('authors').trim(),venue:g('venue').trim(),year:g('year').trim(),description:g('description').trim()};}).filter(p=>p.title); }
+
+function removeEntry(id) { const el=document.getElementById(id); if(el){el.style.transition='all 0.3s var(--ease-out)';el.style.opacity='0';el.style.transform='translateY(-8px)';setTimeout(()=>el.remove(),300);} updateProgress(); }
+
+function addWorkCard(text) { const input=document.getElementById('work-card-input'); const value=text||input.value.trim(); if(!value) return; workCardCounter++; const cardId=`wcard-${workCardCounter}`; const card=document.createElement('div'); card.className='work-card'; card.id=cardId; card.dataset.value=value; card.innerHTML=`<div class="card-text">${esc(value)}</div><button class="card-close" onclick="event.stopPropagation();removeEntry('${cardId}')"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button>`; card.querySelector('.card-text').addEventListener('click', () => makeWorkCardEditable(card)); card.style.cursor='pointer'; document.getElementById('work-cards').appendChild(card); if(!text) input.value=''; input.focus(); }
+function collectWorkItems() { return Array.from(document.querySelectorAll('#work-cards .work-card')).map(c=>({title:c.dataset.value,desc:''})).filter(w=>w.title); }
+function resetExperienceForm() { editingExpFilename=null; ['exp-company','exp-city','exp-dept','exp-role','exp-time-start','exp-time-end','exp-tags','exp-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('work-cards').innerHTML=''; workCardCounter=0; }
+
+async function saveExperienceForm() { const company=val('exp-company'),role=val('exp-role'); if(!company){showToast('请填写公司/机构名','error');return;} if(!role){showToast('请填写职位','error');return;} const data={company,city:val('exp-city'),department:val('exp-dept'),role,time_start:val('exp-time-start'),time_end:val('exp-time-end'),tags:val('exp-tags'),work_items:collectWorkItems(),notes:val('exp-notes')}; if(editingExpFilename) data.update_filename = editingExpFilename; try{const res=await fetch('/api/experiences/form',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); const r=await res.json(); if(r.error) showToast(r.error,'error'); else{showToast(editingExpFilename ? `已更新: ${r.filename}` : `经历已保存: ${r.filename}`);editingExpFilename=null;resetExperienceForm();loadExperiences();updateProgress();}}catch(e){showToast('保存失败','error');} }
+
+async function loadExperiences() { try{const res=await fetch('/api/experiences'); const data=await res.json(); if(data.error) return; const listEl=document.getElementById('experience-file-list'); if(data.experiences.length===0){listEl.innerHTML='<div class="empty-state">暂无经历文件</div>';}else{listEl.innerHTML=data.experiences.map(f=>`<div class="file-item" style="cursor:pointer" onclick="loadExperienceForEdit('${esc(f.filename)}')"><div class="file-info"><svg class="icon-svg"><use href="#i-file"/></svg><span class="file-name">${esc(f.filename)}</span><span class="file-size">${formatSize(f.size)}</span></div><div style="display:flex;gap:6px;align-items:center"><button class="btn btn-secondary" onclick="event.stopPropagation();loadExperienceForEdit('${esc(f.filename)}')" style="padding:4px 10px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg></button><button class="btn btn-danger" onclick="event.stopPropagation();deleteExperience('${esc(f.filename)}')">删除</button></div></div>`).join('');} const ms=document.getElementById('materials-section'),ml=document.getElementById('materials-list'); if(data.work_materials.length>0){ms.style.display='';ml.innerHTML=data.work_materials.map(m=>`<div class="materials-group"><div class="group-title">${esc(m.company)}</div>${m.files.map(f=>`<div class="material-file">· ${esc(f)}</div>`).join('')}</div>`).join('');}else{ms.style.display='none';} updateProgress();}catch(e){document.getElementById('experience-file-list').innerHTML='<div class="empty-state" style="color:var(--accent)">加载失败</div>';} }
+async function deleteExperience(fn) { if(!confirm(`确定删除 ${fn}？`)) return; try{const res=await fetch(`/api/experiences/${encodeURIComponent(fn)}`,{method:'DELETE'}); const d=await res.json(); if(d.error){showToast(d.error,'error');return;} showToast(d.message); loadExperiences();}catch(e){showToast('删除失败','error');} }
+
+function switchMode(mode) { document.querySelectorAll('.mode-btn').forEach((b,i)=>b.classList.toggle('active',(mode==='form'?i===0:i===1))); document.getElementById('mode-form').classList.toggle('active',mode==='form'); document.getElementById('mode-upload').classList.toggle('active',mode==='upload'); }
+
+function setupDropZone() { const dz=document.getElementById('drop-zone'),fi=document.getElementById('file-input'); dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');}); dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over')); dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');handleFileSelect(e.dataTransfer.files);}); fi.addEventListener('change',e=>handleFileSelect(e.target.files)); }
+function handleFileSelect(fileList) { selectedFiles=Array.from(fileList).filter(f=>['md','pdf','zip'].includes(f.name.split('.').pop().toLowerCase())); const preview=document.getElementById('upload-preview'); if(selectedFiles.length===0){preview.innerHTML='';document.getElementById('upload-btn').disabled=true;return;} preview.innerHTML=selectedFiles.map(f=>`<div class="preview-item"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-file"/></svg> ${esc(f.name)} <span style="color:var(--text-muted)">(${formatSize(f.size)})</span><span class="status pending">待上传</span></div>`).join(''); document.getElementById('upload-btn').disabled=false; }
+async function uploadFiles() { if(selectedFiles.length===0) return; const company=document.getElementById('upload-company').value.trim(); if(selectedFiles.some(f=>{const e=f.name.split('.').pop().toLowerCase();return e==='pdf'||e==='zip';})&&!company){showToast('上传 PDF/ZIP 时请填写关联公司名称','error');return;} const btn=document.getElementById('upload-btn'); btn.disabled=true; btn.textContent='上传中...'; try{const fd=new FormData(); fd.append('company_name',company); selectedFiles.forEach(f=>fd.append('file',f)); const res=await fetch('/api/experiences',{method:'POST',body:fd}); const data=await res.json(); if(data.error) showToast(data.error,'error'); else{const results=data.results||[]; document.getElementById('upload-results').innerHTML=results.map(r=>`<div class="preview-item"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-file"/></svg> ${esc(r.file)}<span class="status ${r.status==='success'?'success':'error'}">${r.status==='success'?'已保存':r.reason||'失败'}</span></div>`).join(''); const ok=results.filter(r=>r.status==='success').length; if(ok>0) showToast(`成功上传 ${ok} 个文件`); loadExperiences();}}catch(e){showToast('上传失败','error');} btn.disabled=false; btn.textContent='上传文件'; selectedFiles=[]; document.getElementById('file-input').value=''; document.getElementById('upload-preview').innerHTML=''; }
+
+function setupPubUpload() { const fi=document.getElementById('pub-file-input'); if(!fi) return; fi.addEventListener('change',async e=>{const file=e.target.files[0]; if(!file) return; const st=document.getElementById('pub-upload-status'); st.textContent='正在解析论文...'; st.style.color='var(--text-muted)'; const fd=new FormData(); fd.append('file',file); try{const res=await fetch('/api/publications/upload',{method:'POST',body:fd}); const d=await res.json(); if(d.error){st.textContent='解析失败: '+d.error;st.style.color='var(--accent)';}else{st.textContent='解析完成';st.style.color='var(--green)';addPublication(d);}}catch(err){st.textContent='上传失败';st.style.color='var(--accent)';} fi.value='';}); }
+
+function switchJdTab(tab, el) { document.querySelectorAll('.jd-section .jd-tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.jd-section .jd-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); document.getElementById('jd-'+tab).classList.add('active'); }
+
+function switchMjTab(tab, el) {
+  const section = el.closest('.mj-section');
+  section.querySelectorAll('.jd-tab').forEach(t => t.classList.remove('active'));
+  section.querySelectorAll('.jd-content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('mj-' + tab).classList.add('active');
+}
+
+/* ═══ Gallery ═══ */
+const TAROT_PALETTES = [
+  {color:'#d97757', accent:'rgba(217,119,87,', bg:'145deg'},
+  {color:'#6a9bcc', accent:'rgba(106,155,204,', bg:'135deg'},
+  {color:'#788c5d', accent:'rgba(120,140,93,', bg:'155deg'},
+  {color:'#b07cc3', accent:'rgba(176,124,195,', bg:'140deg'},
+  {color:'#cc8e6a', accent:'rgba(204,142,106,', bg:'150deg'},
+  {color:'#5d8c8c', accent:'rgba(93,140,140,', bg:'130deg'},
+  {color:'#c76b7e', accent:'rgba(199,107,126,', bg:'160deg'},
+];
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+
+async function loadGallery() {
+  const container = document.getElementById('gallery-content');
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state">加载中...</div>';
+  try {
+    const res = await fetch('/api/gallery');
+    const data = await res.json();
+    if (data.error) { container.innerHTML = `<div class="gallery-empty"><div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div><div class="ge-title">加载失败</div></div>`; return; }
+    const items = data.resumes || [];
+    if (items.length === 0) {
+      container.innerHTML = `<div class="gallery-empty"><div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div><div class="ge-title">尚无简历</div><div class="ge-desc">生成简历后，它们会以卡牌形式出现在这里</div></div>`;
+      return;
+    }
+    const widths = [90, 75, 85, 60, 95, 70, 80, 65, 88, 72, 82, 68, 78, 92, 55];
+    container.innerHTML = `<div class="gallery-deck">${items.map((item, i) => {
+      const p = TAROT_PALETTES[i % TAROT_PALETTES.length];
+      const a = p.accent;
+      const style = `--card-color:${p.color};--card-color-bright:${a}0.85);--card-accent:${a}0.3);--card-accent-dim:${a}0.15);--card-accent-mid:${a}0.2);--card-accent-half:${a}0.45);--card-glow-dim:${a}0.1);--card-glow:${a}0.3);--card-front-border:${a}0.2);`;
+      const numeral = ROMAN[i] || (i + 1);
+      return `
+      <div class="tarot-card" onclick="flipTarot(this)" data-pdf="${esc(item.pdf_path)}" data-dir="${esc(item.dir_name)}" style="animation-delay:${i * 0.1}s;${style}">
+        <div class="tarot-face tarot-back">
+          <div class="tarot-numeral">${numeral}</div>
+          <div class="tarot-circle"><div class="tarot-symbol"><svg class="icon-svg" style="width:36px;height:36px"><use href="#i-sparkle"/></svg></div></div>
+          <div class="tarot-label">${esc(item.company)}</div>
+          <div class="tarot-role">${esc(item.role)}</div>
+        </div>
+        <div class="tarot-face tarot-front">
+          <button class="tf-delete" onclick="event.stopPropagation();deleteGalleryItem(this,'${esc(item.dir_name)}','${esc(item.company)}')" title="删除">
+            <svg class="icon-svg" style="width:12px;height:12px"><use href="#i-x"/></svg>
+          </button>
+          <div class="tf-company">${esc(item.company)}</div>
+          <div class="tf-role">${esc(item.role)}</div>
+          <div class="tf-date">${esc(item.date)}</div>
+          <div class="tf-preview">${widths.map(w => `<div class="tf-preview-line" style="--w:${w}%"></div>`).join('')}</div>
+          <div class="tf-actions">
+            <button class="btn btn-secondary" onclick="event.stopPropagation();openPdfModal('${esc(item.pdf_path)}','${esc(item.company)} — ${esc(item.role)}')">
+              <svg class="icon-svg" style="width:11px;height:11px;margin-right:3px"><use href="#i-file"/></svg>查看
+            </button>
+            <button class="btn btn-primary" onclick="event.stopPropagation();downloadPdf('${esc(item.pdf_path)}')">
+              <svg class="icon-svg" style="width:11px;height:11px;margin-right:3px;stroke:#fff"><use href="#i-upload"/></svg>下载
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  } catch(e) {
+    container.innerHTML = `<div class="gallery-empty"><div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div><div class="ge-title">加载失败</div><div class="ge-desc">${esc(e.message)}</div></div>`;
+  }
+}
+
+function flipTarot(card) {
+  card.classList.toggle('flipped');
+}
+
+async function deleteGalleryItem(btn, dirName, company) {
+  if (!confirm(`确定删除「${company}」的简历？此操作不可撤销。`)) return;
+  try {
+    const res = await fetch('/api/gallery/' + encodeURIComponent(dirName), { method: 'DELETE' });
+    const d = await res.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    showToast(d.message);
+    const card = btn.closest('.tarot-card');
+    if (card) { card.style.transition = 'opacity 0.4s, transform 0.4s'; card.style.opacity = '0'; card.style.transform = 'scale(0.8)'; setTimeout(() => { card.remove(); }, 400); }
+  } catch(e) { showToast('删除失败', 'error'); }
+}
+
+function downloadPdf(path) {
+  const a = document.createElement('a');
+  a.href = '/api/gallery/pdf/' + encodeURIComponent(path);
+  a.download = path.split('/').pop();
+  a.click();
+}
+
+function openPdfModal(path, title) {
+  const modal = document.getElementById('pdf-modal');
+  const iframe = document.getElementById('pdf-modal-iframe');
+  const name = document.getElementById('pdf-modal-name');
+  const dlBtn = document.getElementById('pdf-modal-download');
+  const url = '/api/gallery/pdf/' + encodeURIComponent(path);
+  name.innerHTML = `<span class="accent">${esc(title)}</span>`;
+  iframe.src = url;
+  dlBtn.onclick = () => downloadPdf(path);
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePdfModal() {
+  const modal = document.getElementById('pdf-modal');
+  const iframe = document.getElementById('pdf-modal-iframe');
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+  setTimeout(() => { iframe.src = 'about:blank'; }, 350);
+}
+
+async function startGenerate() {
+  const jdText = document.getElementById('jd-text').value.trim();
+  if (!jdText) { showToast('请先输入 JD 内容', 'error'); return; }
+  const mjText = (document.getElementById('mj-text')?.value || '').trim();
+  const genCompany = (document.getElementById('gen-company')?.value || '').trim();
+  const genRole = (document.getElementById('gen-role')?.value || '').trim();
+
+  const btn = document.getElementById('btn-generate');
+  const progress = document.getElementById('ai-progress');
+  const steps = document.querySelectorAll('.ai-step');
+  const statusText = document.getElementById('ai-status-text');
+  const resultEl = document.getElementById('ai-result');
+
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  progress.style.display = '';
+  resultEl.style.display = 'none';
+  steps.forEach(s => { s.classList.remove('active', 'done'); s.querySelector('.ai-step-bar-fill').style.width = '0%'; });
+
+  // 动画：逐步推进前 4 步（前端动画，后台并行请求）
+  let animStep = 0;
+  const stepLabels = ['分析 JD 关键词', '匹配最佳经历', '生成 LaTeX 排版', '编译 PDF'];
+  function advanceAnim() {
+    if (animStep > 0 && animStep <= steps.length) {
+      steps[animStep - 1].classList.remove('active');
+      steps[animStep - 1].classList.add('done');
+    }
+    if (animStep < 4 && animStep < steps.length) {
+      steps[animStep].classList.add('active');
+      const bar = steps[animStep].querySelector('.ai-step-bar-fill');
+      bar.style.width = '0%';
+      setTimeout(() => bar.style.width = '100%', 50);
+      statusText.textContent = stepLabels[animStep] + '...';
+      animStep++;
+    }
+  }
+  advanceAnim();
+  const animTimer = setInterval(advanceAnim, 2000);
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jd: jdText, interview: mjText, company: genCompany, role: genRole }),
+    });
+    const data = await res.json();
+
+    clearInterval(animTimer);
+
+    // 完成所有步骤动画
+    steps.forEach(s => { s.classList.remove('active'); s.classList.add('done'); s.querySelector('.ai-step-bar-fill').style.width = '100%'; });
+
+    if (data.error && !data.success) {
+      statusText.textContent = '生成失败';
+      showToast(data.error, 'error');
+      resultEl.style.display = '';
+      resultEl.innerHTML = `<div class="form-section" style="border-color:var(--accent);">
+        <h2 style="color:var(--accent);font-size:16px;margin-bottom:8px;">生成失败</h2>
+        <p style="font-size:13px;color:var(--text-secondary);">${esc(data.error)}</p></div>`;
+    } else {
+      statusText.textContent = '生成完成';
+      showToast('简历生成成功！');
+      const fillPct = data.fill_ratio > 0 ? (data.fill_ratio * 100).toFixed(1) + '%' : '未检测';
+      resultEl.style.display = '';
+      resultEl.innerHTML = `<div class="form-section" style="border-color:rgba(120,140,93,0.3);">
+        <h2 style="color:var(--green);font-size:16px;margin-bottom:12px;">
+          <svg class="icon-svg" style="width:16px;height:16px;color:var(--green)"><use href="#i-check"/></svg> 生成完成
+        </h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-secondary);line-height:1.8;">
+          <div><strong>公司：</strong>${esc(data.company || '')}</div>
+          <div><strong>岗位：</strong>${esc(data.role || '')}</div>
+          <div><strong>填充率：</strong>${fillPct}</div>
+          <div><strong>目录：</strong>${esc(data.output_dir || '')}</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button class="btn btn-primary" onclick="openPdfModal('${esc(data.pdf_path)}','${esc(data.company || "")} — ${esc(data.role || "")}')">
+            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px;stroke:#fff"><use href="#i-file"/></svg>查看 PDF
+          </button>
+          <button class="btn btn-secondary" onclick="downloadPdf('${esc(data.pdf_path)}')">
+            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-upload"/></svg>下载
+          </button>
+          <button class="btn btn-secondary" onclick="goTo('gallery');loadGallery()">
+            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-cards"/></svg>画廊
+          </button>
+        </div>
+      </div>`;
+    }
+  } catch (e) {
+    clearInterval(animTimer);
+    statusText.textContent = '请求失败';
+    showToast('生成请求失败: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '开始生成';
+}
+
+function val(id){return(document.getElementById(id)?.value||'').trim();}
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function formatSize(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+
+/* ═══ Tag Input Helpers ═══ */
+function addTag(category, text) {
+  text = text.trim();
+  if (!text) return;
+  const wrap = document.getElementById('tags-' + category);
+  if (!wrap) return;
+  // Check duplicate
+  const existing = Array.from(wrap.querySelectorAll('.tag-chip')).map(c => c.dataset.value);
+  if (existing.includes(text)) return;
+  const chip = document.createElement('span');
+  chip.className = 'tag-chip';
+  chip.dataset.value = text;
+  chip.innerHTML = `${esc(text)}<button class="tag-remove" onclick="this.parentElement.remove();updateProgress()"><svg class="icon-svg"><use href="#i-x"/></svg></button>`;
+  wrap.insertBefore(chip, wrap.querySelector('.tag-input-field'));
+  updateProgress();
+}
+function loadSkillTags(category, str) {
+  const wrap = document.getElementById('tags-' + category);
+  if (!wrap) return;
+  wrap.querySelectorAll('.tag-chip').forEach(c => c.remove());
+  if (!str) return;
+  str.split(/[,，;；]/).forEach(t => { if (t.trim()) addTag(category, t.trim()); });
+}
+function collectTagsStr(category) {
+  const wrap = document.getElementById('tags-' + category);
+  if (!wrap) return '';
+  return Array.from(wrap.querySelectorAll('.tag-chip')).map(c => c.dataset.value).join(', ');
+}
+function setupTagInputs() {
+  document.querySelectorAll('.tag-input-field').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        addTag(input.dataset.tagCategory, input.value);
+        input.value = '';
+      }
+      if (e.key === 'Backspace' && !input.value) {
+        const chips = input.parentElement.querySelectorAll('.tag-chip');
+        if (chips.length) { chips[chips.length - 1].remove(); updateProgress(); }
+      }
+    });
+    input.addEventListener('blur', () => {
+      if (input.value.trim()) { addTag(input.dataset.tagCategory, input.value); input.value = ''; }
+    });
+  });
+}
+
+/* ═══ Work Card Edit ═══ */
+function makeWorkCardEditable(card) {
+  const textEl = card.querySelector('.card-text');
+  if (!textEl || card.classList.contains('editing')) return;
+  card.classList.add('editing');
+  const currentVal = card.dataset.value;
+  const input = document.createElement('textarea');
+  input.value = currentVal;
+  input.style.cssText = 'width:100%;min-height:40px;padding:0;border:none;background:transparent;font-size:13.5px;color:var(--text);line-height:1.55;font-family:var(--font-body);resize:none;outline:none;padding-right:24px;';
+  input.rows = Math.max(1, Math.ceil(currentVal.length / 40));
+  textEl.replaceWith(input);
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+  function finishEdit() {
+    const newVal = input.value.trim();
+    if (!newVal) { card.remove(); return; }
+    card.dataset.value = newVal;
+    const newTextEl = document.createElement('div');
+    newTextEl.className = 'card-text';
+    newTextEl.textContent = newVal;
+    newTextEl.addEventListener('click', () => makeWorkCardEditable(card));
+    input.replaceWith(newTextEl);
+    card.classList.remove('editing');
+  }
+  input.addEventListener('blur', finishEdit);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); input.blur(); } });
+}
+
+/* ═══ Experience File Edit ═══ */
+let editingExpFilename = null;
+async function loadExperienceForEdit(filename) {
+  try {
+    const res = await fetch(`/api/experiences/${encodeURIComponent(filename)}/content`);
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    editingExpFilename = filename;
+    const d = data;
+    document.getElementById('exp-company').value = d.company || '';
+    document.getElementById('exp-city').value = d.city || '';
+    document.getElementById('exp-dept').value = d.department || '';
+    document.getElementById('exp-role').value = d.role || '';
+    document.getElementById('exp-time-start').value = d.time_start || '';
+    document.getElementById('exp-time-end').value = d.time_end || '';
+    document.getElementById('exp-tags').value = d.tags || '';
+    document.getElementById('exp-notes').value = d.notes || '';
+    document.getElementById('work-cards').innerHTML = '';
+    workCardCounter = 0;
+    (d.work_items || []).forEach(w => addWorkCard(w.title || w.desc || ''));
+    switchMode('form');
+    showToast(`正在编辑: ${filename}`);
+    const formSection = document.querySelector('#mode-form');
+    if (formSection) formSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) { showToast('加载失败: ' + e.message, 'error'); }
+}
+
+/* ═══ Review Page ═══ */
+async function loadReviewPage() {
+  const container = document.getElementById('review-content');
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state">加载中...</div>';
+  try {
+    const [profileRes, expRes] = await Promise.all([fetch('/api/profile'), fetch('/api/experiences')]);
+    const profile = await profileRes.json();
+    const expData = await expRes.json();
+    if (profile.error) { container.innerHTML = '<div class="empty-state" style="color:var(--accent)">加载失败</div>'; return; }
+    const b = profile.basic || {};
+    const edu = profile.education || [];
+    const awards = profile.awards || [];
+    const skills = profile.skills || {};
+    const dirs = profile.directions || {};
+    const projects = profile.projects || [];
+    const pubs = profile.publications || [];
+    const exps = expData.experiences || [];
+
+    let html = '';
+
+    // Basic Info
+    html += `<div class="review-section" data-section="basic">
+      <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-user"/></svg> 基本信息</h3><button class="btn btn-secondary" onclick="goTo('basic')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>
+      <div class="review-grid">
+        <div class="review-field"><span class="review-label">姓名</span><span class="review-value">${esc(b.name_zh)}${b.name_en ? ' / ' + esc(b.name_en) : ''}</span></div>
+        <div class="review-field"><span class="review-label">邮箱</span><span class="review-value">${esc(b.email)}</span></div>
+        <div class="review-field"><span class="review-label">电话</span><span class="review-value">${esc(b.phone)}</span></div>
+        ${b.linkedin ? `<div class="review-field"><span class="review-label">LinkedIn</span><span class="review-value">${esc(b.linkedin)}</span></div>` : ''}
+        ${b.github ? `<div class="review-field"><span class="review-label">GitHub</span><span class="review-value">${esc(b.github)}</span></div>` : ''}
+      </div>
+    </div>`;
+
+    // Directions
+    if (dirs.primary) {
+      html += `<div class="review-section" data-section="directions">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-compass"/></svg> 求职方向</h3><button class="btn btn-secondary" onclick="goTo('directions')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>
+        <div class="review-grid"><div class="review-field"><span class="review-label">主要方向</span><span class="review-value">${esc(dirs.primary)}</span></div>${dirs.secondary ? `<div class="review-field"><span class="review-label">兴趣方向</span><span class="review-value">${esc(dirs.secondary)}</span></div>` : ''}</div>
+      </div>`;
+    }
+
+    // Education
+    if (edu.length > 0 && edu.some(e => e.school)) {
+      html += `<div class="review-section" data-section="education">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-school"/></svg> 教育背景</h3><button class="btn btn-secondary" onclick="goTo('education')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
+      edu.filter(e => e.school).forEach(e => {
+        html += `<div class="review-card"><div class="review-card-title">${esc(e.school)} · ${esc(e.degree)} · ${esc(e.major)}</div><div class="review-card-meta">${esc(e.time_start)} — ${esc(e.time_end)}${e.gpa ? ' · GPA: ' + esc(e.gpa) : ''}${e.rank ? ' · ' + esc(e.rank) : ''}</div>${e.courses ? `<div class="review-card-detail">${esc(e.courses)}</div>` : ''}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Experiences
+    if (exps.length > 0) {
+      html += `<div class="review-section" data-section="experiences">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-briefcase"/></svg> 实习/工作经历</h3><button class="btn btn-secondary" onclick="goTo('experiences')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
+      exps.forEach(e => {
+        html += `<div class="review-card"><div class="review-card-title">${esc(e.filename)}</div><div class="review-card-meta">${formatSize(e.size)}</div></div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Projects
+    if (projects.length > 0) {
+      html += `<div class="review-section" data-section="projects">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-folder"/></svg> 项目经历</h3><button class="btn btn-secondary" onclick="goTo('projects')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
+      projects.forEach(p => {
+        html += `<div class="review-card"><div class="review-card-title">${esc(p.name)}${p.role ? ' · ' + esc(p.role) : ''}</div><div class="review-card-meta">${esc(p.time_start)} — ${esc(p.time_end)}</div>${p.desc ? `<div class="review-card-detail">${esc(p.desc)}</div>` : ''}${p.tags ? `<div class="review-card-tags">${p.tags.split(',').map(t => `<span class="review-tag">${esc(t.trim())}</span>`).join('')}</div>` : ''}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Publications
+    if (pubs.length > 0) {
+      html += `<div class="review-section" data-section="publications">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-book"/></svg> 论文发表</h3><button class="btn btn-secondary" onclick="goTo('publications')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
+      pubs.forEach(p => {
+        html += `<div class="review-card"><div class="review-card-title">${esc(p.title)}</div><div class="review-card-meta">${esc(p.authors)} · ${esc(p.venue)} ${esc(p.year)}</div>${p.description ? `<div class="review-card-detail">${esc(p.description)}</div>` : ''}</div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Awards
+    if (awards.length > 0 && awards.some(a => a.name)) {
+      html += `<div class="review-section" data-section="awards">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-award"/></svg> 获奖情况</h3><button class="btn btn-secondary" onclick="goTo('awards')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
+      awards.filter(a => a.name).forEach(a => {
+        html += `<div class="review-card-inline"><span>${esc(a.name)}</span><span class="review-card-meta">${esc(a.issuer)} · ${esc(a.date)}</span></div>`;
+      });
+      html += `</div>`;
+    }
+
+    // Skills
+    if (skills.tech || skills.software || skills.languages) {
+      html += `<div class="review-section" data-section="skills">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-cpu"/></svg> 技能</h3><button class="btn btn-secondary" onclick="goTo('skills')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>
+        <div class="review-tags-wrap">`;
+      [skills.tech, skills.software, skills.languages].forEach(str => {
+        if (str) str.split(/[,，;；]/).forEach(t => { if (t.trim()) html += `<span class="review-skill-tag">${esc(t.trim())}</span>`; });
+      });
+      html += `</div></div>`;
+    }
+
+    container.innerHTML = html || '<div class="empty-state">暂无数据，请先填写各项信息</div>';
+  } catch(e) { container.innerHTML = '<div class="empty-state" style="color:var(--accent)">加载失败</div>'; }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  loadProfile(); setupDropZone(); setupPubUpload(); setupTagInputs();
+  const ci=document.getElementById('work-card-input'); if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addWorkCard();}});
+});
+</script>
+</body>
+</html>

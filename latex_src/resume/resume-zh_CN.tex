@@ -1,0 +1,58 @@
+% !TEX TS-program = xelatex
+% !TEX encoding = UTF-8 Unicode
+% !Mode:: "TeX:UTF-8"
+%
+% 这是中文简历模板文件。
+% 实际生成简历时，系统会根据用户数据和 JD 自动生成 .tex 文件到 output/ 目录。
+% 此文件仅作为格式参考，不包含任何真实个人信息。
+
+\documentclass{resume}
+\usepackage{zh_CN-Adobefonts_external} % 简体中文外部字体支持
+\usepackage{linespacing_fix} % 取消段前额外空白
+\usepackage{cite}
+
+\begin{document}
+\begin{Form}
+
+\pagenumbering{gobble} % 不显示页码
+
+\name{[YOUR\_NAME\_ZH] [YOUR\_NAME\_EN]}
+
+\basicInfo{
+\email{your.email@example.com} \textperiodcentered
+\phone{(+86) 000-0000-0000} \textperiodcentered
+\github[yourgithub]{https://github.com/yourgithub}
+}
+\vspace{-8pt}
+
+\section{教育背景}
+\datedsubsection{\textbf{[学校名称]} \quad \normalsize 硕士}{20XX/09 -- 20XX/06}
+\textit{[专业名称] \quad [学院名称]} \quad \textbf{GPA：} X.XX/4.0，排名前X\% \\
+\textbf{主修课程：} 课程1；课程2；课程3；课程4
+
+\datedsubsection{\textbf{[学校名称]} \quad \normalsize 本科}{20XX/09 -- 20XX/06}
+\textit{[专业名称] \quad [学院名称]} \quad \textbf{GPA：} X.XX/4.0，排名前X\% \\
+\textbf{主修课程：} 课程1；课程2；课程3；课程4
+
+\section{实习经历}
+\datedsubsection{\textbf{[公司名称]} \quad \normalsize [城市]}{20XX/XX -- 20XX/XX}
+\role{[职位名称]}{[部门名称]}
+\vspace{-6pt}
+\begin{itemize}
+    \item \textbf{[项目/职责标题：]} 描述你的工作内容和成果，包含量化数据
+    \item \textbf{[项目/职责标题：]} 描述你的工作内容和成果，包含量化数据
+\end{itemize}
+\vspace{-2pt}
+
+\section{获奖情况}
+\datedline{\textit{[奖项名称]}}{20XX/XX}
+\datedline{\textit{[奖项名称]}}{20XX/XX}
+
+\section{技能}
+\begin{itemize}[parsep=0.5ex]
+    \item \textbf{编程语言：} [语言列表]
+    \item \textbf{工具：} [工具列表] \quad \textbf{语言：} [外语水平]
+\end{itemize}
+
+\end{Form}
+\end{document}

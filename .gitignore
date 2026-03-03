@@ -1,0 +1,46 @@
+# ─── 用户隐私数据（绝不提交） ───────────────────
+data/profile.md
+data/experiences/*.md
+!data/experiences/_template.md
+!data/experiences/README.md
+data/work_materials/*
+!data/work_materials/README.md
+
+# ─── 生成输出 ─────────────────────────────────────
+output/
+
+# ─── LaTeX 编译产物 ───────────────────────────────
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+*.toc
+missfont.log
+texput.log
+
+# ─── 参考资料（skills_base 不属于项目本体） ──────
+skills_base/
+
+# ─── Python ───────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ─── OS / Editor ─────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ─── Claude Code 本地配置 ─────────────────────────
+.claude/settings.local.json
+.claude/projects/
