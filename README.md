@@ -41,7 +41,14 @@
   <img src="docs/screenshots/07-claude-code.png" width="720" alt="Claude Code /resume 命令" />
 </p>
 
-> 截图尚未添加？运行 Web UI 后参照 [docs/take_screenshots.md](docs/take_screenshots.md) 自行截取。
+> 截图资源说明见 `docs/screenshots/README.md`，可按需使用你本地环境生成并替换。
+
+### 脱敏示例简历（可直接查看）
+
+- 示例目录：`docs/examples/anonymized_pm_intern/`
+- 示例 PDF：`docs/examples/anonymized_pm_intern/resume-zh_CN.pdf`
+- 示例 LaTeX：`docs/examples/anonymized_pm_intern/resume-zh_CN.tex`
+- 生成日志：`docs/examples/anonymized_pm_intern/generation_log.md`
 
 ---
 
@@ -252,8 +259,8 @@ resume_generator_pro/
 │       └── generation_log.md
 │
 └── docs/                      ← 文档
-    ├── screenshots/           # 截图（供 README 引用）
-    └── take_screenshots.md    # 截图操作指南
+    ├── examples/              # 脱敏示例简历
+    └── screenshots/           # 截图资源说明与示例路径
 ```
 
 ---
