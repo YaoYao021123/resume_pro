@@ -72,7 +72,12 @@ body {
 .sidebar-header {
   padding: 28px 24px 22px;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
+.sidebar-brand { min-width: 0; }
 .sidebar-header h1 {
   font-family: var(--font-heading);
   font-size: 17px;
@@ -87,6 +92,360 @@ body {
   margin-top: 3px;
   font-family: var(--font-heading);
   font-weight: 400;
+}
+
+/* ═══ Person Selector ═══ */
+.person-selector {
+  padding: 12px 24px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.person-selector label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 6px;
+}
+.person-selector-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.person-selector select {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: var(--font-heading);
+  cursor: pointer;
+}
+.person-selector .btn-manage {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.person-selector .btn-manage:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* ═══ Person Modal ═══ */
+.person-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,20,19,0.5);
+  backdrop-filter: blur(6px);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s var(--ease-out);
+}
+.person-modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.person-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 420px;
+  max-width: 90vw;
+  padding: 28px;
+  box-shadow: 0 24px 80px rgba(20,20,19,0.18);
+  transform: translateY(20px) scale(0.97);
+  transition: transform 0.4s var(--ease-out);
+}
+.person-modal-overlay.open .person-modal {
+  transform: translateY(0) scale(1);
+}
+.person-modal h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.person-modal h3 button {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.person-modal h3 button:hover { color: var(--text); border-color: var(--border-hover); }
+.person-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.person-list-item:hover { border-color: var(--border-hover); }
+.person-list-item .person-name {
+  flex: 1;
+  font-size: 14px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+.person-list-item .person-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+}
+.person-list-item .person-active-badge {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--green-light);
+  color: var(--green);
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+.person-add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.person-add-row input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+.person-add-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.config-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.config-toggle-row strong {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: var(--text);
+}
+.config-toggle-row span {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.switch {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.2s var(--ease-out);
+  cursor: pointer;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s var(--ease-out);
+  box-shadow: 0 1px 4px rgba(20,20,19,0.18);
+}
+.switch input:checked + .switch-slider {
+  background: var(--accent);
+}
+.switch input:checked + .switch-slider::before {
+  transform: translateX(18px);
+}
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.config-field label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+.config-field input,
+.config-field select,
+.config-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text);
+  font-family: var(--font-body);
+}
+.config-field input:focus,
+.config-field select:focus,
+.config-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.config-help {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.config-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.config-link-row strong {
+  font-size: 12px;
+  font-family: var(--font-heading);
+  color: var(--text);
+}
+.config-link-row a {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  font-family: var(--font-heading);
+}
+.config-link-row a:hover { text-decoration: underline; }
+.config-model-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.config-model-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-heading);
+}
+.model-summary-card {
+  background: linear-gradient(135deg, rgba(217,119,87,0.08), rgba(106,155,204,0.08));
+}
+.model-summary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.model-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.model-summary-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.model-summary-item {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+.model-summary-item strong {
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  margin-right: 4px;
+}
+.model-summary-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.config-provider-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.saveas-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.saveas-form .ve-field-label {
+  min-width: 80px;
+}
+.saveas-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 /* ═══ Progress ═══ */
@@ -279,6 +638,36 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   align-items: center;
 }
 .input-half span { text-align: center; color: var(--text-muted); font-size: 14px; }
+.date-copy-row {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.date-copy-groups {
+  margin-top: 6px;
+  display: grid;
+  gap: 6px;
+}
+.date-copy-group {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.date-copy-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: right;
+  font-family: var(--font-heading);
+}
+.btn.date-copy-btn {
+  padding: 2px 7px;
+  font-size: 10px;
+  border-radius: 6px;
+  line-height: 1.2;
+  min-height: 22px;
+}
 
 /* ═══ Entry Cards ═══ */
 .entry-card {
@@ -637,6 +1026,23 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   padding: 40px 20px;
   position: relative;
 }
+
+/* ═══ Home Gallery Section ═══ */
+.home-gallery-section {
+  width: 100%;
+  max-width: 900px;
+  margin: 40px auto 0;
+  padding: 0 20px 40px;
+}
+.home-gallery-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
 .landing-ornament {
   position: absolute;
   width: 320px; height: 320px;
@@ -864,12 +1270,18 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   gap: 8px;
 }
 .review-section-header h3 .icon-svg { width: 16px; height: 16px; color: var(--text-muted); }
+.review-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .review-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 24px;
 }
 .review-field { display: flex; flex-direction: column; gap: 2px; }
+.review-value-row { display: flex; align-items: center; gap: 8px; }
 .review-label {
   font-size: 11px;
   font-family: var(--font-heading);
@@ -883,9 +1295,29 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   color: var(--text);
   line-height: 1.5;
 }
+.review-copy-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.review-copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
 .review-card {
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
+}
+.review-copy-line {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
 }
 .review-card:last-child { border-bottom: none; }
 .review-card-title {
@@ -918,16 +1350,25 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   color: var(--accent);
 }
 .review-card-inline {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px auto;
+  gap: 12px;
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
   color: var(--text);
 }
+.review-inline-name {
+  min-width: 0;
+}
+.review-inline-meta {
+  justify-self: start;
+  white-space: nowrap;
+}
 .review-card-inline:last-child { border-bottom: none; }
 .review-tags-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.review-tag-wrap { display: inline-flex; align-items: center; gap: 4px; }
 
 /* ═══ 面经 Section ═══ */
 .mj-section {
@@ -967,10 +1408,13 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 .tarot-face {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   backface-visibility: hidden;
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(20,20,19,0.12);
+  box-sizing: border-box;
 }
 /* Card Back — mystical pattern with per-card accent */
 .tarot-back {
@@ -1035,12 +1479,42 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   position: relative;
   z-index: 1;
   font-family: var(--font-heading);
-  font-size: 10px;
+  font-size: 9px;
   color: var(--card-color-bright, rgba(217,119,87,0.7));
-  margin-top: 5px;
-  letter-spacing: 0.06em;
+  margin-top: 4px;
+  letter-spacing: 0.03em;
   text-align: center;
-  max-width: 85%;
+  max-width: 90%;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Inline-editable company/role labels */
+.editable-meta {
+  cursor: text;
+  border-radius: 3px;
+  transition: background 0.15s, outline 0.15s;
+  outline: 1px solid transparent;
+}
+.editable-meta:hover {
+  background: rgba(255,255,255,0.12);
+  outline: 1px dashed rgba(255,255,255,0.3);
+}
+.tarot-front .editable-meta:hover {
+  background: var(--bg);
+  outline: 1px dashed var(--border);
+}
+.editable-meta[contenteditable="true"] {
+  cursor: text;
+  outline: 2px solid var(--accent) !important;
+  background: var(--surface) !important;
+  border-radius: 4px;
+  padding: 1px 4px;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  min-width: 40px;
 }
 /* Card Front — resume preview */
 .tarot-front {
@@ -1049,13 +1523,13 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   border: 2px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 20px 16px;
+  padding: 16px 14px 12px;
   position: relative;
 }
 .tarot-front .tf-delete {
   position: absolute;
   top: 8px; right: 8px;
-  width: 24px; height: 24px;
+  width: 22px; height: 22px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -1072,52 +1546,193 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 .tf-delete:hover { background: #fde8e8; color: #d44; border-color: #d44; }
 .tarot-front .tf-company {
   font-family: var(--font-heading);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 26px;
 }
 .tarot-front .tf-role {
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--card-color, var(--accent));
   font-family: var(--font-heading);
   font-weight: 500;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tarot-front .tf-date {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-muted);
   font-family: var(--font-heading);
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 .tarot-front .tf-preview {
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfaf7;
+  position: relative;
+}
+.tarot-front .tf-preview::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 20px;
+  background: linear-gradient(180deg, rgba(251,250,247,0) 0%, rgba(251,250,247,0.96) 100%);
+  pointer-events: none;
+}
+.tarot-front .tf-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tarot-front .tf-footer-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tarot-front .tf-footer-row + .tf-footer-row {
+  margin-top: 6px;
+}
+.tarot-front .tf-footer-row .tf-spacer { flex: 1; }
+.tarot-front .tf-icon-btn {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.tarot-front .tf-icon-btn:hover:not(:disabled) {
+  border-color: var(--card-color, var(--accent));
+  color: var(--card-color, var(--accent));
+  background: rgba(217,119,87,0.06);
+}
+.tarot-front .tf-icon-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tarot-front .tf-icon-btn.primary:hover {
+  background: #c4623d;
+  border-color: #c4623d;
+}
+.tarot-front .tf-pill {
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  padding: 0 10px;
+  font-size: 10px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tarot-front .tf-pill:hover:not(:disabled) {
+  border-color: var(--card-color, var(--accent));
+  color: var(--card-color, var(--accent));
+  background: rgba(217,119,87,0.06);
+}
+.tarot-front .tf-pill:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tarot-front .tf-action-btn {
+  flex: 1;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all 0.2s;
+  padding: 0 6px;
+  font-size: 10px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tarot-front .tf-action-btn:hover {
+  border-color: var(--card-color, var(--accent));
+  color: var(--card-color, var(--accent));
+  background: rgba(217,119,87,0.06);
+}
+.tarot-front .tf-action-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.tarot-front .tf-action-btn.primary:hover {
+  background: #c4623d;
+  border-color: #c4623d;
+}
+.tarot-front .tf-preview-document {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+.tarot-front .tf-preview-document:hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.06);
+  z-index: 1;
+  transition: background 0.2s;
+}
+.tarot-front .tf-preview-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 216%;
+  height: 216%;
+  border: 0;
+  background: #fff;
+  transform: scale(0.463);
+  transform-origin: top left;
+  pointer-events: none;
+}
+.tarot-front .tf-preview-fallback {
+  position: absolute;
+  inset: 0;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  overflow: hidden;
+  gap: 7px;
 }
 .tarot-front .tf-preview-line {
   height: 3px;
   background: var(--border);
   border-radius: 2px;
   width: var(--w, 80%);
-}
-.tarot-front .tf-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.tarot-front .tf-actions .btn {
-  flex: 1;
-  padding: 6px 8px;
-  font-size: 11px;
-  text-align: center;
 }
 .gallery-empty {
   text-align: center;
@@ -1218,6 +1833,863 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   border: none;
 }
 
+/* ═══ Context Text Modal (JD / 面经+笔记) ═══ */
+.ctx-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,20,19,0.5);
+  backdrop-filter: blur(6px);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s var(--ease-out);
+}
+.ctx-modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.ctx-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 640px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(20,20,19,0.18);
+  transform: translateY(16px) scale(0.97);
+  transition: transform 0.35s var(--ease-out);
+}
+.ctx-modal-overlay.open .ctx-modal {
+  transform: translateY(0) scale(1);
+}
+.ctx-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ctx-modal-title {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctx-modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ctx-modal-close {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.ctx-modal-close:hover { background: var(--bg-warm); color: var(--text); border-color: var(--border-hover); }
+.ctx-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ctx-modal-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-warm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  max-height: 280px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.ctx-modal-notes-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.ctx-modal-notes-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.ctx-modal-notes-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.ctx-modal-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ═══ LaTeX Editor ═══ */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.editor-toolbar .editor-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.editor-meta-inputs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+.editor-meta-field {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 8px;
+  outline: none;
+  transition: border 0.15s, background 0.15s;
+  width: 120px;
+}
+.editor-meta-field:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.editor-meta-field::placeholder { color: var(--text-muted); font-weight: 400; }
+.editor-toolbar button {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-heading);
+  transition: all 0.15s;
+  color: var(--text);
+}
+.editor-toolbar button:hover { background: var(--bg-warm); }
+.editor-toolbar .btn-compile {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.editor-toolbar .btn-compile:hover { opacity: 0.9; }
+.editor-toolbar .btn-compile:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.editor-toolbar .btn-regen {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+.editor-toolbar .btn-regen:hover { background: var(--accent); color: #fff; }
+.editor-toolbar .btn-regen:disabled { opacity: 0.5; cursor: not-allowed; }
+.editor-split {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.editor-pane-code {
+  flex: 0 0 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid var(--border);
+  overflow: hidden;
+}
+#cm-editor-mount {
+  flex: 1;
+  overflow: hidden;
+}
+.editor-pane-code .cm-editor {
+  height: 100%;
+  overflow: auto;
+}
+/* ═══ Editor Mode Switcher ═══ */
+.editor-mode-switcher {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--bg-warm);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.editor-mode-btn {
+  padding: 4px 14px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.editor-mode-btn:hover { color: var(--text); }
+.editor-mode-btn.active {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.editor-mode-content { flex: 1; overflow: hidden; display: none; }
+.editor-mode-content.active { display: flex; flex-direction: column; }
+/* ═══ Visual Editor ═══ */
+.visual-editor {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--bg);
+  font-family: var(--font-body);
+}
+.ve-header-card, .ve-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.ve-header-card h2 {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.ve-field-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.ve-field-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-weight: 500;
+  min-width: 50px;
+  flex-shrink: 0;
+}
+.ve-field-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.ve-field-input:focus { outline: none; border-color: var(--blue); }
+.ve-section-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.ve-vspace-card h2 {
+  margin-bottom: 8px;
+}
+.ve-collapse {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+.ve-collapse > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.ve-collapse > summary::-webkit-details-marker {
+  display: none;
+}
+.ve-collapse-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.ve-collapse-body {
+  border-top: 1px solid var(--border);
+  padding: 10px;
+}
+.ve-vspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+.ve-vspace-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+.ve-vspace-item .ve-field-label {
+  min-width: auto;
+  margin-bottom: 4px;
+}
+.ve-vspace-preview {
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.ve-vspace-contexts {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.ve-vspace-context-title {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  margin-bottom: 8px;
+}
+.ve-vspace-context-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.ve-vspace-context-group-title {
+  font-size: 11px;
+  font-family: var(--font-heading);
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ve-vspace-context-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.ve-vspace-context-item:last-child {
+  margin-bottom: 0;
+}
+.ve-vspace-context-meta {
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  text-align: left;
+  min-width: 54px;
+}
+.ve-vspace-context-value {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.ve-extra-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.ve-extra-list {
+  margin-top: 10px;
+}
+.ve-extra-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.ve-extra-row .ve-field-input {
+  margin: 0;
+}
+.ve-extra-row:hover .ve-bullet-del {
+  opacity: 1;
+}
+.ve-extra-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.basic-extra-section .section-title {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.basic-extra-section .section-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.basic-extra-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.basic-extra-row .btn-copy {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.basic-extra-row .btn-danger {
+  padding: 5px 8px;
+}
+.basic-extra-actions {
+  display: flex;
+  gap: 8px;
+}
+.ve-entry-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.ve-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ve-entry-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+}
+.ve-entry-dates {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  flex-shrink: 0;
+}
+.ve-entry-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.ve-bullet-list { margin: 6px 0 4px 0; }
+.ve-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+  position: relative;
+}
+.ve-bullet::before {
+  content: '\2022';
+  color: var(--accent);
+  font-size: 14px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.ve-bullet-content {
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: text;
+  min-height: 1.6em;
+  transition: border-color 0.15s;
+}
+.ve-bullet-content:focus {
+  outline: none;
+  border-color: var(--blue);
+  background: rgba(106,155,204,0.04);
+}
+.ve-bullet-content b, .ve-bullet-content strong { font-weight: 700; }
+.ve-bullet-content i, .ve-bullet-content em { font-style: italic; }
+.ve-bullet-del {
+  opacity: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.ve-bullet:hover .ve-bullet-del { opacity: 1; }
+.ve-bullet-del:hover { color: #c44; }
+.ve-add-btn {
+  font-size: 11px;
+  color: var(--blue);
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.ve-add-btn:hover { border-color: var(--blue); background: rgba(106,155,204,0.06); }
+.ve-entry-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ve-entry-actions .ve-add-btn {
+  margin-top: 0;
+}
+.ve-date-copy-groups {
+  margin-top: 6px;
+}
+.ve-date-copy-groups .date-copy-label {
+  width: 28px;
+}
+.ve-add-btn.ve-copy-btn {
+  color: var(--text-secondary);
+}
+.ve-award-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ve-award-name { flex: 1; font-size: 12.5px; }
+.ve-award-date { font-size: 12px; color: var(--text-secondary); font-family: var(--font-heading); }
+.ve-skill-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.ve-skill-row .ve-bullet-content { flex: 1; }
+.ve-skill-row::before {
+  content: '\2022';
+  color: var(--accent);
+  font-size: 14px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.ve-skill-row:hover .ve-bullet-del { opacity: 1; }
+.ve-editable {
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: text;
+  transition: border-color 0.15s;
+}
+.ve-editable:focus {
+  outline: none;
+  border-color: var(--blue);
+  background: rgba(106,155,204,0.04);
+}
+/* Inline format toolbar */
+.ve-inline-toolbar {
+  position: fixed;
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 2px 4px;
+  z-index: 2000;
+  gap: 2px;
+}
+.ve-inline-toolbar.visible { display: flex; }
+.ve-inline-toolbar button {
+  width: 28px;
+  height: 26px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+.ve-inline-toolbar button:hover { background: var(--bg-warm); color: var(--text); }
+.ve-inline-toolbar button.active { background: var(--accent-light); color: var(--accent); }
+.ve-entry-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.ve-entry-card:hover .ve-entry-remove { opacity: 1; }
+.ve-entry-remove:hover { color: #c44; background: rgba(204,68,68,0.08); }
+.editor-pane-pdf {
+  flex: 0 0 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #525659;
+  position: relative;
+}
+.editor-pane-pdf iframe {
+  flex: 1;
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+/* PDF.js container */
+#pdfjs-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 12px;
+}
+#pdfjs-container .pdfjs-page-wrap {
+  position: relative;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  cursor: crosshair;
+}
+#pdfjs-container canvas { display: block; }
+.synctex-highlight {
+  position: absolute;
+  background: rgba(217,119,87,0.3);
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  z-index: 5;
+}
+/* ═══ Version Badge (Tarot Card) ═══ */
+.tarot-version-badge {
+  position: absolute;
+  top: 14px; left: 14px;
+  background: rgba(106,155,204,0.9);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  z-index: 3;
+  letter-spacing: 0.03em;
+}
+/* ═══ Versions Drawer ═══ */
+.versions-drawer {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 320px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  z-index: 210;
+  transform: translateX(100%);
+  transition: transform 0.35s var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(20,20,19,0.1);
+}
+.versions-drawer.open { transform: translateX(0); }
+.versions-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.versions-drawer-header h4 {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.versions-drawer-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.version-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+.version-item:hover { border-color: var(--border-hover); }
+.version-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.version-item-num {
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.version-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+}
+.version-item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  margin-bottom: 6px;
+}
+.version-item-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 6px;
+}
+.version-item-actions {
+  display: flex;
+  gap: 6px;
+}
+.version-item-actions button {
+  padding: 3px 10px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.version-item-actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.btn-versions {
+  position: relative;
+}
+.btn-versions .version-count-badge {
+  position: absolute;
+  top: -4px; right: -4px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  font-family: var(--font-heading);
+}
+.editor-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-family: var(--font-heading);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.editor-statusbar .status-icon { font-size: 14px; }
+.editor-statusbar .status-error { color: #e53935; }
+.editor-statusbar .status-ok { color: #43a047; }
+#page-editor {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 200;
+  background: var(--bg);
+  overflow: hidden;
+}
+#page-editor.active {
+  display: flex !important;
+}
+
 /* ═══ Responsive ═══ */
 @media (max-width: 768px) {
   .sidebar { width: 56px; }
@@ -1253,6 +2725,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
@@ -1261,13 +2734,31 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   <symbol id="i-gallery" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 15l5-5 4 4 4-4 7 7"/><circle cx="8.5" cy="8.5" r="1.5"/></symbol>
   <symbol id="i-cards" viewBox="0 0 24 24"><rect x="4" y="2" width="14" height="20" rx="2.5" stroke-width="1.5"/><rect x="7" y="4" width="14" height="20" rx="2.5" stroke-width="1.5" opacity="0.4"/></symbol>
   <symbol id="i-interview" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 9h8M8 13h4"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06A1.65 1.65 0 0015 19.4a1.65 1.65 0 00-1 1.52V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.52-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.52V3a2 2 0 014 0v.09A1.65 1.65 0 0015 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.52 1H21a2 2 0 010 4h-.09A1.65 1.65 0 0019.4 15z"/></symbol>
 </svg>
 
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h1>Resume<span>Gen</span></h1>
-      <p>简历数据管理</p>
+      <div class="sidebar-brand">
+        <h1>Resume<span>Gen</span></h1>
+        <p>简历数据管理</p>
+      </div>
+      <button class="btn-manage" onclick="showModelConfigDialog()" title="模型配置">
+        <svg class="icon-svg" style="width:14px;height:14px"><use href="#i-settings"/></svg>
+      </button>
+      <a href="/monitor" target="_blank" class="btn-manage" title="AI 生成监控" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">
+        <svg class="icon-svg" style="width:14px;height:14px"><use href="#i-cpu"/></svg>
+      </a>
+    </div>
+    <div class="person-selector" id="person-selector" style="display:none">
+      <label>当前档案</label>
+      <div class="person-selector-row">
+        <select id="person-select" onchange="switchPerson(this.value)"></select>
+        <button class="btn-manage" onclick="showPersonDialog()" title="管理档案">
+          <svg class="icon-svg" style="width:14px;height:14px"><use href="#i-cpu"/></svg>
+        </button>
+      </div>
     </div>
     <div class="progress-section">
       <div class="progress-label"><span>Progress</span><span id="progress-text">0%</span></div>
@@ -1277,6 +2768,10 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
       <div class="nav-item active" onclick="goTo('home')" data-nav="home">
         <svg class="icon-svg"><use href="#i-home"/></svg><span>Home</span>
         <span class="nav-check" id="check-home"><svg><use href="#i-check"/></svg></span>
+      </div>
+      <div class="nav-item" onclick="goTo('home');setTimeout(()=>document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'}),300)" data-nav="gallery">
+        <svg class="icon-svg"><use href="#i-cards"/></svg><span>简历画廊</span>
+        <span class="nav-check" id="check-gallery"><svg><use href="#i-check"/></svg></span>
       </div>
       <div class="nav-divider" data-divider="top"></div>
       <!-- Dynamic zone: generate + review will be promoted here when data ready -->
@@ -1320,10 +2815,6 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <svg class="icon-svg"><use href="#i-layout"/></svg><span>数据总览</span>
         <span class="nav-check" id="check-review"><svg><use href="#i-check"/></svg></span>
       </div>
-      <div class="nav-item" onclick="goTo('gallery')" data-nav="gallery" id="nav-gallery">
-        <svg class="icon-svg"><use href="#i-cards"/></svg><span>简历画廊</span>
-        <span class="nav-check" id="check-gallery"><svg><use href="#i-check"/></svg></span>
-      </div>
       <div class="nav-item" onclick="goTo('generate')" data-nav="generate" id="nav-generate">
         <svg class="icon-svg" style="color:var(--accent)"><use href="#i-sparkle"/></svg><span>生成简历</span>
         <span class="nav-check" id="check-generate"><svg><use href="#i-check"/></svg></span>
@@ -1343,7 +2834,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <div class="landing-actions">
           <button class="btn-hero btn-hero-primary" onclick="goTo('basic')">开始填写资料</button>
           <button class="btn-hero btn-hero-secondary" onclick="goTo('generate')">直接生成简历</button>
-          <button class="btn-hero btn-hero-secondary" onclick="goTo('gallery')" style="border-color:rgba(120,140,93,0.3);color:var(--green)">
+          <button class="btn-hero btn-hero-secondary" onclick="document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'})" style="border-color:rgba(120,140,93,0.3);color:var(--green)">
             <svg class="icon-svg" style="width:16px;height:16px;margin-right:4px;stroke:var(--green)"><use href="#i-cards"/></svg>简历画廊
           </button>
         </div>
@@ -1365,6 +2856,19 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
           </div>
         </div>
       </div>
+      <div class="home-gallery-section" id="home-gallery-section">
+        <h3 class="home-gallery-title">
+          <svg class="icon-svg" style="width:18px;height:18px;margin-right:6px"><use href="#i-cards"/></svg>
+          最近生成的简历
+        </h3>
+        <div id="home-gallery-content">
+          <div class="gallery-empty">
+            <div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div>
+            <div class="ge-title">尚无简历</div>
+            <div class="ge-desc">生成简历后，它们会以卡牌形式出现在这里</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 基本信息 -->
@@ -1379,6 +2883,14 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <div class="form-row"><label>LinkedIn <span class="optional">可选</span></label><input type="text" id="linkedin" placeholder="linkedin.com/in/yourname"></div>
         <div class="form-row"><label>GitHub <span class="optional">可选</span></label><input type="text" id="github" placeholder="github.com/yourname"></div>
         <div class="form-row"><label>个人网站 <span class="optional">可选</span></label><input type="text" id="website" placeholder="yourwebsite.com"></div>
+      </div>
+      <div class="form-section basic-extra-section">
+        <div class="section-title">其他信息（不写入简历）</div>
+        <div class="section-desc">用于单独保存身份证号、家庭信息等，存储在后端独立文件中</div>
+        <div id="basic-extra-list"></div>
+        <div class="basic-extra-actions">
+          <button class="btn btn-add" onclick="addBasicExtraInfoRow()"><svg><use href="#i-plus"/></svg> 添加信息</button>
+        </div>
       </div>
       <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('directions')">下一步 →</button></div>
     </div>
@@ -1420,7 +2932,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
             <div class="form-row"><label>所在城市</label><input type="text" id="exp-city" placeholder="北京"></div>
             <div class="form-row"><label>部门 <span class="optional">可选</span></label><input type="text" id="exp-dept" placeholder="产品部"></div>
             <div class="form-row"><label>职位</label><input type="text" id="exp-role" placeholder="产品经理实习"></div>
-            <div class="form-row"><label>时间</label><div class="input-half"><input type="text" id="exp-time-start" placeholder="YYYY/MM"><span>—</span><input type="text" id="exp-time-end" placeholder="YYYY/MM 或 至今"></div></div>
+            <div class="form-row"><label>时间</label><div><div class="input-half"><input type="text" id="exp-time-start" placeholder="YYYY/MM/DD"><span>—</span><input type="text" id="exp-time-end" placeholder="YYYY/MM/DD 或 至今"></div><div class="date-copy-groups"><div class="date-copy-group"><span class="date-copy-label">开始</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-start','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-start','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-start','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-start','ymd_dash')">年-月-日</button></div></div><div class="date-copy-group"><span class="date-copy-label">结束</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-end','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-end','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-end','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromInput('exp-time-end','ymd_dash')">年-月-日</button></div></div></div></div></div>
             <div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔，用于匹配 JD</span></label><input type="text" id="exp-tags" placeholder="互联网, 产品, B端, 数据分析, AI"></div>
             <div style="margin-top:18px">
               <label style="font-size:14px;font-weight:600;color:var(--text);font-family:var(--font-heading);">工作内容</label>
@@ -1522,6 +3034,25 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
     <div class="page" id="page-generate">
       <div class="page-title">AI 简历生成</div>
       <div class="page-desc">上传 JD 和面经，AI 自动生成针对性简历</div>
+      <div id="gen-person-context" style="font-size:12px;color:var(--text-muted);margin-bottom:8px;display:none"></div>
+      <div class="jd-section model-summary-card">
+        <div class="model-summary-head">
+          <div>
+            <div class="model-summary-title"><svg class="icon-svg" style="width:16px;height:16px;color:var(--accent)"><use href="#i-settings"/></svg> 模型配置</div>
+            <div class="config-provider-note">API Key 与模型服务信息保存到项目根目录 `.env.local`，并已默认加入 git ignore</div>
+          </div>
+          <button class="btn btn-secondary" onclick="showModelConfigDialog()">
+            <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-edit"/></svg>配置
+          </button>
+        </div>
+        <div id="model-config-summary" class="model-summary-meta"></div>
+        <div class="model-summary-actions">
+          <a id="model-config-platform-link" class="btn btn-secondary" href="#" target="_blank" rel="noopener noreferrer" style="display:none">
+            <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-link"/></svg>API 平台
+          </a>
+          <button class="btn btn-secondary" onclick="showModelConfigDialog()">修改配置</button>
+        </div>
+      </div>
 
       <!-- JD Section (Required) -->
       <div class="jd-section">
@@ -1597,20 +3128,60 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
       <div id="ai-result" style="display:none;"></div>
     </div>
 
-    <!-- 简历画廊 -->
-    <div class="page" id="page-gallery">
-      <div class="page-title">简历画廊</div>
-      <div class="page-desc">点击卡牌翻转，查看已生成的简历</div>
-      <div id="gallery-content">
-        <div class="gallery-empty">
-          <div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div>
-          <div class="ge-title">尚无简历</div>
-          <div class="ge-desc">生成简历后，它们会以卡牌形式出现在这里</div>
-        </div>
+  </main>
+</div>
+
+<!-- LaTeX Editor (full-screen overlay) -->
+<div id="page-editor">
+  <div class="editor-toolbar">
+    <button onclick="closeEditor()" title="返回">← 返回</button>
+    <span class="editor-title" id="editor-title">LaTeX 编辑器</span>
+    <span class="editor-meta-inputs" id="editor-meta-inputs" style="display:none">
+      <input id="editor-company-input" class="editor-meta-field" placeholder="公司名" title="公司名（Enter保存）">
+      <span style="color:var(--text-muted);margin:0 2px">·</span>
+      <input id="editor-role-input" class="editor-meta-field" placeholder="岗位" title="岗位（Enter保存）">
+    </span>
+    <span style="color:var(--text-muted);font-size:12px;font-family:var(--font-heading)" id="editor-shortcut-hint"></span>
+    <button class="btn-versions" id="btn-versions" onclick="toggleVersionsPanel()" title="版本历史">
+      Versions <span class="version-count-badge" id="version-count-badge" style="display:none">0</span>
+    </button>
+    <button onclick="openSaveAsDialog()" title="另存为其他公司/岗位" style="font-size:12px">另存为…</button>
+    <button class="btn-regen" id="btn-regen" onclick="openRegenModal()" title="根据反馈重新生成">⟳ 重新生成</button>
+    <button class="btn-compile" id="btn-compile" onclick="compileTeX()">▶ Compile</button>
+    <button id="btn-editor-download" onclick="downloadEditorPdf()">下载 PDF</button>
+  </div>
+  <div class="editor-split">
+    <div class="editor-pane-code">
+      <div class="editor-mode-switcher">
+        <button class="editor-mode-btn active" data-mode="visual" onclick="switchEditorMode('visual')">Visual</button>
+        <button class="editor-mode-btn" data-mode="code" onclick="switchEditorMode('code')">Code</button>
+      </div>
+      <div id="visual-editor-mount" class="editor-mode-content active"></div>
+      <div id="cm-editor-mount" class="editor-mode-content"></div>
+    </div>
+    <div class="editor-pane-pdf" id="editor-pane-pdf">
+      <div id="pdfjs-container" style="display:none">
+      </div>
+      <iframe id="editor-pdf-iframe" src="about:blank"></iframe>
+    </div>
+    <!-- Versions Drawer -->
+    <div class="versions-drawer" id="versions-drawer">
+      <div class="versions-drawer-header">
+        <h4><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-file"/></svg> 版本历史</h4>
+        <button style="border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;width:24px;height:24px;display:flex;align-items:center;justify-content:center" onclick="toggleVersionsPanel()">
+          <svg class="icon-svg" style="width:12px;height:12px"><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <div class="versions-drawer-list" id="versions-list">
+        <div class="empty-state">暂无版本记录</div>
       </div>
     </div>
-
-  </main>
+  </div>
+  <div class="editor-statusbar">
+    <span id="editor-status-icon" class="status-icon">●</span>
+    <span id="editor-status-text">就绪</span>
+    <span id="editor-status-fill" style="margin-left:auto"></span>
+  </div>
 </div>
 
 <div class="pdf-modal-overlay" id="pdf-modal" onclick="if(event.target===this)closePdfModal()">
@@ -1621,8 +3192,11 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <span id="pdf-modal-name">简历预览</span>
       </div>
       <div class="pdf-modal-actions">
+        <button class="btn btn-secondary" id="pdf-modal-edit" style="padding:6px 14px;font-size:12px" title="编辑简历">
+          <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-edit"/></svg>编辑
+        </button>
         <button class="btn btn-secondary" id="pdf-modal-download" style="padding:6px 14px;font-size:12px">
-          <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-upload"/></svg>下载
+          <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-download"/></svg>下载
         </button>
         <button class="pdf-modal-close" onclick="closePdfModal()">
           <svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg>
@@ -1635,10 +3209,432 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   </div>
 </div>
 
+<!-- ═══ Context Text Modal (JD / 面经+笔记) ═══ -->
+<div class="ctx-modal-overlay" id="ctx-modal" onclick="if(event.target===this)closeCtxModal()">
+  <div class="ctx-modal">
+    <div class="ctx-modal-header">
+      <div class="ctx-modal-title" id="ctx-modal-title">内容</div>
+      <div class="ctx-modal-actions">
+        <button class="btn btn-secondary" id="ctx-modal-copy-btn" style="padding:5px 12px;font-size:12px" onclick="copyCtxModalText()">
+          <svg class="icon-svg" style="width:11px;height:11px;margin-right:4px"><use href="#i-copy"/></svg>复制
+        </button>
+        <button class="ctx-modal-close" onclick="closeCtxModal()">
+          <svg class="icon-svg" style="width:13px;height:13px"><use href="#i-x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="ctx-modal-body" id="ctx-modal-body">
+      <!-- filled dynamically -->
+    </div>
+    <div class="ctx-modal-footer" id="ctx-modal-footer" style="display:none">
+      <button class="btn btn-secondary" onclick="closeCtxModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCtxNotes()">保存笔记</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Save As Modal ═══ -->
+<div class="person-modal-overlay" id="saveas-modal" onclick="if(event.target===this)closeSaveAsDialog()">
+  <div class="person-modal">
+    <h3>另存为 <button onclick="closeSaveAsDialog()"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button></h3>
+    <div class="saveas-form">
+      <div class="ve-field-row">
+        <span class="ve-field-label">公司名</span>
+        <input class="ve-field-input" id="saveas-company" placeholder="如：腾讯" onkeydown="if(event.key==='Enter')saveTexAsFromDialog()">
+      </div>
+      <div class="ve-field-row">
+        <span class="ve-field-label">岗位名</span>
+        <input class="ve-field-input" id="saveas-position" placeholder="如：产品经理" onkeydown="if(event.key==='Enter')saveTexAsFromDialog()">
+      </div>
+    </div>
+    <div class="saveas-actions">
+      <button class="btn btn-secondary" onclick="closeSaveAsDialog()">取消</button>
+      <button class="btn btn-primary" onclick="saveTexAsFromDialog()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Regenerate Modal ═══ -->
+<div class="person-modal-overlay" id="regen-modal" onclick="if(event.target===this)closeRegenModal()">
+  <div class="person-modal" style="width:520px;max-width:94vw">
+    <h3>重新生成简历 <button onclick="closeRegenModal()"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button></h3>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">
+      描述需要修改的地方，AI 将根据原始 JD 和你的反馈重新生成。<br>
+      当前版本会自动保存到版本历史中。
+    </p>
+    <div class="ve-field-row">
+      <textarea id="regen-feedback" rows="5" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;outline:none"
+        placeholder="例如：&#10;- 换掉字节跳动实习经历，用腾讯的&#10;- 数据增长那条 bullet 描述太弱了&#10;- 去掉研究经历&#10;（留空则直接按原始 JD 重新生成）"></textarea>
+    </div>
+    <div class="saveas-actions" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeRegenModal()">取消</button>
+      <button class="btn btn-primary" id="regen-submit-btn" onclick="submitRegen()">开始重新生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Person Management Modal ═══ -->
+<div class="person-modal-overlay" id="person-modal" onclick="if(event.target===this)closePersonDialog()">
+  <div class="person-modal">
+    <h3>档案管理 <button onclick="closePersonDialog()"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button></h3>
+    <div id="person-modal-list"></div>
+    <div class="person-add-row">
+      <input type="text" id="person-add-name" placeholder="输入新档案名称" onkeydown="if(event.key==='Enter')createPerson()">
+      <button class="btn btn-primary" onclick="createPerson()" style="padding:8px 16px">添加</button>
+    </div>
+  </div>
+</div>
+
+<div class="person-modal-overlay" id="model-config-modal" onclick="if(event.target===this)closeModelConfigDialog()">
+  <div class="person-modal" style="width:560px;max-width:94vw;">
+    <h3>模型配置 <button onclick="closeModelConfigDialog()"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button></h3>
+    <div class="config-form">
+      <div class="config-toggle-row">
+        <div>
+          <strong>启用外部模型</strong>
+          <span>关闭后将回退到本地规则引擎</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="model-enabled">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="config-grid">
+        <div class="config-field">
+          <label for="model-provider">模型服务商</label>
+          <select id="model-provider" onchange="onModelProviderChange()"></select>
+        </div>
+        <div class="config-field">
+          <label for="model-select">推荐模型</label>
+          <select id="model-select"></select>
+        </div>
+      </div>
+      <div class="config-field">
+        <label for="model-custom">自定义模型名</label>
+        <input type="text" id="model-custom" placeholder="留空则使用上方推荐模型">
+      </div>
+      <div class="config-field">
+        <label for="model-base-url">Base URL / 服务地址</label>
+        <input type="text" id="model-base-url" placeholder="如 https://api.openai.com/v1">
+      </div>
+      <div class="config-field">
+        <label for="model-api-key">API Key</label>
+        <input type="password" id="model-api-key" placeholder="仅保存在本地 .env.local">
+      </div>
+      <div class="config-link-row">
+        <div>
+          <strong id="model-platform-label">API 平台</strong>
+          <div class="config-help">支持 OpenAI、Gemini、Anthropic、GLM、Kimi、MiniMax、Grok、Qwen、Doubao 及自定义服务</div>
+        </div>
+        <a id="model-platform-anchor" href="#" target="_blank" rel="noopener noreferrer">打开平台</a>
+      </div>
+      <div class="config-model-meta" id="model-model-chips"></div>
+      <div class="config-help">推荐模型会随提供商更新；如需实验版本、企业代理或兼容接口，可直接填写自定义模型名和 Base URL</div>
+      <div class="saveas-actions">
+        <button class="btn btn-secondary" onclick="closeModelConfigDialog()">取消</button>
+        <button class="btn btn-secondary" onclick="resetModelConfigForm()">恢复推荐值</button>
+        <button class="btn btn-primary" onclick="saveModelConfigForm()">保存配置</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 let selectedFiles = [], educationCounter = 0, awardCounter = 0, currentPage = 'home', projectCounter = 0, pubCounter = 0, workCardCounter = 0;
+let personsData = { persons: [], active: null };
+let modelConfigState = { enabled: false, provider: 'gemini', model: '', base_url: '', api_key: '', platform_url: '', providers: [] };
+
+/* ═══ Person Management ═══ */
+async function loadPersons() {
+  try {
+    const res = await fetch('/api/persons');
+    const data = await res.json();
+    personsData = data;
+    const selector = document.getElementById('person-selector');
+    const select = document.getElementById('person-select');
+    if (!data.persons || data.persons.length === 0) {
+      selector.style.display = 'none';
+      return;
+    }
+    selector.style.display = '';
+    select.innerHTML = data.persons.map(p =>
+      `<option value="${esc(p.id)}" ${p.id === data.active ? 'selected' : ''}>${esc(p.display_name)}</option>`
+    ).join('');
+    updateGenPersonContext();
+  } catch(e) {
+    document.getElementById('person-selector').style.display = 'none';
+  }
+}
+
+async function switchPerson(personId) {
+  try {
+    const res = await fetch('/api/persons/active', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ person_id: personId })
+    });
+    const result = await res.json();
+    if (result.error) { showToast(result.error, 'error'); return; }
+
+    personsData.active = personId;
+    const person = personsData.persons.find(p => p.id === personId);
+    showToast('已切换到: ' + (person ? person.display_name : personId));
+
+    // 全量刷新
+    await loadProfile();
+    loadExperiences();
+    loadGallery('home-gallery-content');
+    if (currentPage === 'review') loadReviewPage();
+    updateGenPersonContext();
+
+    // 清空生成结果（属于上一个人的）
+    const resultEl = document.getElementById('ai-result');
+    if (resultEl) resultEl.style.display = 'none';
+  } catch(e) {
+    showToast('切换失败', 'error');
+  }
+}
+
+async function createPerson() {
+  const input = document.getElementById('person-add-name');
+  const name = input.value.trim();
+  if (!name) { showToast('请输入档案名称', 'error'); return; }
+  try {
+    const res = await fetch('/api/persons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: name })
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    input.value = '';
+    showToast('已创建档案: ' + data.person.display_name);
+    await loadPersons();
+    renderPersonModalList();
+  } catch(e) { showToast('创建失败', 'error'); }
+}
+
+async function deletePerson(personId) {
+  if (!confirm(`确定删除档案「${personId}」？数据目录不会被删除。`)) return;
+  try {
+    const res = await fetch('/api/persons/' + encodeURIComponent(personId), { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast(data.message);
+    await loadPersons();
+    renderPersonModalList();
+    await loadProfile();
+    loadExperiences();
+    loadGallery('home-gallery-content');
+  } catch(e) { showToast('删除失败', 'error'); }
+}
+
+function showPersonDialog() {
+  renderPersonModalList();
+  document.getElementById('person-modal').classList.add('open');
+}
+
+function closePersonDialog() {
+  document.getElementById('person-modal').classList.remove('open');
+}
+
+function renderPersonModalList() {
+  const container = document.getElementById('person-modal-list');
+  if (!personsData.persons || personsData.persons.length === 0) {
+    container.innerHTML = '<div class="empty-state">暂无档案</div>';
+    return;
+  }
+  container.innerHTML = personsData.persons.map(p => `
+    <div class="person-list-item">
+      <span class="person-name">${esc(p.display_name)}</span>
+      <span class="person-id">${esc(p.id)}</span>
+      ${p.id === personsData.active ? '<span class="person-active-badge">当前</span>' : ''}
+      ${personsData.persons.length > 1 ? `<button class="btn btn-danger" onclick="deletePerson('${esc(p.id)}')">删除</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function getModelProviderMeta(providerId) {
+  return (modelConfigState.providers || []).find(item => item.id === providerId) || null;
+}
+
+function resolveModelConfigFormValue() {
+  const customModel = (document.getElementById('model-custom')?.value || '').trim();
+  const selectedModel = (document.getElementById('model-select')?.value || '').trim();
+  return customModel || selectedModel;
+}
+
+function isModelConfigReadyForGeneration(config = modelConfigState) {
+  return !!((config?.api_key || '').trim() && (config?.model || '').trim());
+}
+
+function renderModelConfigSummary() {
+  const container = document.getElementById('model-config-summary');
+  if (!container) return;
+  const meta = getModelProviderMeta(modelConfigState.provider);
+  const enabledText = modelConfigState.enabled ? '已启用' : '已关闭';
+  const providerLabel = meta?.label || modelConfigState.provider || '未配置';
+  const modelLabel = modelConfigState.model || '未配置';
+  const baseUrl = modelConfigState.base_url || '未配置';
+  const keyText = modelConfigState.api_key ? `已保存（••••${modelConfigState.api_key.slice(-4) || '****'}）` : '未保存';
+  const defaultEngineText = isModelConfigReadyForGeneration(modelConfigState) ? '外部模型优先' : '本地规则引擎';
+  container.innerHTML = `
+    <div class="model-summary-item"><strong>状态</strong>${esc(enabledText)}</div>
+    <div class="model-summary-item"><strong>服务商</strong>${esc(providerLabel)}</div>
+    <div class="model-summary-item"><strong>模型</strong>${esc(modelLabel)}</div>
+    <div class="model-summary-item"><strong>Base URL</strong>${esc(baseUrl)}</div>
+    <div class="model-summary-item"><strong>API Key</strong>${esc(keyText)}</div>
+    <div class="model-summary-item"><strong>生成默认</strong>${esc(defaultEngineText)}</div>
+  `;
+  const link = document.getElementById('model-config-platform-link');
+  const targetUrl = modelConfigState.platform_url || meta?.platform_url || meta?.docs_url || '';
+  if (link) {
+    if (targetUrl) {
+      link.href = targetUrl;
+      link.style.display = '';
+    } else {
+      link.style.display = 'none';
+    }
+  }
+}
+
+function updateModelProviderDetails(providerId, options = {}) {
+  const meta = getModelProviderMeta(providerId);
+  const modelSelect = document.getElementById('model-select');
+  const modelBaseUrl = document.getElementById('model-base-url');
+  const platformAnchor = document.getElementById('model-platform-anchor');
+  const platformLabel = document.getElementById('model-platform-label');
+  const chipContainer = document.getElementById('model-model-chips');
+  if (!meta || !modelSelect || !modelBaseUrl) return;
+
+  const selectedModel = options.selectedModel || resolveModelConfigFormValue() || meta.default_model || '';
+  const models = meta.models && meta.models.length ? meta.models : ['custom'];
+  modelSelect.innerHTML = models.map(model => `<option value="${esc(model)}" ${model === selectedModel ? 'selected' : ''}>${esc(model)}</option>`).join('');
+  if (selectedModel && !models.includes(selectedModel)) {
+    modelSelect.insertAdjacentHTML('beforeend', `<option value="${esc(selectedModel)}" selected>${esc(selectedModel)}（当前）</option>`);
+  }
+
+  const shouldResetBase = options.forceBaseReset || !modelBaseUrl.value.trim() || modelBaseUrl.dataset.defaultValue === modelBaseUrl.value.trim();
+  if (shouldResetBase) {
+    modelBaseUrl.value = meta.default_base_url || '';
+  }
+  modelBaseUrl.dataset.defaultValue = meta.default_base_url || '';
+
+  const platformUrl = meta.platform_url || meta.docs_url || '';
+  if (platformAnchor) {
+    if (platformUrl) {
+      platformAnchor.href = platformUrl;
+      platformAnchor.style.visibility = 'visible';
+    } else {
+      platformAnchor.removeAttribute('href');
+      platformAnchor.style.visibility = 'hidden';
+    }
+  }
+  if (platformLabel) {
+    platformLabel.textContent = meta.label ? `${meta.label} API 平台` : 'API 平台';
+  }
+  if (chipContainer) {
+    chipContainer.innerHTML = (meta.models || []).map(model => `<button type="button" class="config-model-chip" onclick="applyRecommendedModel('${esc(meta.id)}','${esc(model)}')">${esc(model)}</button>`).join('');
+  }
+}
+
+function applyRecommendedModel(providerId, model) {
+  const providerSelect = document.getElementById('model-provider');
+  if (providerSelect && providerSelect.value !== providerId) {
+    providerSelect.value = providerId;
+    updateModelProviderDetails(providerId, { selectedModel: model, forceBaseReset: true });
+  }
+  const modelSelect = document.getElementById('model-select');
+  const customModel = document.getElementById('model-custom');
+  if (modelSelect) modelSelect.value = model;
+  if (customModel) customModel.value = '';
+}
+
+function populateModelConfigForm(config = modelConfigState) {
+  const providerSelect = document.getElementById('model-provider');
+  if (!providerSelect) return;
+  providerSelect.innerHTML = (config.providers || []).map(provider => `
+    <option value="${esc(provider.id)}" ${provider.id === config.provider ? 'selected' : ''}>${esc(provider.label)}</option>
+  `).join('');
+  document.getElementById('model-enabled').checked = !!config.enabled;
+  document.getElementById('model-api-key').value = config.api_key || '';
+  document.getElementById('model-custom').value = '';
+  document.getElementById('model-base-url').value = config.base_url || '';
+  updateModelProviderDetails(config.provider, { selectedModel: config.model, forceBaseReset: false });
+  const modelSelect = document.getElementById('model-select');
+  if (modelSelect && config.model) modelSelect.value = config.model;
+}
+
+async function loadModelConfig() {
+  try {
+    const res = await fetch('/api/model-config');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    modelConfigState = data;
+    populateModelConfigForm(data);
+    renderModelConfigSummary();
+  } catch (e) {
+    console.warn('loadModelConfig failed:', e);
+  }
+}
+
+function showModelConfigDialog() {
+  populateModelConfigForm(modelConfigState);
+  document.getElementById('model-config-modal').classList.add('open');
+}
+
+function closeModelConfigDialog() {
+  document.getElementById('model-config-modal').classList.remove('open');
+}
+
+function onModelProviderChange() {
+  const providerId = document.getElementById('model-provider')?.value || 'other';
+  document.getElementById('model-custom').value = '';
+  updateModelProviderDetails(providerId, { forceBaseReset: true });
+}
+
+function resetModelConfigForm() {
+  const providerId = document.getElementById('model-provider')?.value || modelConfigState.provider || 'gemini';
+  const meta = getModelProviderMeta(providerId);
+  if (!meta) return;
+  document.getElementById('model-custom').value = '';
+  document.getElementById('model-base-url').value = meta.default_base_url || '';
+  document.getElementById('model-base-url').dataset.defaultValue = meta.default_base_url || '';
+  updateModelProviderDetails(providerId, { selectedModel: meta.default_model, forceBaseReset: true });
+  const modelSelect = document.getElementById('model-select');
+  if (modelSelect && meta.default_model) modelSelect.value = meta.default_model;
+}
+
+async function saveModelConfigForm() {
+  const providerId = document.getElementById('model-provider')?.value || 'other';
+  const meta = getModelProviderMeta(providerId);
+  const payload = {
+    enabled: !!document.getElementById('model-enabled')?.checked,
+    provider: providerId,
+    model: resolveModelConfigFormValue(),
+    base_url: (document.getElementById('model-base-url')?.value || '').trim(),
+    api_key: (document.getElementById('model-api-key')?.value || '').trim(),
+    platform_url: meta?.platform_url || meta?.docs_url || '',
+  };
+  try {
+    const res = await fetch('/api/model-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    modelConfigState = data.config;
+    populateModelConfigForm(modelConfigState);
+    renderModelConfigSummary();
+    closeModelConfigDialog();
+    showToast('模型配置已保存');
+  } catch (e) {
+    showToast('保存模型配置失败: ' + e.message, 'error');
+  }
+}
 
 function goTo(page) {
   currentPage = page;
@@ -1648,7 +3644,8 @@ function goTo(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === page));
   if (page === 'experiences') loadExperiences();
   if (page === 'review') loadReviewPage();
-  if (page === 'gallery') loadGallery();
+  if (page === 'home') loadGallery('home-gallery-content');
+  if (page === 'generate') updateGenPersonContext();
   window.scrollTo(0, 0);
 }
 
@@ -1726,6 +3723,7 @@ async function loadProfile() {
     document.getElementById('publications-list').innerHTML=''; pubCounter=0; (data.publications||[]).forEach(p=>addPublication(p));
     const s=data.skills||{}; loadSkillTags('tech',s.tech||''); loadSkillTags('software',s.software||''); loadSkillTags('languages',s.languages||'');
     const d=data.directions||{}; document.getElementById('dir_primary').value=d.primary||''; document.getElementById('dir_secondary').value=d.secondary||'';
+    await loadBasicExtraInfo();
     updateProgress();
   } catch(e) { showToast('加载失败: '+e.message,'error'); }
 }
@@ -1735,7 +3733,91 @@ async function saveProfile() {
   if(!data.basic.name_zh){showToast('请填写中文姓名','error');goTo('basic');return;}
   if(!data.basic.email){showToast('请填写邮箱','error');goTo('basic');return;}
   if(!data.basic.phone){showToast('请填写电话','error');goTo('basic');return;}
-  try { const res=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); const r=await res.json(); if(r.error) showToast(r.error,'error'); else {showToast('个人信息已保存');updateProgress();} } catch(e){showToast('保存失败','error');}
+  try {
+    const res=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const r=await res.json();
+    if(r.error) { showToast(r.error,'error'); return; }
+    const extOk = await saveBasicExtraInfo(false);
+    if (!extOk) return;
+    showToast('个人信息已保存');
+    updateProgress();
+  } catch(e){showToast('保存失败','error');}
+}
+
+function addBasicExtraInfoRow(item = { key: '', value: '' }) {
+  const list = document.getElementById('basic-extra-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'basic-extra-row';
+  row.innerHTML = `
+    <input type="text" class="ve-field-input" data-field="key" placeholder="字段名（如：身份证号）" value="${esc(item.key || '')}">
+    <input type="text" class="ve-field-input" data-field="value" placeholder="内容（如：310xxxxxxxxxxxx）" value="${esc(item.value || '')}">
+    <button class="btn btn-secondary btn-copy" onclick="copyBasicExtraInfoRow(this.closest('.basic-extra-row'))">复制</button>
+    <button class="btn btn-danger" onclick="this.closest('.basic-extra-row').remove()">删除</button>
+  `;
+  list.appendChild(row);
+}
+
+function collectBasicExtraInfo() {
+  return Array.from(document.querySelectorAll('#basic-extra-list .basic-extra-row')).map(row => ({
+    key: ((row.querySelector('[data-field="key"]') || {}).value || '').trim(),
+    value: ((row.querySelector('[data-field="value"]') || {}).value || '').trim()
+  })).filter(item => item.key || item.value);
+}
+
+async function loadBasicExtraInfo() {
+  try {
+    const res = await fetch('/api/extra-info');
+    const data = await res.json();
+    const list = document.getElementById('basic-extra-list');
+    list.innerHTML = '';
+    (data.items || []).forEach(addBasicExtraInfoRow);
+    if (!(data.items || []).length) addBasicExtraInfoRow();
+  } catch {
+    const list = document.getElementById('basic-extra-list');
+    if (list && !list.children.length) addBasicExtraInfoRow();
+  }
+}
+
+async function saveBasicExtraInfo(showToastOnSuccess = true) {
+  try {
+    const items = collectBasicExtraInfo();
+    const res = await fetch('/api/extra-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return false; }
+    if (showToastOnSuccess) showToast('其他信息已保存');
+    return true;
+  } catch (e) {
+    showToast('其他信息保存失败', 'error');
+    return false;
+  }
+}
+
+async function copyBasicExtraInfoRow(row) {
+  if (!row) return;
+  const key = ((row.querySelector('[data-field="key"]') || {}).value || '').trim();
+  const value = ((row.querySelector('[data-field="value"]') || {}).value || '').trim();
+  const text = key ? `${key}：${value}` : value;
+  if (!text) { showToast('该条信息为空', 'error'); return; }
+  await _copyTextToClipboard(text, '该条信息已复制');
+}
+
+async function loadExtensionDraft() {
+  try {
+    const res = await fetch('/api/ext/draft');
+    const data = await res.json();
+    if (data.error) return;
+    const jdEl = document.getElementById('jd-text');
+    const mjEl = document.getElementById('mj-text');
+    if (jdEl && !jdEl.value && data.jd) jdEl.value = data.jd;
+    if (mjEl && !mjEl.value && data.interview) mjEl.value = data.interview;
+  } catch {
+    // ignore
+  }
 }
 
 function addEducation(data=null) {
@@ -1745,19 +3827,34 @@ function addEducation(data=null) {
   <div class="form-row"><label>学历</label><select data-field="degree"><option value="">请选择</option><option value="博士" ${d.degree==='博士'?'selected':''}>博士</option><option value="硕士" ${d.degree==='硕士'?'selected':''}>硕士</option><option value="本科" ${d.degree==='本科'?'selected':''}>本科</option><option value="大专" ${d.degree==='大专'?'selected':''}>大专</option></select></div>
   <div class="form-row"><label>专业</label><input type="text" data-field="major" value="${esc(d.major)}"></div>
   <div class="form-row"><label>学院</label><input type="text" data-field="department" value="${esc(d.department)}"></div>
-  <div class="form-row"><label>时间</label><div class="input-half"><input type="text" data-field="time_start" value="${esc(d.time_start)}" placeholder="YYYY/MM"><span>—</span><input type="text" data-field="time_end" value="${esc(d.time_end)}" placeholder="YYYY/MM"></div></div>
+  <div class="form-row"><label>时间</label><div><div class="input-half"><input type="text" data-field="time_start" value="${esc(_normalizeDateInputValue(d.time_start))}" placeholder="YYYY/MM/DD"><span>—</span><input type="text" data-field="time_end" value="${esc(_normalizeDateInputValue(d.time_end))}" placeholder="YYYY/MM/DD"></div><div class="date-copy-groups"><div class="date-copy-group"><span class="date-copy-label">开始</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_dash')">年-月-日</button></div></div><div class="date-copy-group"><span class="date-copy-label">结束</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_dash')">年-月-日</button></div></div></div></div></div>
   <div class="form-row"><label>GPA <span class="optional">可选</span></label><input type="text" data-field="gpa" value="${esc(d.gpa)}" placeholder="X.X/4.0"></div>
   <div class="form-row"><label>排名 <span class="optional">可选</span></label><input type="text" data-field="rank" value="${esc(d.rank)}" placeholder="前 X%"></div>
   <div class="form-row form-row-wide"><label>主修课程 <span class="optional">分号分隔</span></label><textarea data-field="courses" rows="2" placeholder="课程1；课程2；课程3">${esc(d.courses)}</textarea></div>`;
   document.getElementById('education-list').appendChild(card);
 }
-function collectEducation() { return Array.from(document.querySelectorAll('#education-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{school:g('school').trim(),degree:g('degree').trim(),major:g('major').trim(),department:g('department').trim(),time_start:g('time_start').trim(),time_end:g('time_end').trim(),gpa:g('gpa').trim(),rank:g('rank').trim(),courses:g('courses').trim()};}); }
+function collectEducation() {
+  return Array.from(document.querySelectorAll('#education-list .entry-card')).map(c => {
+    const g = f => (c.querySelector(`[data-field="${f}"]`) || {}).value || '';
+    return {
+      school: g('school').trim(),
+      degree: g('degree').trim(),
+      major: g('major').trim(),
+      department: g('department').trim(),
+      time_start: _normalizeDateInputValue(g('time_start')),
+      time_end: _normalizeDateInputValue(g('time_end')),
+      gpa: g('gpa').trim(),
+      rank: g('rank').trim(),
+      courses: g('courses').trim()
+    };
+  });
+}
 
-function addAward(data=null) { awardCounter++; const d=data||{}, row=document.createElement('div'); row.className='award-row'; row.id=`award-${awardCounter}`; row.innerHTML=`<input type="text" data-field="name" value="${esc(d.name)}" placeholder="奖项名称" oninput="updateProgress()"><input type="text" data-field="issuer" value="${esc(d.issuer)}" placeholder="颁发机构"><input type="text" data-field="date" value="${esc(d.date)}" placeholder="YYYY/MM"><button class="btn btn-danger" onclick="removeEntry('award-${awardCounter}')" style="padding:2px 4px"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button>`; document.getElementById('awards-list').appendChild(row); }
-function collectAwards() { return Array.from(document.querySelectorAll('#awards-list .award-row')).map(r=>{const g=f=>(r.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),issuer:g('issuer').trim(),date:g('date').trim()};}).filter(a=>a.name); }
+function addAward(data=null) { awardCounter++; const d=data||{}, row=document.createElement('div'); row.className='award-row'; row.id=`award-${awardCounter}`; row.innerHTML=`<input type="text" data-field="name" value="${esc(d.name)}" placeholder="奖项名称" oninput="updateProgress()"><input type="text" data-field="issuer" value="${esc(d.issuer)}" placeholder="颁发机构"><input type="text" data-field="date" value="${esc(_normalizeDateInputValue(d.date))}" placeholder="YYYY/MM/DD"><button class="btn btn-danger" onclick="removeEntry('award-${awardCounter}')" style="padding:2px 4px"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button>`; document.getElementById('awards-list').appendChild(row); }
+function collectAwards() { return Array.from(document.querySelectorAll('#awards-list .award-row')).map(r=>{const g=f=>(r.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),issuer:g('issuer').trim(),date:_normalizeDateInputValue(g('date'))};}).filter(a=>a.name); }
 
-function addProject(data=null) { projectCounter++; const idx=projectCounter,d=data||{},card=document.createElement('div'); card.className='entry-card'; card.id=`proj-${idx}`; card.innerHTML=`<div class="card-header"><span class="card-title">项目 ${idx}</span><button class="btn btn-danger" onclick="removeEntry('proj-${idx}')">删除</button></div><div class="form-row"><label>项目名称</label><input type="text" data-field="name" value="${esc(d.name)}" oninput="updateProgress()"></div><div class="form-row"><label>角色</label><input type="text" data-field="role" value="${esc(d.role)}" placeholder="负责人 / 核心成员"></div><div class="form-row"><label>时间</label><div class="input-half"><input type="text" data-field="time_start" value="${esc(d.time_start)}" placeholder="YYYY/MM"><span>—</span><input type="text" data-field="time_end" value="${esc(d.time_end)}" placeholder="YYYY/MM"></div></div><div class="form-row form-row-wide"><label>描述</label><textarea data-field="desc" rows="3" placeholder="项目背景、贡献、成果">${esc(d.desc)}</textarea></div><div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔</span></label><input type="text" data-field="tags" value="${esc(d.tags)}" placeholder="NLP, Python, 深度学习"></div>`; document.getElementById('projects-list').appendChild(card); }
-function collectProjects() { return Array.from(document.querySelectorAll('#projects-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),role:g('role').trim(),time_start:g('time_start').trim(),time_end:g('time_end').trim(),desc:g('desc').trim(),tags:g('tags').trim()};}).filter(p=>p.name); }
+function addProject(data=null) { projectCounter++; const idx=projectCounter,d=data||{},card=document.createElement('div'); card.className='entry-card'; card.id=`proj-${idx}`; card.innerHTML=`<div class="card-header"><span class="card-title">项目 ${idx}</span><button class="btn btn-danger" onclick="removeEntry('proj-${idx}')">删除</button></div><div class="form-row"><label>项目名称</label><input type="text" data-field="name" value="${esc(d.name)}" oninput="updateProgress()"></div><div class="form-row"><label>角色</label><input type="text" data-field="role" value="${esc(d.role)}" placeholder="负责人 / 核心成员"></div><div class="form-row"><label>时间</label><div><div class="input-half"><input type="text" data-field="time_start" value="${esc(_normalizeDateInputValue(d.time_start))}" placeholder="YYYY/MM/DD"><span>—</span><input type="text" data-field="time_end" value="${esc(_normalizeDateInputValue(d.time_end))}" placeholder="YYYY/MM/DD"></div><div class="date-copy-groups"><div class="date-copy-group"><span class="date-copy-label">开始</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_dash')">年-月-日</button></div></div><div class="date-copy-group"><span class="date-copy-label">结束</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_dash')">年-月-日</button></div></div></div></div></div><div class="form-row form-row-wide"><label>描述</label><textarea data-field="desc" rows="3" placeholder="项目背景、贡献、成果">${esc(d.desc)}</textarea></div><div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔</span></label><input type="text" data-field="tags" value="${esc(d.tags)}" placeholder="NLP, Python, 深度学习"></div>`; document.getElementById('projects-list').appendChild(card); }
+function collectProjects() { return Array.from(document.querySelectorAll('#projects-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),role:g('role').trim(),time_start:_normalizeDateInputValue(g('time_start')),time_end:_normalizeDateInputValue(g('time_end')),desc:g('desc').trim(),tags:g('tags').trim()};}).filter(p=>p.name); }
 
 function addPublication(data=null) { pubCounter++; const d=data||{},card=document.createElement('div'); card.className='pub-card'; card.id=`pub-${pubCounter}`; card.innerHTML=`<div class="pub-header"><span class="pub-title-label">论文 ${pubCounter}</span><button class="btn btn-danger" onclick="removeEntry('pub-${pubCounter}')">删除</button></div><div class="pub-row"><div><label>论文标题</label><input type="text" data-field="title" value="${esc(d.title)}" placeholder="论文标题" oninput="updateProgress()"></div><div><label>期刊/会议</label><input type="text" data-field="venue" value="${esc(d.venue)}" placeholder="ACL 2025"></div></div><div class="pub-row"><div><label>作者</label><input type="text" data-field="authors" value="${esc(d.authors)}" placeholder="Li M., et al."></div><div><label>年份</label><input type="text" data-field="year" value="${esc(d.year)}" placeholder="2025"></div></div><div class="pub-row-full"><label>论文内容描述</label><textarea data-field="description" rows="3" placeholder="简述研究问题、方法与贡献...">${esc(d.description)}</textarea></div>`; document.getElementById('publications-list').appendChild(card); }
 function collectPublications() { return Array.from(document.querySelectorAll('#publications-list .pub-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{title:g('title').trim(),authors:g('authors').trim(),venue:g('venue').trim(),year:g('year').trim(),description:g('description').trim()};}).filter(p=>p.title); }
@@ -1768,7 +3865,7 @@ function addWorkCard(text) { const input=document.getElementById('work-card-inpu
 function collectWorkItems() { return Array.from(document.querySelectorAll('#work-cards .work-card')).map(c=>({title:c.dataset.value,desc:''})).filter(w=>w.title); }
 function resetExperienceForm() { editingExpFilename=null; ['exp-company','exp-city','exp-dept','exp-role','exp-time-start','exp-time-end','exp-tags','exp-notes'].forEach(id=>document.getElementById(id).value=''); document.getElementById('work-cards').innerHTML=''; workCardCounter=0; }
 
-async function saveExperienceForm() { const company=val('exp-company'),role=val('exp-role'); if(!company){showToast('请填写公司/机构名','error');return;} if(!role){showToast('请填写职位','error');return;} const data={company,city:val('exp-city'),department:val('exp-dept'),role,time_start:val('exp-time-start'),time_end:val('exp-time-end'),tags:val('exp-tags'),work_items:collectWorkItems(),notes:val('exp-notes')}; if(editingExpFilename) data.update_filename = editingExpFilename; try{const res=await fetch('/api/experiences/form',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); const r=await res.json(); if(r.error) showToast(r.error,'error'); else{showToast(editingExpFilename ? `已更新: ${r.filename}` : `经历已保存: ${r.filename}`);editingExpFilename=null;resetExperienceForm();loadExperiences();updateProgress();}}catch(e){showToast('保存失败','error');} }
+async function saveExperienceForm() { const company=val('exp-company'),role=val('exp-role'); if(!company){showToast('请填写公司/机构名','error');return;} if(!role){showToast('请填写职位','error');return;} const data={company,city:val('exp-city'),department:val('exp-dept'),role,time_start:_normalizeDateInputValue(val('exp-time-start')),time_end:_normalizeDateInputValue(val('exp-time-end')),tags:val('exp-tags'),work_items:collectWorkItems(),notes:val('exp-notes')}; if(editingExpFilename) data.update_filename = editingExpFilename; try{const res=await fetch('/api/experiences/form',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}); const r=await res.json(); if(r.error) showToast(r.error,'error'); else{showToast(editingExpFilename ? `已更新: ${r.filename}` : `经历已保存: ${r.filename}`);editingExpFilename=null;resetExperienceForm();loadExperiences();updateProgress();}}catch(e){showToast('保存失败','error');} }
 
 async function loadExperiences() { try{const res=await fetch('/api/experiences'); const data=await res.json(); if(data.error) return; const listEl=document.getElementById('experience-file-list'); if(data.experiences.length===0){listEl.innerHTML='<div class="empty-state">暂无经历文件</div>';}else{listEl.innerHTML=data.experiences.map(f=>`<div class="file-item" style="cursor:pointer" onclick="loadExperienceForEdit('${esc(f.filename)}')"><div class="file-info"><svg class="icon-svg"><use href="#i-file"/></svg><span class="file-name">${esc(f.filename)}</span><span class="file-size">${formatSize(f.size)}</span></div><div style="display:flex;gap:6px;align-items:center"><button class="btn btn-secondary" onclick="event.stopPropagation();loadExperienceForEdit('${esc(f.filename)}')" style="padding:4px 10px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg></button><button class="btn btn-danger" onclick="event.stopPropagation();deleteExperience('${esc(f.filename)}')">删除</button></div></div>`).join('');} const ms=document.getElementById('materials-section'),ml=document.getElementById('materials-list'); if(data.work_materials.length>0){ms.style.display='';ml.innerHTML=data.work_materials.map(m=>`<div class="materials-group"><div class="group-title">${esc(m.company)}</div>${m.files.map(f=>`<div class="material-file">· ${esc(f)}</div>`).join('')}</div>`).join('');}else{ms.style.display='none';} updateProgress();}catch(e){document.getElementById('experience-file-list').innerHTML='<div class="empty-state" style="color:var(--accent)">加载失败</div>';} }
 async function deleteExperience(fn) { if(!confirm(`确定删除 ${fn}？`)) return; try{const res=await fetch(`/api/experiences/${encodeURIComponent(fn)}`,{method:'DELETE'}); const d=await res.json(); if(d.error){showToast(d.error,'error');return;} showToast(d.message); loadExperiences();}catch(e){showToast('删除失败','error');} }
@@ -1803,8 +3900,9 @@ const TAROT_PALETTES = [
 ];
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
 
-async function loadGallery() {
-  const container = document.getElementById('gallery-content');
+async function loadGallery(containerId) {
+  containerId = containerId || 'home-gallery-content';
+  const container = document.getElementById(containerId);
   if (!container) return;
   container.innerHTML = '<div class="empty-state">加载中...</div>';
   try {
@@ -1825,26 +3923,35 @@ async function loadGallery() {
       return `
       <div class="tarot-card" onclick="flipTarot(this)" data-pdf="${esc(item.pdf_path)}" data-dir="${esc(item.dir_name)}" style="animation-delay:${i * 0.1}s;${style}">
         <div class="tarot-face tarot-back">
+          ${item.version_count > 0 ? `<span class="tarot-version-badge">v${item.version_count}</span>` : ''}
           <div class="tarot-numeral">${numeral}</div>
           <div class="tarot-circle"><div class="tarot-symbol"><svg class="icon-svg" style="width:36px;height:36px"><use href="#i-sparkle"/></svg></div></div>
-          <div class="tarot-label">${esc(item.company)}</div>
-          <div class="tarot-role">${esc(item.role)}</div>
+          <div class="tarot-label editable-meta" data-field="company" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑公司名">${esc(item.company)}</div>
+          <div class="tarot-role editable-meta" data-field="role" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑岗位">${esc(item.role)}</div>
         </div>
         <div class="tarot-face tarot-front">
           <button class="tf-delete" onclick="event.stopPropagation();deleteGalleryItem(this,'${esc(item.dir_name)}','${esc(item.company)}')" title="删除">
             <svg class="icon-svg" style="width:12px;height:12px"><use href="#i-x"/></svg>
           </button>
-          <div class="tf-company">${esc(item.company)}</div>
-          <div class="tf-role">${esc(item.role)}</div>
+          <div class="tf-company editable-meta" data-field="company" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑公司名">${esc(item.company)}</div>
+          <div class="tf-role editable-meta" data-field="role" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑岗位">${esc(item.role)}</div>
           <div class="tf-date">${esc(item.date)}</div>
-          <div class="tf-preview">${widths.map(w => `<div class="tf-preview-line" style="--w:${w}%"></div>`).join('')}</div>
-          <div class="tf-actions">
-            <button class="btn btn-secondary" onclick="event.stopPropagation();openPdfModal('${esc(item.pdf_path)}','${esc(item.company)} — ${esc(item.role)}')">
-              <svg class="icon-svg" style="width:11px;height:11px;margin-right:3px"><use href="#i-file"/></svg>查看
-            </button>
-            <button class="btn btn-primary" onclick="event.stopPropagation();downloadPdf('${esc(item.pdf_path)}')">
-              <svg class="icon-svg" style="width:11px;height:11px;margin-right:3px;stroke:#fff"><use href="#i-upload"/></svg>下载
-            </button>
+          <div class="tf-preview" onclick="event.stopPropagation();openPdfModal('${esc(item.pdf_path)}','${esc(item.company)} — ${esc(item.role)}','${esc(item.dir_name)}')">${renderTarotPreview(item, widths)}</div>
+          <div class="tf-footer">
+            <div class="tf-footer-row">
+              ${renderTarotContextButtons(item)}
+            </div>
+            <div class="tf-footer-row">
+              <button class="tf-action-btn" onclick="event.stopPropagation();openPdfModal('${esc(item.pdf_path)}','${esc(item.company)} — ${esc(item.role)}','${esc(item.dir_name)}')" title="查看">
+                <svg class="icon-svg" style="width:11px;height:11px"><use href="#i-file"/></svg>查看
+              </button>
+              <button class="tf-action-btn" onclick="event.stopPropagation();openEditor('${esc(item.dir_name)}')" title="编辑">
+                <svg class="icon-svg" style="width:11px;height:11px"><use href="#i-edit"/></svg>编辑
+              </button>
+              <button class="tf-action-btn primary" onclick="event.stopPropagation();downloadPdf('${esc(item.pdf_path)}')" title="下载">
+                <svg class="icon-svg" style="width:11px;height:11px;stroke:#fff"><use href="#i-download"/></svg>下载
+              </button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -1852,6 +3959,121 @@ async function loadGallery() {
   } catch(e) {
     container.innerHTML = `<div class="gallery-empty"><div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div><div class="ge-title">加载失败</div><div class="ge-desc">${esc(e.message)}</div></div>`;
   }
+}
+
+function renderTarotPreview(item, widths) {
+  const fallback = `<div class="tf-preview-fallback">${widths.map(w => `<div class="tf-preview-line" style="--w:${w}%"></div>`).join('')}</div>`;
+  if (!item?.pdf_path) return fallback;
+  const pdfUrl = `/api/gallery/pdf/${encodeURIComponent(item.pdf_path)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH&page=1`;
+  return `
+    <div class="tf-preview-document">
+      <iframe class="tf-preview-frame" src="${esc(pdfUrl)}" loading="lazy" tabindex="-1" aria-hidden="true"></iframe>
+    </div>
+    ${fallback}
+  `;
+}
+
+function renderTarotContextButtons(item) {
+  const sections = [
+    { label: 'JD', type: 'jd', text: item.jd_text || item.jd_excerpt || '' },
+    { label: '面经+笔记', type: 'interview', text: item.interview_text || item.interview_excerpt || '' },
+  ];
+  return sections.map(section => {
+    const text = String(section.text || '').trim();
+    const notes = String(item.interview_notes || '').trim();
+    const hasContent = text || (section.type === 'interview' && notes);
+    if (!hasContent) {
+      return `<button class="tf-pill" type="button" disabled title="未保存${section.label}">${section.label}</button>`;
+    }
+    const encodedText = encodeURIComponent(text);
+    const encodedNotes = section.type === 'interview' ? encodeURIComponent(item.interview_notes || '') : '';
+    const encodedDir = encodeURIComponent(item.dir_name || '');
+    return `<button class="tf-pill" type="button" data-type="${section.type}" data-encoded="${esc(encodedText)}" data-notes="${esc(encodedNotes)}" data-dir="${esc(encodedDir)}" onclick="event.stopPropagation();openCtxModal(this,'${esc(section.label)}')" title="查看${section.label}">${section.label}</button>`;
+  }).join('');
+}
+
+function copyGalleryContext(btn) {
+  const encoded = btn?.dataset?.encoded || '';
+  const label = btn?.dataset?.label || '内容';
+  if (!encoded) {
+    showToast(`未保存${label}`, 'error');
+    return;
+  }
+  _copyTextToClipboard(decodeURIComponent(encoded), `${label}已复制`);
+}
+
+// ── Context modal (JD / 面经+笔记) ──────────────────────────────────
+let _ctxModalState = { type: null, dir: null, notesEl: null };
+
+function openCtxModal(btn, label) {
+  const type = btn.dataset.type;
+  const text = decodeURIComponent(btn.dataset.encoded || '');
+  const notes = decodeURIComponent(btn.dataset.notes || '');
+  const dir = decodeURIComponent(btn.dataset.dir || '');
+
+  const titleEl = document.getElementById('ctx-modal-title');
+  const body = document.getElementById('ctx-modal-body');
+  const footer = document.getElementById('ctx-modal-footer');
+  const copyBtn = document.getElementById('ctx-modal-copy-btn');
+
+  titleEl.textContent = label;
+  _ctxModalState = { type, dir, notesEl: null };
+
+  if (type === 'jd') {
+    body.innerHTML = `<div class="ctx-modal-text">${esc(text) || '<span style="color:var(--text-muted)">暂无内容</span>'}</div>`;
+    footer.style.display = 'none';
+    copyBtn.style.display = '';
+    _ctxModalState.notesEl = null;
+  } else {
+    // 面经+笔记: show interview text read-only + editable notes
+    body.innerHTML = `
+      <div class="ctx-modal-notes-label">面经内容</div>
+      <div class="ctx-modal-text">${esc(text) || '<span style="color:var(--text-muted)">暂无面经内容</span>'}</div>
+      <div class="ctx-modal-notes-label" style="margin-top:4px">我的笔记</div>
+      <textarea class="ctx-modal-notes-textarea" id="ctx-notes-input" placeholder="在这里记录你的想法、准备思路或复盘笔记…">${esc(notes)}</textarea>
+    `;
+    footer.style.display = '';
+    copyBtn.style.display = '';
+    _ctxModalState.notesEl = document.getElementById('ctx-notes-input');
+  }
+
+  document.getElementById('ctx-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCtxModal() {
+  document.getElementById('ctx-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  _ctxModalState = { type: null, dir: null, notesEl: null };
+}
+
+function copyCtxModalText() {
+  const body = document.getElementById('ctx-modal-body');
+  const textEl = body.querySelector('.ctx-modal-text');
+  if (!textEl) return;
+  _copyTextToClipboard(textEl.textContent, '已复制');
+}
+
+async function saveCtxNotes() {
+  const { dir, notesEl } = _ctxModalState;
+  if (!dir || !notesEl) return;
+  const notes = notesEl.value;
+  try {
+    const res = await fetch(`/api/gallery/${encodeURIComponent(dir)}/notes`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interview_notes: notes })
+    });
+    const d = await res.json();
+    if (d.error) { showToast(d.error, 'error'); return; }
+    showToast('笔记已保存');
+    closeCtxModal();
+    // Refresh gallery data in memory without full reload
+    if (window._galleryData) {
+      const item = window._galleryData.find(x => x.dir_name === dir);
+      if (item) item.interview_notes = notes;
+    }
+  } catch(e) { showToast('保存失败', 'error'); }
 }
 
 function flipTarot(card) {
@@ -1877,15 +4099,85 @@ function downloadPdf(path) {
   a.click();
 }
 
-function openPdfModal(path, title) {
+async function startInlineEdit(el) {
+  if (el.contentEditable === 'true') return; // already editing
+  const dirName = el.dataset.dir;
+  const field = el.dataset.field;
+  const originalValue = el.textContent.trim();
+  el.contentEditable = 'true';
+  el.focus();
+  // Select all text
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  const save = async () => {
+    el.contentEditable = 'false';
+    const newValue = el.textContent.trim();
+    if (!newValue) { el.textContent = originalValue; return; }
+    if (newValue === originalValue) return;
+    try {
+      const res = await fetch(`/api/gallery/${encodeURIComponent(dirName)}/meta`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({[field]: newValue})
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`已更新${field === 'company' ? '公司名' : '岗位'}`);
+        // Sync all matching labels on this card
+        document.querySelectorAll(`.tarot-card[data-dir="${CSS.escape(dirName)}"] .editable-meta[data-field="${field}"]`).forEach(e => {
+          if (e !== el) e.textContent = newValue;
+        });
+        // Update in-memory gallery data
+        if (window._galleryData) {
+          const item = window._galleryData.find(i => i.dir_name === dirName);
+          if (item) item[field] = newValue;
+        }
+        // Sync editor title if currently editing this dir
+        if (window.currentEditorDir === dirName) {
+          const company = field === 'company' ? newValue : (window._galleryData?.find(i => i.dir_name === dirName)?.company || '');
+          const role = field === 'role' ? newValue : (window._galleryData?.find(i => i.dir_name === dirName)?.role || '');
+          _syncEditorMetaInputs(company, role);
+        }
+      } else {
+        el.textContent = originalValue;
+        showToast('保存失败', 'error');
+      }
+    } catch(e) {
+      el.textContent = originalValue;
+      showToast('网络错误', 'error');
+    }
+  };
+
+  el.onblur = save;
+  el.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    if (e.key === 'Escape') { el.textContent = originalValue; el.contentEditable = 'false'; el.onblur = null; }
+    e.stopPropagation();
+  };
+}
+
+function openPdfModal(path, title, dirName) {
   const modal = document.getElementById('pdf-modal');
   const iframe = document.getElementById('pdf-modal-iframe');
   const name = document.getElementById('pdf-modal-name');
   const dlBtn = document.getElementById('pdf-modal-download');
+  const editBtn = document.getElementById('pdf-modal-edit');
   const url = '/api/gallery/pdf/' + encodeURIComponent(path);
   name.innerHTML = `<span class="accent">${esc(title)}</span>`;
   iframe.src = url;
   dlBtn.onclick = () => downloadPdf(path);
+  if (editBtn) {
+    if (dirName) {
+      editBtn.style.display = '';
+      editBtn.onclick = () => { closePdfModal(); openEditor(dirName); };
+    } else {
+      editBtn.style.display = 'none';
+    }
+  }
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -1904,6 +4196,8 @@ async function startGenerate() {
   const mjText = (document.getElementById('mj-text')?.value || '').trim();
   const genCompany = (document.getElementById('gen-company')?.value || '').trim();
   const genRole = (document.getElementById('gen-role')?.value || '').trim();
+  await loadModelConfig();
+  const preferAi = isModelConfigReadyForGeneration(modelConfigState);
 
   const btn = document.getElementById('btn-generate');
   const progress = document.getElementById('ai-progress');
@@ -1941,7 +4235,7 @@ async function startGenerate() {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jd: jdText, interview: mjText, company: genCompany, role: genRole }),
+      body: JSON.stringify({ jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi }),
     });
     const data = await res.json();
 
@@ -1969,17 +4263,22 @@ async function startGenerate() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-secondary);line-height:1.8;">
           <div><strong>公司：</strong>${esc(data.company || '')}</div>
           <div><strong>岗位：</strong>${esc(data.role || '')}</div>
+          <div><strong>引擎：</strong>${esc(data.engine === 'ai' ? (data.ai_provider || '外部模型') : '本地规则引擎')}</div>
+          <div><strong>模型：</strong>${esc(data.ai_model || '未使用')}</div>
           <div><strong>填充率：</strong>${fillPct}</div>
           <div><strong>目录：</strong>${esc(data.output_dir || '')}</div>
         </div>
         <div style="display:flex;gap:10px;margin-top:16px;">
+          <button class="btn btn-secondary" onclick="openEditor('${esc(data.output_dir || '')}')" ${data.output_dir ? '' : 'disabled'}>
+            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-edit"/></svg>编辑
+          </button>
           <button class="btn btn-primary" onclick="openPdfModal('${esc(data.pdf_path)}','${esc(data.company || "")} — ${esc(data.role || "")}')">
             <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px;stroke:#fff"><use href="#i-file"/></svg>查看 PDF
           </button>
           <button class="btn btn-secondary" onclick="downloadPdf('${esc(data.pdf_path)}')">
-            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-upload"/></svg>下载
+            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-download"/></svg>下载
           </button>
-          <button class="btn btn-secondary" onclick="goTo('gallery');loadGallery()">
+          <button class="btn btn-secondary" onclick="goTo('home');setTimeout(()=>document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'}),300)">
             <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-cards"/></svg>画廊
           </button>
         </div>
@@ -1998,6 +4297,176 @@ async function startGenerate() {
 function val(id){return(document.getElementById(id)?.value||'').trim();}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function formatSize(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';return(b/1048576).toFixed(1)+' MB';}
+function _parseDateParts(raw){
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  if (s === '至今') return { special: '至今' };
+  const m = s.match(/(\d{4})[\/\-.年](\d{1,2})(?:[\/\-.月](\d{1,2}))?/);
+  if (!m) return null;
+  const year = m[1];
+  const month = String(Math.max(1, Math.min(12, Number(m[2]) || 1))).padStart(2, '0');
+  const hasDay = m[3] !== undefined;
+  const day = hasDay ? String(Math.max(1, Math.min(31, Number(m[3]) || 1))).padStart(2, '0') : '';
+  return { year, month, day, hasDay };
+}
+function _normalizeDateInputValue(raw){
+  const p = _parseDateParts(raw);
+  if (!p) return String(raw || '').trim();
+  if (p.special) return p.special;
+  return `${p.year}/${p.month}/${p.day || '01'}`;
+}
+function _formatDateByMode(raw, mode){
+  const p = _parseDateParts(raw);
+  if (!p) return String(raw || '').trim();
+  if (p.special) return p.special;
+  if (mode === 'ym_slash') return `${p.year}/${p.month}`;
+  if (mode === 'ym_dash') return `${p.year}-${p.month}`;
+  const day = p.day || '01';
+  if (mode === 'ymd_slash') return `${p.year}/${p.month}/${day}`;
+  if (mode === 'ymd_dash') return `${p.year}-${p.month}-${day}`;
+  return `${p.year}/${p.month}/${day}`;
+}
+function _splitDateRange(raw){
+  const s = String(raw || '').trim();
+  if (!s) return { start: '', end: '' };
+  const m = s.match(/^(.*?)(?:\s*(?:--|—|–)\s*|\s+-\s+)(.+)$/);
+  if (!m) return { start: s, end: '' };
+  return { start: m[1].trim(), end: m[2].trim() };
+}
+async function copyDateFromInput(inputId, mode){
+  const text = _formatDateByMode(val(inputId), mode);
+  if (!text) { showToast('请先填写时间', 'error'); return; }
+  await _copyTextToClipboard(text, '日期已复制');
+}
+async function copyDateFromCardField(card, field, mode){
+  if (!card) return;
+  const raw = (card.querySelector(`[data-field="${field}"]`) || {}).value || '';
+  const text = _formatDateByMode(raw, mode);
+  if (!text) { showToast('请先填写时间', 'error'); return; }
+  await _copyTextToClipboard(text, '日期已复制');
+}
+async function copyDateFromRangeInput(inputEl, part, mode){
+  if (!inputEl) return;
+  const range = _splitDateRange(inputEl.value || '');
+  const raw = part === 'end' ? range.end : range.start;
+  const text = _formatDateByMode(raw, mode);
+  if (!text) { showToast('请先填写时间', 'error'); return; }
+  await _copyTextToClipboard(text, '日期已复制');
+}
+function _createReviewCopyButton(text){
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'review-copy-btn';
+  btn.textContent = '复制';
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    if (!text) return;
+    _copyTextToClipboard(text, '已复制');
+  };
+  return btn;
+}
+function _extractReviewSectionText(sectionEl){
+  if (!sectionEl) return '';
+  const lines = [];
+  const title = (sectionEl.querySelector('.review-section-header h3') || {}).textContent || '';
+  if (title.trim()) lines.push(title.trim());
+  sectionEl.querySelectorAll('.review-field').forEach((field) => {
+    const label = (field.querySelector('.review-label') || {}).textContent || '';
+    const value = (field.querySelector('.review-value') || {}).textContent || '';
+    const text = `${label}${label && value ? '：' : ''}${value}`.trim();
+    if (text) lines.push(text);
+  });
+  sectionEl.querySelectorAll('.review-card').forEach((card) => {
+    const title = (card.querySelector('.review-card-title') || {}).textContent || '';
+    const meta = (card.querySelector('.review-card-meta') || {}).textContent || '';
+    const details = Array.from(card.querySelectorAll('.review-card-detail')).map(el => el.textContent.trim()).filter(Boolean);
+    const tags = Array.from(card.querySelectorAll('.review-tag')).map(tag => tag.textContent.trim()).filter(Boolean);
+    const block = [title, meta, ...details, tags.length ? `标签：${tags.join(', ')}` : ''].filter(Boolean).join('\n');
+    if (block) lines.push(block);
+  });
+  sectionEl.querySelectorAll('.review-card-inline').forEach((row) => {
+    const text = Array.from(row.querySelectorAll('span')).map(span => span.textContent.trim()).filter(Boolean).join(' · ');
+    if (text) lines.push(text);
+  });
+  const skillTags = Array.from(sectionEl.querySelectorAll('.review-skill-tag')).map(tag => tag.textContent.trim()).filter(Boolean);
+  if (skillTags.length) lines.push(`技能：${skillTags.join(', ')}`);
+  return lines.join('\n').trim();
+}
+function _enhanceReviewCopyButtons(container){
+  if (!container) return;
+  container.querySelectorAll('.review-field').forEach((field) => {
+    const label = (field.querySelector('.review-label') || {}).textContent || '';
+    const valueEl = field.querySelector('.review-value');
+    const value = valueEl ? valueEl.textContent.trim() : '';
+    if (!valueEl || !value) return;
+    const row = document.createElement('div');
+    row.className = 'review-value-row';
+    valueEl.replaceWith(row);
+    row.appendChild(valueEl);
+    row.appendChild(_createReviewCopyButton(label ? `${label}：${value}` : value));
+  });
+  container.querySelectorAll('.review-card').forEach((card) => {
+    const title = (card.querySelector('.review-card-title') || {}).textContent || '';
+    const meta = (card.querySelector('.review-card-meta') || {}).textContent || '';
+    const detailEls = Array.from(card.querySelectorAll('.review-card-detail'));
+    const detailTexts = detailEls.map(el => el.textContent.trim()).filter(Boolean);
+    const tags = Array.from(card.querySelectorAll('.review-tag')).map(t => t.textContent.trim()).filter(Boolean).join(', ');
+    if (detailTexts.length > 0) {
+      detailEls.forEach((detailEl, idx) => {
+        const text = detailTexts[idx] || '';
+        if (!text) return;
+        const line = document.createElement('div');
+        line.className = 'review-copy-line';
+        line.appendChild(_createReviewCopyButton(text));
+        detailEl.insertAdjacentElement('afterend', line);
+      });
+      return;
+    }
+    const text = [title, meta, tags ? `标签：${tags}` : ''].filter(Boolean).join('\n');
+    if (!text) return;
+    const line = document.createElement('div');
+    line.className = 'review-copy-line';
+    line.appendChild(_createReviewCopyButton(text));
+    card.appendChild(line);
+  });
+  container.querySelectorAll('.review-card-inline').forEach((row) => {
+    const text = Array.from(row.querySelectorAll('span')).map(s => s.textContent.trim()).filter(Boolean).join(' · ');
+    if (!text) return;
+    row.appendChild(_createReviewCopyButton(text));
+  });
+  container.querySelectorAll('.review-tag, .review-skill-tag').forEach((tag) => {
+    const txt = tag.textContent.trim();
+    if (!txt) return;
+    const wrap = document.createElement('span');
+    wrap.className = 'review-tag-wrap';
+    tag.replaceWith(wrap);
+    wrap.appendChild(tag);
+    wrap.appendChild(_createReviewCopyButton(txt));
+  });
+  container.querySelectorAll('.review-section').forEach((section) => {
+    const header = section.querySelector('.review-section-header');
+    if (!header) return;
+    let actions = header.querySelector('.review-section-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'review-section-actions';
+      Array.from(header.querySelectorAll('button')).forEach((btn) => actions.appendChild(btn));
+      header.appendChild(actions);
+    }
+    const text = _extractReviewSectionText(section);
+    if (!text) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary';
+    btn.style.cssText = 'padding:5px 12px;font-size:12px';
+    btn.textContent = '复制本节';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      _copyTextToClipboard(text, '本节已复制');
+    };
+    actions.appendChild(btn);
+  });
+}
 
 /* ═══ Tag Input Helpers ═══ */
 function addTag(category, text) {
@@ -2087,8 +4556,8 @@ async function loadExperienceForEdit(filename) {
     document.getElementById('exp-city').value = d.city || '';
     document.getElementById('exp-dept').value = d.department || '';
     document.getElementById('exp-role').value = d.role || '';
-    document.getElementById('exp-time-start').value = d.time_start || '';
-    document.getElementById('exp-time-end').value = d.time_end || '';
+    document.getElementById('exp-time-start').value = _normalizeDateInputValue(d.time_start || '');
+    document.getElementById('exp-time-end').value = _normalizeDateInputValue(d.time_end || '');
     document.getElementById('exp-tags').value = d.tags || '';
     document.getElementById('exp-notes').value = d.notes || '';
     document.getElementById('work-cards').innerHTML = '';
@@ -2157,7 +4626,32 @@ async function loadReviewPage() {
       html += `<div class="review-section" data-section="experiences">
         <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-briefcase"/></svg> 实习/工作经历</h3><button class="btn btn-secondary" onclick="goTo('experiences')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
       exps.forEach(e => {
-        html += `<div class="review-card"><div class="review-card-title">${esc(e.filename)}</div><div class="review-card-meta">${formatSize(e.size)}</div></div>`;
+        const title = [e.company, e.role].filter(Boolean).join(' · ') || e.filename;
+        const metaParts = [];
+        if (e.time_start || e.time_end) metaParts.push(`${esc(e.time_start || '')}${e.time_start || e.time_end ? ' — ' : ''}${esc(e.time_end || '')}`);
+        if (e.city) metaParts.push(esc(e.city));
+        if (e.department) metaParts.push(esc(e.department));
+        metaParts.push(esc(e.filename));
+        metaParts.push(formatSize(e.size));
+        const workItems = Array.isArray(e.work_items) ? e.work_items.filter(item => item && (item.title || item.desc)) : [];
+        const workDetails = workItems.map(item => {
+          const desc = (item.desc || '').trim();
+          const titleText = (item.title || '').trim();
+          if (desc && titleText && desc.startsWith(titleText)) {
+            return `<div class="review-card-detail">${esc(desc)}</div>`;
+          }
+          if (desc) {
+            return `<div class="review-card-detail"><strong>${esc(titleText || '工作内容')}：</strong>${esc(desc)}</div>`;
+          }
+          return `<div class="review-card-detail">${esc(titleText)}</div>`;
+        }).join('');
+        html += `<div class="review-card">
+          <div class="review-card-title">${esc(title)}</div>
+          <div class="review-card-meta">${metaParts.filter(Boolean).join(' · ')}</div>
+          ${workDetails}
+          ${e.notes ? `<div class="review-card-detail">${esc(e.notes)}</div>` : ''}
+          ${e.tags ? `<div class="review-card-tags">${e.tags.split(/[,，]/).map(t => t.trim()).filter(Boolean).map(t => `<span class="review-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        </div>`;
       });
       html += `</div>`;
     }
@@ -2187,7 +4681,7 @@ async function loadReviewPage() {
       html += `<div class="review-section" data-section="awards">
         <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-award"/></svg> 获奖情况</h3><button class="btn btn-secondary" onclick="goTo('awards')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
       awards.filter(a => a.name).forEach(a => {
-        html += `<div class="review-card-inline"><span>${esc(a.name)}</span><span class="review-card-meta">${esc(a.issuer)} · ${esc(a.date)}</span></div>`;
+        html += `<div class="review-card-inline"><span class="review-inline-name">${esc(a.name)}</span><span class="review-card-meta review-inline-meta">${esc(a.issuer)} · ${esc(a.date)}</span></div>`;
       });
       html += `</div>`;
     }
@@ -2204,13 +4698,1776 @@ async function loadReviewPage() {
     }
 
     container.innerHTML = html || '<div class="empty-state">暂无数据，请先填写各项信息</div>';
+    _enhanceReviewCopyButtons(container);
   } catch(e) { container.innerHTML = '<div class="empty-state" style="color:var(--accent)">加载失败</div>'; }
 }
 
+/* ─── LaTeX Editor ─── */
+let currentEditorDir = null;
+
+function _syncEditorMetaInputs(company, role) {
+  const ci = document.getElementById('editor-company-input');
+  const ri = document.getElementById('editor-role-input');
+  if (ci) ci.value = company;
+  if (ri) ri.value = role;
+}
+
+function _initEditorMetaSave(dirName) {
+  const save = async (field, value) => {
+    if (!value.trim()) return;
+    try {
+      const res = await fetch(`/api/gallery/${encodeURIComponent(dirName)}/meta`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({[field]: value.trim()})
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`已更新${field === 'company' ? '公司名' : '岗位'}`);
+        if (window._galleryData) {
+          const item = window._galleryData.find(i => i.dir_name === dirName);
+          if (item) item[field] = value.trim();
+        }
+        document.querySelectorAll(`.tarot-card[data-dir="${CSS.escape(dirName)}"] .editable-meta[data-field="${field}"]`).forEach(e => {
+          e.textContent = value.trim();
+        });
+      }
+    } catch(e) { showToast('保存失败', 'error'); }
+  };
+  const ci = document.getElementById('editor-company-input');
+  const ri = document.getElementById('editor-role-input');
+  if (ci) {
+    ci.onblur = () => save('company', ci.value);
+    ci.onkeydown = (e) => { if (e.key === 'Enter') ci.blur(); };
+  }
+  if (ri) {
+    ri.onblur = () => save('role', ri.value);
+    ri.onkeydown = (e) => { if (e.key === 'Enter') ri.blur(); };
+  }
+}
+
+async function openEditor(dirName) {
+  currentEditorDir = dirName;
+  const res = await fetch('/api/editor/tex?dir=' + encodeURIComponent(dirName));
+  const data = await res.json();
+  if (data.error) { showToast(data.error, 'error'); return; }
+
+  // Show/hide title vs meta-inputs
+  document.getElementById('editor-title').style.display = 'none';
+  const metaWrap = document.getElementById('editor-meta-inputs');
+  metaWrap.style.display = 'flex';
+
+  // Pre-fill company/role from gallery data
+  const galleryItem = window._galleryData?.find(i => i.dir_name === dirName);
+  const company = galleryItem?.company || '';
+  const role = galleryItem?.role || '';
+  _syncEditorMetaInputs(company, role);
+  _initEditorMetaSave(dirName);
+
+  // Show editor overlay
+  document.getElementById('page-editor').classList.add('active');
+
+  // Reset to Visual mode (default)
+  window._veCurrentMode = 'code'; // will switch to visual below after CM init
+  document.querySelectorAll('.editor-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'visual'));
+  document.getElementById('cm-editor-mount').classList.remove('active');
+  document.getElementById('visual-editor-mount').classList.add('active');
+
+  // Set shortcut hint based on platform
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  document.getElementById('editor-shortcut-hint').textContent = isMac ? '⌘+Enter 编译' : 'Ctrl+Enter 编译';
+
+  // Init CodeMirror (always init, even if hidden, so content is available)
+  const mountEl = document.getElementById('cm-editor-mount');
+  mountEl.innerHTML = '';
+  if (window._cmCreateEditor) {
+    window._cmCreateEditor(data.content, mountEl);
+    // Now switch to visual
+    window._veParsedData = _parseTexToVisual(data.content);
+    _renderVisualEditor(window._veParsedData);
+    window._veCurrentMode = 'visual';
+  } else {
+    // CDN still loading — retry up to 5 seconds
+    let retries = 0;
+    const tryInit = setInterval(() => {
+      retries++;
+      if (window._cmCreateEditor) {
+        clearInterval(tryInit);
+        mountEl.innerHTML = '';
+        window._cmCreateEditor(data.content, mountEl);
+        // Init visual
+        window._veParsedData = _parseTexToVisual(data.content);
+        _renderVisualEditor(window._veParsedData);
+        window._veCurrentMode = 'visual';
+      } else if (retries >= 10) {
+        clearInterval(tryInit);
+        mountEl.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px">编辑器加载失败，请检查网络连接后刷新页面。</div>';
+      }
+    }, 500);
+  }
+
+  // Load PDF preview via PDF.js (fallback to iframe) — delay for layout settle
+  const pdfUrl = '/api/gallery/pdf/' + encodeURIComponent(dirName) + '/resume-zh_CN.pdf';
+  requestAnimationFrame(() => setTimeout(() => _loadEditorPdf(pdfUrl), 100));
+
+  // Load versions
+  loadVersions();
+
+  // Close versions drawer if open
+  document.getElementById('versions-drawer').classList.remove('open');
+
+  setEditorStatus('ready', '就绪');
+}
+
+async function compileTeX() {
+  if (!currentEditorDir) return false;
+  // If in visual mode, sync to code first
+  if (window._veCurrentMode === 'visual') {
+    const tex = _serializeVisualToTex();
+    if (tex && window._cmSetContent) window._cmSetContent(tex);
+  }
+  const content = window._cmGetContent ? window._cmGetContent() : '';
+  if (!content.trim()) { showToast('内容为空', 'error'); return false; }
+
+  const btn = document.getElementById('btn-compile');
+  btn.disabled = true;
+  btn.textContent = 'Compiling...';
+  setEditorStatus('compiling', '编译中...');
+
+  try {
+    const res = await fetch('/api/editor/compile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: currentEditorDir, content }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      const pdfUrl = '/api/gallery/pdf/' + encodeURIComponent(currentEditorDir)
+        + '/resume-zh_CN.pdf?t=' + Date.now();
+      _loadEditorPdf(pdfUrl);
+
+      const fillText = data.fill_rate ? ` | 填充率: ${data.fill_rate.toFixed(1)}%` : '';
+      const pageText = data.pages ? ` | ${data.pages} 页` : '';
+      setEditorStatus('ok', '编译成功' + pageText + fillText);
+
+      // Refresh version count badge + list
+      if (data.version_count !== undefined) {
+        _updateVersionBadge(data.version_count);
+      }
+      loadVersions();
+      return true;
+    } else {
+      setEditorStatus('error', data.errors || '编译失败');
+      if (data.log_tail) {
+        console.error('LaTeX log:\n' + data.log_tail);
+      }
+      return false;
+    }
+  } catch (e) {
+    setEditorStatus('error', '请求失败: ' + e.message);
+    return false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Compile';
+  }
+}
+
+function closeEditor() {
+  if (window._cmDestroy) window._cmDestroy();
+  closeSaveAsDialog();
+  // Reset visual editor state
+  window._veCurrentMode = 'code';
+  document.getElementById('visual-editor-mount').innerHTML = '';
+  document.querySelectorAll('.editor-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'visual'));
+  document.getElementById('visual-editor-mount').classList.add('active');
+  document.getElementById('cm-editor-mount').classList.remove('active');
+  // Hide inline toolbar
+  const tb = document.getElementById('ve-inline-toolbar');
+  if (tb) tb.classList.remove('visible');
+  document.getElementById('editor-pdf-iframe').src = 'about:blank';
+  document.getElementById('editor-pdf-iframe').style.display = '';
+  const pdfjsContainer = document.getElementById('pdfjs-container');
+  pdfjsContainer.style.display = 'none';
+  pdfjsContainer.innerHTML = '';
+  document.getElementById('page-editor').classList.remove('active');
+  document.getElementById('versions-drawer').classList.remove('open');
+  window._pdfjsPages = [];
+  currentEditorDir = null;
+  // Restore title
+  document.getElementById('editor-title').style.display = '';
+  document.getElementById('editor-meta-inputs').style.display = 'none';
+}
+
+function downloadEditorPdf() {
+  if (!currentEditorDir) return;
+  const url = '/api/gallery/pdf/' + encodeURIComponent(currentEditorDir) + '/resume-zh_CN.pdf';
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'resume-zh_CN.pdf';
+  a.click();
+}
+
+function setEditorStatus(type, text) {
+  const icon = document.getElementById('editor-status-icon');
+  const txt = document.getElementById('editor-status-text');
+  icon.className = 'status-icon';
+  if (type === 'ok') { icon.textContent = '●'; icon.classList.add('status-ok'); }
+  else if (type === 'error') { icon.textContent = '●'; icon.classList.add('status-error'); }
+  else if (type === 'compiling') { icon.textContent = '●'; }
+  else { icon.textContent = '●'; }
+  txt.textContent = text;
+}
+
+function updateGenPersonContext() {
+  const el = document.getElementById('gen-person-context');
+  if (!el) return;
+  if (personsData.persons && personsData.persons.length > 0 && personsData.active) {
+    const person = personsData.persons.find(p => p.id === personsData.active);
+    el.textContent = '当前档案: ' + (person ? person.display_name : personsData.active);
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+/* ═══ Version Management ═══ */
+function _updateVersionBadge(count) {
+  const badge = document.getElementById('version-count-badge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleVersionsPanel() {
+  const drawer = document.getElementById('versions-drawer');
+  drawer.classList.toggle('open');
+  if (drawer.classList.contains('open')) loadVersions();
+}
+
+async function loadVersions() {
+  if (!currentEditorDir) return;
+  const listEl = document.getElementById('versions-list');
+  try {
+    const res = await fetch('/api/editor/versions?dir=' + encodeURIComponent(currentEditorDir));
+    const data = await res.json();
+    const versions = data.versions || [];
+    _updateVersionBadge(versions.length);
+    if (versions.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">暂无版本记录<br><span style="font-size:12px;color:var(--text-muted)">编译后自动保存</span></div>';
+      return;
+    }
+    // Render in reverse order (newest first)
+    listEl.innerHTML = versions.slice().reverse().map(v => {
+      const ts = new Date(v.timestamp);
+      const timeStr = ts.toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      const fillStr = v.fill_rate ? v.fill_rate.toFixed(1) + '%' : '';
+      const noteHtml = v.note ? `<div class="version-item-note">"${esc(v.note)}"</div>` : '';
+      return `<div class="version-item">
+        <div class="version-item-header">
+          <span class="version-item-num">v${v.version}</span>
+          <span class="version-item-time">${timeStr}</span>
+        </div>
+        <div class="version-item-meta">${v.pages || 1} 页${fillStr ? ' · 填充率 ' + fillStr : ''}</div>
+        ${noteHtml}
+        <div class="version-item-actions">
+          <button onclick="restoreVersion(${v.version})">恢复</button>
+          <button onclick="editVersionNote(${v.version}, '${esc(v.note || '')}')">备注</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div class="empty-state" style="color:var(--accent)">加载版本失败</div>';
+  }
+}
+
+async function restoreVersion(versionNum) {
+  if (!currentEditorDir) return;
+  if (!confirm(`确定恢复到版本 v${versionNum}？当前编辑器内容将被替换。`)) return;
+  try {
+    const res = await fetch('/api/editor/versions/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: currentEditorDir, version: versionNum })
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    if (data.content && window._cmSetContent) {
+      window._cmSetContent(data.content);
+      showToast('已恢复到 v' + versionNum);
+    }
+  } catch(e) { showToast('恢复失败', 'error'); }
+}
+
+async function editVersionNote(versionNum, currentNote) {
+  const note = prompt('输入版本备注:', currentNote || '');
+  if (note === null) return; // cancelled
+  try {
+    const res = await fetch('/api/editor/versions/note', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: currentEditorDir, version: versionNum, note })
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast('备注已更新');
+    loadVersions();
+  } catch(e) { showToast('更新备注失败', 'error'); }
+}
+
+/* ═══ PDF.js Rendering ═══ */
+window._pdfjsPages = []; // [{canvas, wrapper, width, height, scale, viewport}]
+window._pdfjsLib = null;
+
+async function _loadEditorPdf(url) {
+  const iframe = document.getElementById('editor-pdf-iframe');
+  const container = document.getElementById('pdfjs-container');
+
+  // Try PDF.js first
+  if (window._pdfjsLib || window._pdfjsPending) {
+    try {
+      if (window._pdfjsPending) await window._pdfjsPending;
+      await _pdfjsRenderPdf(url);
+      container.style.display = '';
+      iframe.style.display = 'none';
+      return;
+    } catch(e) {
+      console.warn('PDF.js render failed, falling back to iframe:', e);
+    }
+  }
+  // Fallback to iframe
+  container.style.display = 'none';
+  iframe.style.display = '';
+  iframe.src = url;
+}
+
+async function _pdfjsRenderPdf(url) {
+  const pdfjsLib = window._pdfjsLib;
+  if (!pdfjsLib) throw new Error('PDF.js not loaded');
+
+  const container = document.getElementById('pdfjs-container');
+  container.innerHTML = '';
+  window._pdfjsPages = [];
+
+  const loadingTask = pdfjsLib.getDocument({
+    url: url,
+    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/cmaps/',
+    cMapPacked: true,
+  });
+  const pdf = await loadingTask.promise;
+  let containerWidth = container.clientWidth - 24; // padding
+  if (containerWidth < 200) containerWidth = container.parentElement.clientWidth - 24 || 500;
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const unscaledViewport = page.getViewport({ scale: 1 });
+    const scale = containerWidth / unscaledViewport.width;
+    const viewport = page.getViewport({ scale });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdfjs-page-wrap';
+    wrapper.dataset.pageNum = i;
+    wrapper.style.width = viewport.width + 'px';
+    wrapper.style.height = viewport.height + 'px';
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    // Retina support
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(viewport.width * dpr);
+    canvas.height = Math.floor(viewport.height * dpr);
+    canvas.style.width = viewport.width + 'px';
+    canvas.style.height = viewport.height + 'px';
+    context.scale(dpr, dpr);
+
+    wrapper.appendChild(canvas);
+    container.appendChild(wrapper);
+
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    window._pdfjsPages.push({
+      canvas, wrapper, viewport,
+      width: unscaledViewport.width,
+      height: unscaledViewport.height,
+      scale,
+      pageNum: i,
+    });
+
+    // Inverse sync: click on PDF → jump to LaTeX line
+    wrapper.addEventListener('click', (e) => _onPdfClick(e, i));
+  }
+  console.log(`PDF.js rendered ${pdf.numPages} page(s)`);
+}
+
+/* ═══ SyncTeX: Inverse (PDF click → LaTeX line) ═══ */
+async function _onPdfClick(e, pageNum) {
+  if (!currentEditorDir) return;
+  const pageData = window._pdfjsPages[pageNum - 1];
+  if (!pageData) return;
+
+  const rect = pageData.canvas.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  // Convert pixel → PDF user units → TeX points
+  const pdfX = clickX / pageData.scale;
+  const pdfY = pageData.height - (clickY / pageData.scale); // PDF origin is bottom-left
+  const texX = pdfX * (72.27 / 72);
+  const texY = pdfY * (72.27 / 72);
+
+  try {
+    const res = await fetch('/api/editor/synctex', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dir: currentEditorDir,
+        action: 'inverse',
+        page: pageNum,
+        x: texX,
+        y: texY,
+      })
+    });
+    const data = await res.json();
+    if (data.success && data.line) {
+      if (window._cmScrollToLine) window._cmScrollToLine(data.line);
+    }
+  } catch(e) {
+    console.warn('SyncTeX inverse failed:', e);
+  }
+}
+
+/* ═══ SyncTeX: Forward (LaTeX dblclick → PDF highlight) ═══ */
+async function synctexForward(line, col) {
+  if (!currentEditorDir) return;
+  try {
+    const res = await fetch('/api/editor/synctex', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dir: currentEditorDir,
+        action: 'forward',
+        line: line,
+        col: col || 0,
+      })
+    });
+    const data = await res.json();
+    if (data.success && data.page) {
+      _pdfjsHighlight(data.page, data.h || 0, data.v || 0, data.W || 100, data.H || 12);
+    }
+  } catch(e) {
+    console.warn('SyncTeX forward failed:', e);
+  }
+}
+
+function _pdfjsHighlight(page, h, v, W, H) {
+  const pageData = window._pdfjsPages[page - 1];
+  if (!pageData || !pageData.wrapper) return;
+
+  // SyncTeX coords (TeX bp) → PDF units → screen pixels
+  const factor = 72 / 72.27;
+  const pdfH = h * factor;
+  const pdfV = v * factor;
+  const pdfW = W * factor;
+  const pdfH_ = H * factor;
+
+  const left = pdfH * pageData.scale;
+  const top = pdfV * pageData.scale - pdfH_ * pageData.scale; // v is from top in synctex view output
+  const width = pdfW * pageData.scale;
+  const height = pdfH_ * pageData.scale;
+
+  // Scroll page into view
+  pageData.wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Create highlight overlay
+  const hl = document.createElement('div');
+  hl.className = 'synctex-highlight';
+  hl.style.left = Math.max(0, left) + 'px';
+  hl.style.top = Math.max(0, top) + 'px';
+  hl.style.width = Math.max(20, width) + 'px';
+  hl.style.height = Math.max(8, height) + 'px';
+  pageData.wrapper.appendChild(hl);
+
+  // Fade out after 3 seconds
+  setTimeout(() => { hl.style.opacity = '0'; }, 2500);
+  setTimeout(() => { hl.remove(); }, 3200);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Visual Editor — Mode Switch, Parser, Renderer, Serializer
+// ═══════════════════════════════════════════════════════════
+
+window._veCurrentMode = 'code';
+window._veParsedData = null;
+
+function switchEditorMode(mode) {
+  if (mode === window._veCurrentMode) return;
+  const btns = document.querySelectorAll('.editor-mode-btn');
+  const cmMount = document.getElementById('cm-editor-mount');
+  const veMount = document.getElementById('visual-editor-mount');
+
+  if (mode === 'visual') {
+    // Code → Visual: parse current tex
+    const tex = window._cmGetContent ? window._cmGetContent() : '';
+    window._veParsedData = _parseTexToVisual(tex);
+    _renderVisualEditor(window._veParsedData);
+    cmMount.classList.remove('active');
+    veMount.classList.add('active');
+  } else {
+    // Visual → Code: serialize back
+    const tex = _serializeVisualToTex();
+    if (tex && window._cmSetContent) window._cmSetContent(tex);
+    veMount.classList.remove('active');
+    cmMount.classList.add('active');
+    // Hide inline toolbar
+    const tb = document.getElementById('ve-inline-toolbar');
+    if (tb) tb.classList.remove('visible');
+  }
+  btns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  window._veCurrentMode = mode;
+}
+
+// ─── LaTeX Parser ───────────────────────────────────────
+function _extractVspaceSettings(tex) {
+  const spacing = { header: '-8pt', expBefore: '-6pt', expAfter: '-2pt', awardsBefore: '-1pt', awardsAfter: '-2pt' };
+  const headerMatch = tex.match(/\\basicInfo\{[\s\S]*?\n\}\s*\n\\vspace\{([^}]*)\}/);
+  if (headerMatch) spacing.header = headerMatch[1].trim();
+
+  const expMatch = tex.match(/\\datedsubsection\{[\s\S]*?\n(?:\\role\{[^\n]*\}\{[^\n]*\}\s*\n)?\\vspace\{([^}]*)\}[\s\S]*?\\end\{itemize\}\s*\n\\vspace\{([^}]*)\}/);
+  if (expMatch) {
+    spacing.expBefore = expMatch[1].trim();
+    spacing.expAfter = expMatch[2].trim();
+  }
+
+  const awardsSectionMatch = tex.match(/\\section\{[^}]*获奖[^}]*\}([\s\S]*?)(?=\\section\{|\\end\{Form\}|\\end\{document\})/);
+  if (awardsSectionMatch) {
+    const awardsVspaces = [...awardsSectionMatch[1].matchAll(/\\vspace\{([^}]*)\}/g)];
+    if (awardsVspaces.length) {
+      spacing.awardsBefore = awardsVspaces[0][1].trim();
+      spacing.awardsAfter = awardsVspaces[awardsVspaces.length - 1][1].trim();
+    }
+  }
+  spacing.contexts = _extractVspaceContexts(tex);
+  return spacing;
+}
+
+function _extractVspaceContexts(tex) {
+  const contexts = [];
+  const lines = tex.split('\n');
+  let currentSection = '';
+  let currentDated = '';
+  let lastCmd = '';
+
+  lines.forEach(raw => {
+    const line = raw.trim();
+    if (!line || line.startsWith('%')) return;
+
+    const sectionMatch = line.match(/^\\section\{(.+?)\}/);
+    if (sectionMatch) {
+      currentSection = _cleanLatex(sectionMatch[1]);
+      currentDated = '';
+      lastCmd = '\\section';
+      return;
+    }
+
+    const datedMatch = line.match(/^\\datedsubsection\{(.+?)\}\{(.+?)\}$/);
+    if (datedMatch) {
+      const titleRaw = datedMatch[1].replace(/\\textbf\{([^}]*)\}/g, '$1');
+      currentDated = _cleanLatex(titleRaw);
+      lastCmd = '\\datedsubsection';
+      return;
+    }
+
+    if (line.startsWith('\\role')) {
+      lastCmd = '\\role';
+      return;
+    }
+    if (line.startsWith('\\end{itemize}')) {
+      lastCmd = '\\end{itemize}';
+      return;
+    }
+    if (line.startsWith('\\basicInfo{')) {
+      lastCmd = '\\basicInfo';
+      return;
+    }
+    if (line === '}') {
+      if (lastCmd === '\\basicInfo') lastCmd = '\\basicInfo-end';
+      return;
+    }
+
+    const vspaceMatch = line.match(/^\\vspace\{([^}]*)\}/);
+    if (vspaceMatch) {
+      let position = '段落间距';
+      if (lastCmd === '\\basicInfo-end') position = 'basicInfo 后';
+      else if (lastCmd === '\\datedsubsection' || lastCmd === '\\role') position = 'itemize 前';
+      else if (lastCmd === '\\end{itemize}') position = 'itemize 后';
+      else if (lastCmd === '\\section') position = 'section 后';
+
+      const section = currentSection || 'Header';
+      const scopeLabel = currentDated || (currentSection ? `section：${currentSection}` : 'Header');
+      contexts.push({
+        section,
+        scopeLabel,
+        position,
+        value: vspaceMatch[1].trim()
+      });
+      lastCmd = '\\vspace';
+      return;
+    }
+  });
+
+  return contexts;
+}
+
+function _parseTexToVisual(tex) {
+  const lines = tex.split('\n');
+  const result = {
+    preamble: '',
+    header: { name: '', email: '', phone: '', links: [] },
+    sections: [],
+    spacing: _extractVspaceSettings(tex),
+    postamble: ''
+  };
+
+  // Extract preamble (everything before \name{})
+  let i = 0;
+  const preambleLines = [];
+  while (i < lines.length && !lines[i].match(/^\\name\{/)) {
+    preambleLines.push(lines[i]);
+    i++;
+  }
+  result.preamble = preambleLines.join('\n');
+
+  // Parse \name{}
+  if (i < lines.length) {
+    const nameMatch = lines[i].match(/^\\name\{(.+?)\}/);
+    if (nameMatch) result.header.name = nameMatch[1];
+    i++;
+  }
+
+  // Parse \basicInfo{...} (may span multiple lines)
+  while (i < lines.length && !lines[i].match(/\\basicInfo/)) i++;
+  if (i < lines.length) {
+    let infoBlock = '';
+    const startLine = i;
+    // Collect all lines of basicInfo
+    while (i < lines.length) {
+      infoBlock += lines[i] + '\n';
+      if (lines[i].includes('}') && i > startLine) break;
+      if (lines[i].match(/\\basicInfo\{.*\}/) ) break;
+      i++;
+    }
+    const emailMatch = infoBlock.match(/\\email\{([^}]*)\}/);
+    const phoneMatch = infoBlock.match(/\\phone\{([^}]*)\}/);
+    const githubMatch = infoBlock.match(/\\github\[([^\]]*)\]\{([^}]*)\}/);
+    const linkedinMatch = infoBlock.match(/\\linkedin\[([^\]]*)\]\{([^}]*)\}/);
+    if (emailMatch) result.header.email = emailMatch[1];
+    if (phoneMatch) result.header.phone = phoneMatch[1];
+    if (githubMatch) result.header.links.push({ type: 'github', label: githubMatch[1], url: githubMatch[2] });
+    if (linkedinMatch) result.header.links.push({ type: 'linkedin', label: linkedinMatch[1], url: linkedinMatch[2] });
+    i++;
+  }
+
+  // Skip to first \section
+  while (i < lines.length && !lines[i].match(/^\\section\{/)) i++;
+
+  // Parse sections
+  let currentSection = null;
+  let currentEntry = null;
+  let inItemize = false;
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+
+    // \end{Form} or \end{document} → stop
+    if (line.match(/^\\end\{Form\}/) || line.match(/^\\end\{document\}/)) {
+      if (currentEntry && currentSection) currentSection.entries.push(currentEntry);
+      if (currentSection) result.sections.push(currentSection);
+      // Collect postamble
+      const postLines = [];
+      for (let j = i; j < lines.length; j++) postLines.push(lines[j]);
+      result.postamble = postLines.join('\n');
+      break;
+    }
+
+    // \section{...}
+    const sectionMatch = line.match(/^\\section\{(.+?)\}/);
+    if (sectionMatch) {
+      if (currentEntry && currentSection) currentSection.entries.push(currentEntry);
+      if (currentSection) result.sections.push(currentSection);
+      currentEntry = null;
+      inItemize = false;
+      const title = sectionMatch[1];
+      let type = 'other';
+      if (title.includes('教育')) type = 'education';
+      else if (title.includes('实习') || title.includes('工作')) type = 'experience';
+      else if (title.includes('研究')) type = 'research';
+      else if (title.includes('项目')) type = 'project';
+      else if (title.includes('获奖')) type = 'awards';
+      else if (title.includes('技能')) type = 'skills';
+      else if (title.includes('论文') || title.includes('发表')) type = 'publications';
+      currentSection = { type, title, entries: [], items: [] };
+      continue;
+    }
+    if (!currentSection) continue;
+
+    // Awards section: \datedline{...}{...}
+    if (currentSection.type === 'awards') {
+      const datedlineMatch = line.match(/^\\datedline\{(.+?)\}\{(.+?)\}/);
+      if (datedlineMatch) {
+        let name = datedlineMatch[1].replace(/\\textit\{([^}]*)\}/, '$1').trim();
+        currentSection.entries.push({ name: _cleanLatex(name), date: _cleanLatex(datedlineMatch[2]) });
+      }
+      continue;
+    }
+
+    // Skills section: \item ...
+    if (currentSection.type === 'skills') {
+      if (line.match(/\\begin\{itemize\}/)) continue;
+      if (line.match(/\\end\{itemize\}/)) continue;
+      const itemMatch = line.match(/^\s*\\item\s+(.*)/);
+      if (itemMatch) {
+        currentSection.items.push(_parseInlineContent(itemMatch[1]));
+      }
+      continue;
+    }
+
+    // \datedsubsection{...}{...}
+    const datedsubMatch = line.match(/^\\datedsubsection\{(.+?)\}\{(.+?)\}$/);
+    if (datedsubMatch) {
+      if (currentEntry) currentSection.entries.push(currentEntry);
+      inItemize = false;
+      const titleRaw = datedsubMatch[1];
+      const dates = datedsubMatch[2];
+
+      if (currentSection.type === 'education') {
+        // \textbf{school} \quad \normalsize degree
+        const eduMatch = titleRaw.match(/\\textbf\{(.+?)\}\s*(?:\\quad)?\s*(?:\\normalsize)?\s*(.*)/);
+        currentEntry = {
+          school: _cleanLatex(eduMatch ? eduMatch[1] : titleRaw.replace(/\\textbf\{([^}]*)\}/, '$1')),
+          degree: _cleanLatex(eduMatch ? eduMatch[2].trim() : ''),
+          dates: _cleanLatex(dates),
+          subtitle: '',
+          gpa: '',
+          courses: ''
+        };
+      } else {
+        // Experience: \textbf{company} \quad \normalsize city
+        const expMatch = titleRaw.match(/\\textbf\{(.+?)\}\s*(?:\\quad)?\s*(?:\\normalsize)?\s*(.*)/);
+        currentEntry = {
+          company: _cleanLatex(expMatch ? expMatch[1] : titleRaw.replace(/\\textbf\{([^}]*)\}/, '$1')),
+          city: _cleanLatex(expMatch ? expMatch[2].trim() : ''),
+          dates: _cleanLatex(dates),
+          role: '',
+          dept: '',
+          bullets: []
+        };
+      }
+      continue;
+    }
+
+    // \role{...}{...}
+    const roleMatch = line.match(/^\\role\{(.+?)\}\{(.+?)\}/);
+    if (roleMatch && currentEntry) {
+      currentEntry.role = _cleanLatex(roleMatch[1]);
+      currentEntry.dept = _cleanLatex(roleMatch[2]);
+      continue;
+    }
+
+    // Education: \textit{subtitle}
+    if (currentSection.type === 'education' && currentEntry && !inItemize) {
+      const subtitleMatch = line.match(/^\\textit\{(.+?)\}/);
+      if (subtitleMatch) {
+        currentEntry.subtitle = _cleanLatex(subtitleMatch[1]);
+        // Check for GPA on same line
+        const gpaMatch = line.match(/\\textbf\{GPA[：:]\}\s*(.+?)(?:\\\\|$)/);
+        if (gpaMatch) currentEntry.gpa = _cleanLatex(gpaMatch[1].trim());
+        continue;
+      }
+      const coursesMatch = line.match(/\\textbf\{主修课程[：:]\}\s*(.*)/);
+      if (coursesMatch) {
+        currentEntry.courses = _cleanLatex(coursesMatch[1].trim());
+        continue;
+      }
+    }
+
+    // \begin{itemize} / \end{itemize}
+    if (line.match(/\\begin\{itemize\}/)) { inItemize = true; continue; }
+    if (line.match(/\\end\{itemize\}/)) { inItemize = false; continue; }
+
+    // \item inside experience
+    if (inItemize && currentEntry && currentEntry.bullets) {
+      const itemMatch = line.match(/^\s*\\item\s+(.*)/);
+      if (itemMatch) {
+        const raw = itemMatch[1];
+        // Parse \textbf{bold:} rest
+        const boldMatch = raw.match(/^\\textbf\{(.+?)\}\s*(.*)/);
+        if (boldMatch) {
+          currentEntry.bullets.push({ bold: _cleanLatex(boldMatch[1]), text: _cleanLatex(boldMatch[2]) });
+        } else {
+          currentEntry.bullets.push({ bold: '', text: _cleanLatex(raw) });
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+// Parse inline LaTeX content (for skills items)
+function _parseInlineContent(raw) {
+  return raw;
+}
+
+// Clean LaTeX commands for display in Visual mode
+function _cleanLatex(s) {
+  if (!s) return s;
+  s = s.replace(/\\quad\s*/g, ' ');
+  s = s.replace(/\\normalsize\s*/g, '');
+  s = s.replace(/\\textperiodcentered\s*/g, '·');
+  s = s.replace(/\\%/g, '%');
+  s = s.replace(/\\&/g, '&');
+  s = s.replace(/\\_/g, '_');
+  s = s.replace(/\\#/g, '#');
+  s = s.replace(/\\~/g, '~');
+  s = s.replace(/\\\$/g, '$');
+  s = s.replace(/\\\\/g, '');
+  s = s.replace(/\\,/g, ' ');
+  s = s.replace(/\\;/g, ' ');
+  s = s.replace(/\s{2,}/g, ' ');
+  return s.trim();
+}
+
+// Re-escape special chars when writing back to LaTeX
+function _reEscape(s) {
+  if (!s) return s;
+  s = s.replace(/%/g, '\\%');
+  s = s.replace(/&/g, '\\&');
+  return s;
+}
+
+// ─── Visual Editor Renderer ─────────────────────────────
+function _renderVisualEditor(data) {
+  const mount = document.getElementById('visual-editor-mount');
+  mount.innerHTML = '';
+  const container = document.createElement('div');
+  container.className = 'visual-editor';
+
+  // ── Header card ──
+  const headerCard = document.createElement('div');
+  headerCard.className = 've-header-card';
+  headerCard.innerHTML = `
+    <h2>个人信息</h2>
+    <div class="ve-field-row">
+      <span class="ve-field-label">姓名</span>
+      <input class="ve-field-input" data-ve="header.name" value="${_escAttr(data.header.name)}">
+    </div>
+    <div class="ve-field-row">
+      <span class="ve-field-label">邮箱</span>
+      <input class="ve-field-input" data-ve="header.email" value="${_escAttr(data.header.email)}">
+    </div>
+    <div class="ve-field-row">
+      <span class="ve-field-label">电话</span>
+      <input class="ve-field-input" data-ve="header.phone" value="${_escAttr(data.header.phone)}">
+    </div>
+  `;
+  container.appendChild(headerCard);
+
+  const spacing = data.spacing || {};
+  const spacingCard = document.createElement('div');
+  spacingCard.className = 've-header-card ve-vspace-card';
+  spacingCard.innerHTML = `
+    <details class="ve-collapse">
+      <summary>
+        <span>排版间距</span>
+        <span class="ve-collapse-hint">默认收起，点击展开</span>
+      </summary>
+      <div class="ve-collapse-body">
+        <div class="ve-vspace-grid">
+          <div class="ve-vspace-item">
+            <div class="ve-field-label">头部后间距</div>
+            <input class="ve-field-input" data-ve="spacing.header" value="${_escAttr(spacing.header || '-8pt')}">
+            <div class="ve-vspace-preview">当前值：${_escHtml(spacing.header || '-8pt')}</div>
+          </div>
+          <div class="ve-vspace-item">
+            <div class="ve-field-label">经历条目前间距</div>
+            <input class="ve-field-input" data-ve="spacing.expBefore" value="${_escAttr(spacing.expBefore || '-6pt')}">
+            <div class="ve-vspace-preview">当前值：${_escHtml(spacing.expBefore || '-6pt')}</div>
+          </div>
+          <div class="ve-vspace-item">
+            <div class="ve-field-label">经历条目后间距</div>
+            <input class="ve-field-input" data-ve="spacing.expAfter" value="${_escAttr(spacing.expAfter || '-2pt')}">
+            <div class="ve-vspace-preview">当前值：${_escHtml(spacing.expAfter || '-2pt')}</div>
+          </div>
+          <div class="ve-vspace-item">
+            <div class="ve-field-label">获奖前间距</div>
+            <input class="ve-field-input" data-ve="spacing.awardsBefore" value="${_escAttr(spacing.awardsBefore || '-1pt')}">
+            <div class="ve-vspace-preview">当前值：${_escHtml(spacing.awardsBefore || '-1pt')}</div>
+          </div>
+          <div class="ve-vspace-item">
+            <div class="ve-field-label">获奖后间距</div>
+            <input class="ve-field-input" data-ve="spacing.awardsAfter" value="${_escAttr(spacing.awardsAfter || '-2pt')}">
+            <div class="ve-vspace-preview">当前值：${_escHtml(spacing.awardsAfter || '-2pt')}</div>
+          </div>
+        </div>
+        ${_renderVspaceContexts(spacing.contexts || [])}
+      </div>
+    </details>
+  `;
+  container.appendChild(spacingCard);
+  spacingCard.querySelectorAll('[data-ve^="spacing."]').forEach(input => {
+    input.addEventListener('input', () => {
+      const preview = input.closest('.ve-vspace-item')?.querySelector('.ve-vspace-preview');
+      if (preview) preview.textContent = `当前值：${input.value.trim() || '未设置'}`;
+    });
+  });
+
+  // ── Sections ──
+  data.sections.forEach((sec, si) => {
+    const secEl = document.createElement('div');
+    secEl.className = 've-section';
+    secEl.dataset.sectionIndex = si;
+    secEl.dataset.sectionType = sec.type;
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 've-section-title';
+    titleEl.textContent = sec.title;
+    secEl.appendChild(titleEl);
+
+    if (sec.type === 'awards') {
+      _renderAwardsSection(secEl, sec);
+    } else if (sec.type === 'skills') {
+      _renderSkillsSection(secEl, sec);
+    } else if (sec.type === 'education') {
+      _renderEducationSection(secEl, sec);
+    } else {
+      _renderExperienceSection(secEl, sec);
+    }
+
+    container.appendChild(secEl);
+  });
+
+  mount.appendChild(container);
+
+  // ── Inline toolbar ──
+  _initInlineToolbar();
+}
+
+function _renderVspaceContexts(contexts) {
+  if (!contexts.length) return '';
+  const grouped = new Map();
+  contexts.forEach(item => {
+    const key = item.section || 'Header';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(item);
+  });
+
+  let html = '<div class="ve-vspace-contexts"><div class="ve-vspace-context-title">结构化明细（按 section / datedsubsection）</div>';
+  grouped.forEach((items, section) => {
+    html += `<div class="ve-vspace-context-group"><div class="ve-vspace-context-group-title">${_escHtml(section)}</div>`;
+    items.forEach(item => {
+      html += `<div class="ve-vspace-context-item"><span class="ve-vspace-context-meta">${_escHtml(item.position)}</span><span>${_escHtml(item.scopeLabel)}</span><span class="ve-vspace-context-value">${_escHtml(item.value)}</span></div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function _veDateCopyGroupsHtml() {
+  return `
+    <div class="date-copy-groups ve-date-copy-groups">
+      <div class="date-copy-group">
+        <span class="date-copy-label">开始</span>
+        <div class="date-copy-row">
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'start','ym_slash')">复制年/月</button>
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'start','ym_dash')">年-月</button>
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'start','ymd_slash')">年/月/日</button>
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'start','ymd_dash')">年-月-日</button>
+        </div>
+      </div>
+      <div class="date-copy-group">
+        <span class="date-copy-label">结束</span>
+        <div class="date-copy-row">
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'end','ym_slash')">复制年/月</button>
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'end','ym_dash')">年-月</button>
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'end','ymd_slash')">年/月/日</button>
+          <button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromRangeInput(this.closest('.ve-entry-card').querySelector('[data-ve=&quot;dates&quot;]'),'end','ymd_dash')">年-月-日</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _renderEducationSection(secEl, sec) {
+  sec.entries.forEach((entry, ei) => {
+    const card = document.createElement('div');
+    card.className = 've-entry-card';
+    card.dataset.entryIndex = ei;
+    card.innerHTML = `
+      <button class="ve-entry-remove" onclick="_veRemoveEntry(this)" title="删除">&times;</button>
+      <div class="ve-entry-header">
+        <input class="ve-field-input ve-entry-title" data-ve="school" value="${_escAttr(entry.school)}" style="font-weight:600">
+        <input class="ve-field-input" data-ve="degree" value="${_escAttr(entry.degree)}" style="width:80px;text-align:center">
+        <input class="ve-field-input ve-entry-dates" data-ve="dates" value="${_escAttr(entry.dates)}" style="width:140px;text-align:right">
+      </div>
+      ${_veDateCopyGroupsHtml()}
+      <div class="ve-field-row" style="margin-top:4px">
+        <input class="ve-field-input" data-ve="subtitle" value="${_escAttr(entry.subtitle)}" placeholder="专业 / 学院" style="font-size:12px;color:var(--text-secondary)">
+      </div>
+      ${entry.gpa ? `<div class="ve-field-row"><span class="ve-field-label" style="min-width:30px">GPA</span><input class="ve-field-input" data-ve="gpa" value="${_escAttr(entry.gpa)}"></div>` : ''}
+      <div class="ve-field-row">
+        <span class="ve-field-label" style="min-width:30px">课程</span>
+        <input class="ve-field-input" data-ve="courses" value="${_escAttr(entry.courses)}" placeholder="主修课程">
+      </div>
+    `;
+    secEl.appendChild(card);
+  });
+}
+
+function _renderExperienceSection(secEl, sec) {
+  sec.entries.forEach((entry, ei) => {
+    const card = document.createElement('div');
+    card.className = 've-entry-card';
+    card.dataset.entryIndex = ei;
+
+    let headerHtml = `
+      <button class="ve-entry-remove" onclick="_veRemoveEntry(this)" title="删除">&times;</button>
+      <div class="ve-entry-header">
+        <input class="ve-field-input ve-entry-title" data-ve="company" value="${_escAttr(entry.company)}" style="font-weight:600">
+        <input class="ve-field-input" data-ve="city" value="${_escAttr(entry.city)}" style="width:60px;text-align:center" placeholder="城市">
+        <input class="ve-field-input ve-entry-dates" data-ve="dates" value="${_escAttr(entry.dates)}" style="width:140px;text-align:right">
+      </div>
+      ${_veDateCopyGroupsHtml()}
+    `;
+    if (entry.role !== undefined) {
+      headerHtml += `
+        <div class="ve-entry-subtitle">
+          <input class="ve-field-input" data-ve="role" value="${_escAttr(entry.role)}" style="font-size:12px;display:inline-block;width:45%" placeholder="职位">
+          <input class="ve-field-input" data-ve="dept" value="${_escAttr(entry.dept)}" style="font-size:12px;display:inline-block;width:45%;margin-left:4px" placeholder="部门">
+        </div>
+      `;
+    }
+
+    card.innerHTML = headerHtml;
+
+    // Bullets
+    const bulletList = document.createElement('div');
+    bulletList.className = 've-bullet-list';
+    (entry.bullets || []).forEach((b, bi) => {
+      bulletList.appendChild(_createBulletEl(b));
+    });
+    card.appendChild(bulletList);
+
+    const actions = document.createElement('div');
+    actions.className = 've-entry-actions';
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 've-add-btn';
+    addBtn.textContent = '+ 添加 bullet';
+    addBtn.onclick = function() {
+      const newBullet = _createBulletEl({ bold: '', text: '' });
+      bulletList.appendChild(newBullet);
+      newBullet.querySelector('.ve-bullet-content').focus();
+    };
+    actions.appendChild(addBtn);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 've-add-btn ve-copy-btn';
+    copyBtn.textContent = '复制 bullets';
+    copyBtn.onclick = () => _copyBulletsFromCard(card);
+    actions.appendChild(copyBtn);
+    card.appendChild(actions);
+
+    secEl.appendChild(card);
+  });
+
+  // Add entry button
+  const addEntryBtn = document.createElement('button');
+  addEntryBtn.className = 've-add-btn';
+  addEntryBtn.style.width = '100%';
+  addEntryBtn.textContent = '+ 添加经历';
+  addEntryBtn.onclick = function() {
+    const newEntry = { company: '', city: '', dates: '', role: '', dept: '', bullets: [{ bold: '', text: '' }] };
+    sec.entries.push(newEntry);
+    _renderExperienceSection_single(secEl, newEntry, sec.entries.length - 1, addEntryBtn);
+  };
+  secEl.appendChild(addEntryBtn);
+}
+
+function _renderExperienceSection_single(secEl, entry, ei, beforeEl) {
+  const card = document.createElement('div');
+  card.className = 've-entry-card';
+  card.dataset.entryIndex = ei;
+  card.innerHTML = `
+    <button class="ve-entry-remove" onclick="_veRemoveEntry(this)" title="删除">&times;</button>
+    <div class="ve-entry-header">
+      <input class="ve-field-input ve-entry-title" data-ve="company" value="" style="font-weight:600" placeholder="公司名称">
+      <input class="ve-field-input" data-ve="city" value="" style="width:60px;text-align:center" placeholder="城市">
+      <input class="ve-field-input ve-entry-dates" data-ve="dates" value="" style="width:140px;text-align:right" placeholder="日期">
+    </div>
+    ${_veDateCopyGroupsHtml()}
+    <div class="ve-entry-subtitle">
+      <input class="ve-field-input" data-ve="role" value="" style="font-size:12px;display:inline-block;width:45%" placeholder="职位">
+      <input class="ve-field-input" data-ve="dept" value="" style="font-size:12px;display:inline-block;width:45%;margin-left:4px" placeholder="部门">
+    </div>
+  `;
+  const bulletList = document.createElement('div');
+  bulletList.className = 've-bullet-list';
+  bulletList.appendChild(_createBulletEl({ bold: '', text: '' }));
+  card.appendChild(bulletList);
+
+  const actions = document.createElement('div');
+  actions.className = 've-entry-actions';
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 've-add-btn';
+  addBtn.textContent = '+ 添加 bullet';
+  addBtn.onclick = function() {
+    const newBullet = _createBulletEl({ bold: '', text: '' });
+    bulletList.appendChild(newBullet);
+    newBullet.querySelector('.ve-bullet-content').focus();
+  };
+  actions.appendChild(addBtn);
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 've-add-btn ve-copy-btn';
+  copyBtn.textContent = '复制 bullets';
+  copyBtn.onclick = () => _copyBulletsFromCard(card);
+  actions.appendChild(copyBtn);
+  card.appendChild(actions);
+
+  secEl.insertBefore(card, beforeEl);
+  card.querySelector('input').focus();
+}
+
+function _renderAwardsSection(secEl, sec) {
+  sec.entries.forEach((entry, ei) => {
+    const row = document.createElement('div');
+    row.className = 've-award-row';
+    row.innerHTML = `
+      <input class="ve-field-input ve-award-name" data-ve="name" value="${_escAttr(entry.name)}">
+      <input class="ve-field-input ve-award-date" data-ve="date" value="${_escAttr(entry.date)}" style="width:100px;text-align:right">
+      <button class="ve-bullet-del" onclick="this.parentElement.remove()" title="删除">&times;</button>
+    `;
+    secEl.appendChild(row);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 've-add-btn';
+  addBtn.textContent = '+ 添加获奖';
+  addBtn.onclick = function() {
+    const row = document.createElement('div');
+    row.className = 've-award-row';
+    row.innerHTML = `
+      <input class="ve-field-input ve-award-name" data-ve="name" value="" placeholder="奖项名称">
+      <input class="ve-field-input ve-award-date" data-ve="date" value="" style="width:100px;text-align:right" placeholder="日期">
+      <button class="ve-bullet-del" onclick="this.parentElement.remove()" title="删除">&times;</button>
+    `;
+    secEl.insertBefore(row, addBtn);
+    row.querySelector('input').focus();
+  };
+  secEl.appendChild(addBtn);
+}
+
+function _renderSkillsSection(secEl, sec) {
+  (sec.items || []).forEach(item => {
+    secEl.appendChild(_createSkillRowEl(item));
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 've-add-btn';
+  addBtn.textContent = '+ 添加技能';
+  addBtn.onclick = function() {
+    const row = _createSkillRowEl('');
+    secEl.insertBefore(row, addBtn);
+    row.querySelector('.ve-bullet-content').focus();
+  };
+  secEl.appendChild(addBtn);
+}
+
+function _createSkillRowEl(item) {
+  const row = document.createElement('div');
+  row.className = 've-skill-row';
+  const content = document.createElement('div');
+  content.className = 've-bullet-content';
+  content.contentEditable = 'true';
+  content.innerHTML = _latexToHtml(item || '');
+  row.appendChild(content);
+  const del = document.createElement('button');
+  del.className = 've-bullet-del';
+  del.innerHTML = '&times;';
+  del.title = '删除';
+  del.onclick = () => row.remove();
+  row.appendChild(del);
+  return row;
+}
+
+function _createBulletEl(b) {
+  const bullet = document.createElement('div');
+  bullet.className = 've-bullet';
+  const content = document.createElement('div');
+  content.className = 've-bullet-content';
+  content.contentEditable = 'true';
+  // Render bold prefix + text
+  let html = '';
+  if (b.bold) html += '<b>' + _escHtml(b.bold) + '</b> ';
+  html += _escHtml(b.text);
+  content.innerHTML = html;
+  bullet.appendChild(content);
+
+  const del = document.createElement('button');
+  del.className = 've-bullet-del';
+  del.innerHTML = '&times;';
+  del.title = '删除';
+  del.onclick = () => bullet.remove();
+  bullet.appendChild(del);
+  return bullet;
+}
+
+function _collectBulletText(contentEl) {
+  const text = (contentEl?.innerText || contentEl?.textContent || '').replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return text;
+}
+
+async function _copyTextToClipboard(text, successMsg = '已复制') {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    showToast(successMsg);
+    return true;
+  } catch (e) {
+    showToast('复制失败，请检查浏览器剪贴板权限', 'error');
+    return false;
+  }
+}
+
+async function _copyBulletsFromCard(card) {
+  const lines = [...card.querySelectorAll('.ve-bullet .ve-bullet-content')]
+    .map(_collectBulletText)
+    .filter(Boolean);
+  if (!lines.length) {
+    showToast('暂无可复制 bullet', 'error');
+    return;
+  }
+  const text = lines.map(line => `• ${line}`).join('\n');
+  await _copyTextToClipboard(text, `已复制 ${lines.length} 条 bullet`);
+}
+
+function _veRemoveEntry(btn) {
+  const card = btn.closest('.ve-entry-card');
+  if (card) card.remove();
+}
+
+// ─── Serializer: Visual → LaTeX ─────────────────────────
+function _serializeVisualToTex() {
+  const data = window._veParsedData;
+  if (!data) return '';
+  const mount = document.getElementById('visual-editor-mount');
+
+  // Read header fields
+  const nameInput = mount.querySelector('[data-ve="header.name"]');
+  const emailInput = mount.querySelector('[data-ve="header.email"]');
+  const phoneInput = mount.querySelector('[data-ve="header.phone"]');
+  const name = nameInput ? nameInput.value : data.header.name;
+  const email = emailInput ? emailInput.value : data.header.email;
+  const phone = phoneInput ? phoneInput.value : data.header.phone;
+  const spacing = {
+    header: _normalizeVspace(mount.querySelector('[data-ve="spacing.header"]')?.value, data.spacing?.header || '-8pt'),
+    expBefore: _normalizeVspace(mount.querySelector('[data-ve="spacing.expBefore"]')?.value, data.spacing?.expBefore || '-6pt'),
+    expAfter: _normalizeVspace(mount.querySelector('[data-ve="spacing.expAfter"]')?.value, data.spacing?.expAfter || '-2pt'),
+    awardsBefore: _normalizeVspace(mount.querySelector('[data-ve="spacing.awardsBefore"]')?.value, data.spacing?.awardsBefore || '-1pt'),
+    awardsAfter: _normalizeVspace(mount.querySelector('[data-ve="spacing.awardsAfter"]')?.value, data.spacing?.awardsAfter || '-2pt')
+  };
+  data.spacing = spacing;
+
+  let tex = data.preamble + '\n';
+  tex += `\\name{${name}}\n\n`;
+  tex += `\\basicInfo{\n\\email{${email}} \\textperiodcentered \\phone{${phone}}\n}\n`;
+  tex += `\\vspace{${spacing.header}}\n\n`;
+
+  // Serialize each section
+  const sectionEls = mount.querySelectorAll('.ve-section');
+  sectionEls.forEach(secEl => {
+    const type = secEl.dataset.sectionType;
+    const title = secEl.querySelector('.ve-section-title').textContent;
+    tex += `\\section{${title}}\n`;
+
+    if (type === 'education') {
+      tex += _serializeEducation(secEl);
+    } else if (type === 'awards') {
+      tex += _serializeAwards(secEl, spacing);
+    } else if (type === 'skills') {
+      tex += _serializeSkills(secEl);
+    } else {
+      tex += _serializeExperience(secEl, spacing);
+    }
+    tex += '\n';
+  });
+
+  tex += data.postamble;
+  return tex;
+}
+
+function _serializeEducation(secEl) {
+  let tex = '';
+  secEl.querySelectorAll('.ve-entry-card').forEach(card => {
+    const school = _reEscape(card.querySelector('[data-ve="school"]').value);
+    const degree = _reEscape(card.querySelector('[data-ve="degree"]').value);
+    const dates = _reEscape(_monthOnlyRange(card.querySelector('[data-ve="dates"]').value));
+    const subtitle = _reEscape(card.querySelector('[data-ve="subtitle"]').value);
+    const gpaEl = card.querySelector('[data-ve="gpa"]');
+    const gpa = gpaEl ? _reEscape(gpaEl.value) : '';
+    const courses = _reEscape(card.querySelector('[data-ve="courses"]').value);
+
+    tex += `\\datedsubsection{\\textbf{${school}} \\quad \\normalsize ${degree}}{${dates}}\n`;
+    let subtitleLine = `\\textit{${subtitle}}`;
+    if (gpa) subtitleLine += ` \\quad \\textbf{GPA：} ${gpa}`;
+    subtitleLine += ' \\\\\n';
+    tex += subtitleLine;
+    if (courses) tex += `\\textbf{主修课程：} ${courses}\n`;
+    tex += '\n';
+  });
+  return tex;
+}
+
+function _normalizeVspace(value, fallback) {
+  const v = (value || '').trim();
+  return v || fallback;
+}
+
+function _monthOnlyDate(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  if (s === '至今') return s;
+  const m = s.match(/(\d{4})[\/\-.年](\d{1,2})/);
+  if (!m) return s;
+  const month = String(Math.max(1, Math.min(12, Number(m[2]) || 1))).padStart(2, '0');
+  return `${m[1]}/${month}`;
+}
+
+function _monthOnlyRange(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const m = s.match(/^(.*?)(?:\s*(?:--|—|–)\s*|\s+-\s+)(.+)$/);
+  if (m) {
+    const start = _monthOnlyDate(m[1]);
+    const end = _monthOnlyDate(m[2]);
+    if (!start) return end;
+    if (!end) return start;
+    return `${start} -- ${end}`;
+  }
+  return _monthOnlyDate(s);
+}
+
+function _serializeExperience(secEl, spacing) {
+  let tex = '';
+  secEl.querySelectorAll('.ve-entry-card').forEach(card => {
+    const company = _reEscape(card.querySelector('[data-ve="company"]').value);
+    const city = card.querySelector('[data-ve="city"]');
+    const cityVal = city ? _reEscape(city.value) : '';
+    const dates = _reEscape(_monthOnlyRange(card.querySelector('[data-ve="dates"]').value));
+    const role = card.querySelector('[data-ve="role"]');
+    const dept = card.querySelector('[data-ve="dept"]');
+
+    tex += `\\datedsubsection{\\textbf{${company}}${cityVal ? ' \\quad \\normalsize ' + cityVal : ''}}{${dates}}\n`;
+    if (role && role.value) {
+      tex += `\\role{${_reEscape(role.value)}}{${dept ? _reEscape(dept.value) : ''}}\n`;
+    }
+    tex += `\\vspace{${spacing.expBefore}}\n`;
+    tex += `\\begin{itemize}\n`;
+
+    card.querySelectorAll('.ve-bullet').forEach(bulletEl => {
+      const contentEl = bulletEl.querySelector('.ve-bullet-content');
+      const itemTex = _htmlToLatex(contentEl.innerHTML);
+      tex += `    \\item ${itemTex}\n`;
+    });
+
+    tex += `\\end{itemize}\n`;
+    tex += `\\vspace{${spacing.expAfter}}\n\n`;
+  });
+  return tex;
+}
+
+function _serializeAwards(secEl, spacing) {
+  let tex = `\\vspace{${spacing.awardsBefore}}\n`;
+  secEl.querySelectorAll('.ve-award-row').forEach(row => {
+    const name = row.querySelector('[data-ve="name"]').value;
+    const date = _monthOnlyDate(row.querySelector('[data-ve="date"]').value);
+    tex += `\\datedline{\\textit{${name}}}{${date}}\n`;
+  });
+  tex += `\\vspace{${spacing.awardsAfter}}\n`;
+  return tex;
+}
+
+function _serializeSkills(secEl) {
+  let tex = '\\begin{itemize}[parsep=0.5ex]\n';
+  secEl.querySelectorAll('.ve-skill-row').forEach(row => {
+    const contentEl = row.querySelector('.ve-bullet-content');
+    const itemTex = _htmlToLatex(contentEl.innerHTML);
+    tex += `    \\item ${itemTex}\n`;
+  });
+  tex += '\\end{itemize}\n';
+  return tex;
+}
+
+// ─── HTML ↔ LaTeX converters ────────────────────────────
+function _htmlToLatex(html) {
+  let s = html;
+  // Normalize br/div to nothing (contenteditable quirks)
+  s = s.replace(/<br\s*\/?>/gi, '');
+  s = s.replace(/<div>/gi, '').replace(/<\/div>/gi, '');
+  // Bold: <b>...</b> or <strong>...</strong>
+  s = s.replace(/<(?:b|strong)>(.*?)<\/(?:b|strong)>/gi, '\\textbf{$1}');
+  // Italic: <i>...</i> or <em>...</em>
+  s = s.replace(/<(?:i|em)>(.*?)<\/(?:i|em)>/gi, '\\textit{$1}');
+  // Strip any remaining tags
+  s = s.replace(/<[^>]+>/g, '');
+  // Decode HTML entities
+  s = s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"');
+  // Re-escape special LaTeX chars (but preserve existing \textbf, \textit commands)
+  s = s.replace(/%/g, '\\%');
+  s = s.replace(/&/g, '\\&');
+  return s.trim();
+}
+
+function _latexToHtml(tex) {
+  let s = tex;
+  // Clean LaTeX artifacts before escaping
+  s = s.replace(/\\quad\s*/g, ' ');
+  s = s.replace(/\\normalsize\s*/g, '');
+  s = s.replace(/\\textperiodcentered\s*/g, '·');
+  s = s.replace(/\\%/g, '%');
+  s = s.replace(/\\&/g, '&');
+  s = s.replace(/\\_/g, '_');
+  s = s.replace(/\\#/g, '#');
+  s = s.replace(/\\\\/g, '');
+  // Now escape HTML
+  s = _escHtml(s);
+  // \textbf{...} → <b>...</b>
+  s = s.replace(/\\textbf\{([^}]*)\}/g, '<b>$1</b>');
+  // \textit{...} → <i>...</i>
+  s = s.replace(/\\textit\{([^}]*)\}/g, '<i>$1</i>');
+  return s;
+}
+
+function _escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function _escAttr(s) {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Inline Formatting Toolbar ──────────────────────────
+function _initInlineToolbar() {
+  let toolbar = document.getElementById('ve-inline-toolbar');
+  if (!toolbar) {
+    toolbar = document.createElement('div');
+    toolbar.className = 've-inline-toolbar';
+    toolbar.id = 've-inline-toolbar';
+    toolbar.innerHTML = `
+      <button onmousedown="_veExec(event,'bold')" title="加粗 (Ctrl+B)"><b>B</b></button>
+      <button onmousedown="_veExec(event,'italic')" title="斜体 (Ctrl+I)"><i>I</i></button>
+    `;
+    document.body.appendChild(toolbar);
+  }
+
+  // Show toolbar on selection in contenteditable
+  document.addEventListener('selectionchange', _veUpdateToolbar);
+}
+
+function _veUpdateToolbar() {
+  const toolbar = document.getElementById('ve-inline-toolbar');
+  if (!toolbar) return;
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) {
+    toolbar.classList.remove('visible');
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  const container = range.commonAncestorContainer;
+  const editable = container.nodeType === 1
+    ? container.closest('.ve-bullet-content, .ve-editable')
+    : container.parentElement && container.parentElement.closest('.ve-bullet-content, .ve-editable');
+  if (!editable) {
+    toolbar.classList.remove('visible');
+    return;
+  }
+
+  const rect = range.getBoundingClientRect();
+  toolbar.style.left = (rect.left + rect.width / 2 - 32) + 'px';
+  toolbar.style.top = (rect.top - 34) + 'px';
+  toolbar.classList.add('visible');
+
+  // Update active states
+  toolbar.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+  if (document.queryCommandState('bold')) toolbar.querySelector('[title*="加粗"]').classList.add('active');
+  if (document.queryCommandState('italic')) toolbar.querySelector('[title*="斜体"]').classList.add('active');
+}
+
+function _veExec(event, cmd) {
+  event.preventDefault(); // Don't steal focus
+  document.execCommand(cmd);
+  _veUpdateToolbar();
+}
+
+// ─── Save As (另存为) ───────────────────────────────────
+function openSaveAsDialog() {
+  if (!currentEditorDir) return;
+  const modal = document.getElementById('saveas-modal');
+  const companyInput = document.getElementById('saveas-company');
+  const positionInput = document.getElementById('saveas-position');
+  const parts = (currentEditorDir || '').split('_');
+  companyInput.value = parts[0] || '';
+  positionInput.value = parts[1] || '';
+  modal.classList.add('open');
+  setTimeout(() => companyInput.focus(), 0);
+}
+
+function closeSaveAsDialog() {
+  const modal = document.getElementById('saveas-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+async function saveTexAsFromDialog() {
+  const company = document.getElementById('saveas-company').value.trim();
+  const position = document.getElementById('saveas-position').value.trim();
+  if (!company) { showToast('请输入公司名', 'error'); return; }
+  if (!position) { showToast('请输入岗位名', 'error'); return; }
+  closeSaveAsDialog();
+  await saveTexAs(company, position);
+}
+
+async function saveTexAs(company, position) {
+  if (!currentEditorDir) return;
+  // Sync visual → code if needed
+  if (window._veCurrentMode === 'visual') {
+    const tex = _serializeVisualToTex();
+    if (tex && window._cmSetContent) window._cmSetContent(tex);
+  }
+  const content = window._cmGetContent ? window._cmGetContent() : '';
+  if (!content.trim()) { showToast('内容为空', 'error'); return; }
+
+  const companyClean = company.trim().replace(/[/\\:*?"<>|]/g, '').slice(0, 20);
+  const positionClean = position.trim().replace(/[/\\:*?"<>|]/g, '').slice(0, 20);
+  if (!companyClean || !positionClean) { showToast('公司名或岗位名无效', 'error'); return; }
+  const today = new Date().toISOString().slice(0,10).replace(/-/g, '');
+  const newDir = `${companyClean}_${positionClean}_${today}`;
+
+  try {
+    const res = await fetch('/api/editor/saveas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: currentEditorDir, content, new_dir: newDir }),
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    // Switch to the new directory
+    currentEditorDir = newDir;
+    document.getElementById('editor-title').textContent = newDir.replace(/_/g, ' ');
+    setEditorStatus('compiling', '另存为成功，正在编译...');
+    const compiled = await compileTeX();
+    // Reload versions for new dir
+    loadVersions();
+    // Refresh gallery in background
+    await loadGallery('home-gallery-content');
+    if (compiled) showToast(`已另存为：${newDir}`);
+    else showToast(`已另存为：${newDir}，但编译失败，请修复后再查看画廊`, 'error');
+  } catch(e) {
+    showToast('另存为失败: ' + e.message, 'error');
+  }
+}
+
+/* ═══ Regenerate from Editor ═══ */
+function openRegenModal() {
+  if (!currentEditorDir) { showToast('请先打开一份简历', 'error'); return; }
+  const modal = document.getElementById('regen-modal');
+  document.getElementById('regen-feedback').value = '';
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('regen-feedback').focus(), 0);
+}
+
+function closeRegenModal() {
+  const modal = document.getElementById('regen-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+async function submitRegen() {
+  if (!currentEditorDir) return;
+  const feedback = document.getElementById('regen-feedback').value.trim();
+  closeRegenModal();
+
+  const submitBtn = document.getElementById('regen-submit-btn');
+  const regenBtn = document.getElementById('btn-regen');
+  const compileBtn = document.getElementById('btn-compile');
+  if (regenBtn) { regenBtn.disabled = true; regenBtn.textContent = '⟳ 生成中…'; }
+  if (compileBtn) compileBtn.disabled = true;
+  setEditorStatus('compiling', feedback ? `正在重新生成（反馈: ${feedback.slice(0,30)}）…` : '正在重新生成…');
+
+  try {
+    const res = await fetch('/api/editor/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir: currentEditorDir, feedback }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      showToast('重新生成失败: ' + data.error, 'error');
+      setEditorStatus('error', '重新生成失败');
+      return;
+    }
+    // Reload tex into editor
+    if (data.content && window._cmSetContent) {
+      window._cmSetContent(data.content);
+    }
+    // If visual mode is active, re-parse
+    if (window._veCurrentMode === 'visual' && typeof _parseTexToVisual === 'function') {
+      _parseTexToVisual(data.content || '');
+    }
+    // Reload PDF preview
+    const pdfSrc = `/output/${currentEditorDir}/resume-zh_CN.pdf?t=${Date.now()}`;
+    const iframe = document.getElementById('editor-pdf-iframe');
+    if (iframe) iframe.src = pdfSrc;
+    // Update version badge + reload versions
+    _updateVersionBadge(data.version_count || 0);
+    await loadVersions();
+    const fillStr = data.fill_ratio ? (data.fill_ratio * 100).toFixed(1) + '%' : '';
+    setEditorStatus('saved', `重新生成完成${fillStr ? '，填充率 ' + fillStr : ''}`);
+    showToast(`重新生成成功${feedback ? '（已采纳反馈）' : ''}`);
+    // Refresh gallery in background
+    loadGallery('home-gallery-content');
+  } catch(e) {
+    showToast('重新生成失败: ' + e.message, 'error');
+    setEditorStatus('error', '重新生成失败');
+  } finally {
+    if (regenBtn) { regenBtn.disabled = false; regenBtn.textContent = '⟳ 重新生成'; }
+    if (compileBtn) compileBtn.disabled = false;
+  }
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
-  loadProfile(); setupDropZone(); setupPubUpload(); setupTagInputs();
+  loadPersons(); loadProfile(); loadGallery('home-gallery-content'); loadExtensionDraft(); setupDropZone(); setupPubUpload(); setupTagInputs(); loadModelConfig();
   const ci=document.getElementById('work-card-input'); if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addWorkCard();}});
 });
+</script>
+<script type="module">
+try {
+  const cm = await import('https://esm.sh/codemirror');
+  const {basicSetup, EditorView} = cm;
+
+  let cmStreamLanguage, cmStex;
+  try {
+    const langMod = await import('https://esm.sh/@codemirror/language');
+    cmStreamLanguage = langMod.StreamLanguage;
+    const stexMod = await import('https://esm.sh/@codemirror/legacy-modes/mode/stex');
+    cmStex = stexMod.stex;
+  } catch(e) {
+    console.warn('LaTeX language mode load failed (syntax highlighting disabled):', e);
+  }
+
+  let editorView = null;
+
+  window._cmCreateEditor = function(content, mountEl) {
+    if (editorView) { editorView.destroy(); editorView = null; }
+    const extensions = [
+      basicSetup,
+      EditorView.theme({
+        '&': { height: '100%', fontSize: '13px' },
+        '.cm-scroller': { overflow: 'auto', fontFamily: 'Menlo, Monaco, Consolas, monospace' },
+        '.cm-gutters': { background: '#f8f8f8', borderRight: '1px solid #e0e0e0' },
+      }),
+      // Forward sync: double-click → highlight PDF
+      EditorView.domEventHandlers({
+        dblclick(event, view) {
+          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+          if (pos !== null) {
+            const line = view.state.doc.lineAt(pos);
+            if (window.synctexForward) {
+              window.synctexForward(line.number, 0);
+            }
+          }
+        }
+      }),
+    ];
+    if (cmStreamLanguage && cmStex) {
+      extensions.push(cmStreamLanguage.define(cmStex));
+    }
+    editorView = new EditorView({
+      doc: content,
+      extensions: extensions,
+      parent: mountEl,
+    });
+    mountEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        window.compileTeX();
+      }
+    });
+  };
+
+  window._cmGetContent = function() {
+    return editorView ? editorView.state.doc.toString() : '';
+  };
+
+  window._cmSetContent = function(text) {
+    if (!editorView) return;
+    editorView.dispatch({
+      changes: { from: 0, to: editorView.state.doc.length, insert: text }
+    });
+  };
+
+  window._cmScrollToLine = function(lineNum) {
+    if (!editorView) return;
+    const doc = editorView.state.doc;
+    if (lineNum < 1 || lineNum > doc.lines) return;
+    const line = doc.line(lineNum);
+    editorView.dispatch({
+      selection: { anchor: line.from },
+      scrollIntoView: true,
+    });
+    // Brief highlight effect
+    editorView.dispatch({
+      selection: { anchor: line.from, head: line.to },
+    });
+  };
+
+  window._cmDestroy = function() {
+    if (editorView) { editorView.destroy(); editorView = null; }
+  };
+
+  window._cmReady = true;
+  console.log('CodeMirror 6 loaded');
+} catch(e) {
+  console.error('CodeMirror failed to load:', e);
+}
+
+// Load PDF.js from CDN
+try {
+  window._pdfjsPending = (async () => {
+    const pdfjsMod = await import('https://esm.sh/pdfjs-dist@4.0.379/build/pdf.mjs');
+    pdfjsMod.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.mjs';
+    window._pdfjsLib = pdfjsMod;
+    console.log('PDF.js loaded');
+  })();
+  await window._pdfjsPending;
+  window._pdfjsPending = null;
+} catch(e) {
+  console.warn('PDF.js failed to load (will use iframe fallback):', e);
+  window._pdfjsPending = null;
+}
 </script>
 </body>
 </html>

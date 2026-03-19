@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Quick Panel</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Resume Quick Panel</h1>
+      <div class="subtitle">快速填写，不切屏</div>
+    </div>
+    <button id="refreshBtn" class="btn btn-sm">刷新</button>
+  </div>
+
+  <div class="server-row">
+    <input id="serverUrl" class="input" value="http://localhost:8765">
+    <button id="saveServerBtn" class="btn btn-sm">保存</button>
+  </div>
+  <div class="status" id="statusText">准备中...</div>
+
+  <div id="mainPanels">
+    <div class="card">
+      <div class="card-title">1) JD + 面经上传（传回主程序）</div>
+      <label>JD 文本</label>
+      <textarea id="jdText" class="input textarea" placeholder="粘贴 JD 文本..."></textarea>
+      <label>面经文本</label>
+      <textarea id="interviewText" class="input textarea" placeholder="粘贴面经文本（可选）..."></textarea>
+      <div class="file-row">
+        <input type="file" id="jdFile" accept=".txt,.md" />
+        <input type="file" id="interviewFile" accept=".txt,.md" />
+      </div>
+      <div class="btn-row">
+        <button id="saveDraftBtn" class="btn btn-primary">传回主程序</button>
+        <button id="openMainBtn" class="btn">打开主程序</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">2) 历史简历选择打开</div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </div>
+
+  <div id="editorView" class="hidden">
+    <div class="editor-toolbar">
+      <button id="backBtn" class="btn btn-sm">返回</button>
+      <div id="editorTitle" class="editor-title"></div>
+      <button id="copyAllBtn" class="btn btn-sm">复制全部</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">基础信息（快速填写）</div>
+      <div class="grid-3">
+        <input id="basicName" class="input" placeholder="姓名">
+        <input id="basicEmail" class="input" placeholder="邮箱">
+        <input id="basicPhone" class="input" placeholder="电话">
+      </div>
+      <div class="hint">这里用于快速记录，不会覆盖主简历文件</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">自定义信息（不写入简历）</div>
+      <div id="extraList"></div>
+      <div class="btn-row">
+        <button id="addExtraBtn" class="btn btn-sm">+ 添加</button>
+        <button id="copyExtraBtn" class="btn btn-sm">复制自定义信息</button>
+        <button id="saveMetaBtn" class="btn btn-sm">保存</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">简历内容（类似 Visual）</div>
+      <div id="resumeSections"></div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

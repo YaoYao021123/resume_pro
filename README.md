@@ -48,10 +48,12 @@
 ## 功能特性
 
 - **JD 智能分析** — 自动提取岗位关键词（技术栈、职能、行业、软技能）
+- **可选多模型驱动** — 支持 OpenAI、Gemini、Anthropic、GLM、Kimi、MiniMax、Grok、Qwen、Doubao 与自定义兼容接口
 - **经历自动匹配** — 根据关键词与经历标签的匹配度，智能选取 3-5 段最相关经历
 - **Bullet 精准改写** — 动词名词向 JD 靠拢，保留量化数据，不捏造内容
 - **LaTeX 编译 + 单页自动调优** — 自动处理超页/偏空，目标填充率 82%-99%
 - **填充率检测** — 编译后自动检测页面饱满度，偏空则补充、溢出则缩减
+- **多人档案管理** — 支持管理多个人的简历数据，按人员隔离存储和输出
 - **Web UI 数据管理** — 可视化填写个人信息、管理经历、上传工作材料、在线生成
 - **`/resume` Skill 一键触发** — 在 Claude Code 中粘贴 JD 即可生成
 
@@ -131,6 +133,20 @@ cp 你的报告.pdf data/work_materials/公司名/
 /resume [粘贴JD内容]
 ```
 
+#### 5. （可选）启用外部模型
+
+如需让 Web UI / Python API 优先调用外部模型，请在本机运行前设置环境变量，或直接在 Web UI 的“模型配置”中保存到 `.env.local`：
+
+```bash
+export RESUME_USE_AI=1
+export RESUME_MODEL_PROVIDER="gemini"
+export RESUME_MODEL_NAME="gemini-3-flash-preview"
+export RESUME_API_BASE_URL="https://generativelanguage.googleapis.com/v1beta"
+export RESUME_API_KEY="你的 API Key"
+```
+
+未配置时，系统会继续使用本地规则引擎；若已启用外部模型但缺少 API Key / 模型名，则会直接报错而不是静默回退。
+
 ---
 
 ## 使用方式
@@ -179,9 +195,10 @@ result = generate_resume(
     jd_text="岗位描述内容...",
     interview_text="",           # 可选：面经内容
     company="公司名",            # 可选：覆盖自动提取
-    role="岗位名"                # 可选：覆盖自动提取
+    role="岗位名",               # 可选：覆盖自动提取
+    person_id="default"          # 可选：指定人员（默认活跃人员）
 )
-print(result)  # {'pdf_path': 'output/...', 'log_path': '...', ...}
+print(result)  # {'pdf_path': 'output/default/...', 'log_path': '...', ...}
 ```
 
 ---
@@ -195,12 +212,13 @@ resume_generator_pro/
 ├── SETUP.md                   # 首次设置向导
 │
 ├── data/                      ← 你的个人数据（首次使用需填写）
-│   ├── profile.md             # 基本信息 + 教育 + 技能 + 获奖
-│   ├── experiences/           # 每段经历一个 .md 文件
-│   │   ├── _template.md       # 经历填写模板
-│   │   └── 01_xxx公司.md      # 你的经历文件
-│   └── work_materials/        # 原始工作材料（可选）
-│       └── xxx公司/
+│   ├── persons.json           # 人员注册表（多人模式）
+│   ├── _shared/experiences/   # 共享模板
+│   ├── default/               # 默认人员
+│   │   ├── profile.md         # 基本信息 + 教育 + 技能 + 获奖
+│   │   ├── experiences/       # 每段经历一个 .md 文件
+│   │   └── work_materials/    # 原始工作材料（可选）
+│   └── {person_id}/           # 其他人员（可选）
 │
 ├── skills/resume-gen/         ← Claude Code Skill
 │   ├── SKILL.md               # Skill 定义（YAML frontmatter）
@@ -213,6 +231,8 @@ resume_generator_pro/
 │
 ├── tools/                     ← 工具脚本
 │   ├── generate_resume.py     # 简历生成引擎
+│   ├── person_manager.py      # 多人档案管理模块
+│   ├── migrate_to_multi_person.py # 单人→多人数据迁移
 │   ├── page_fill_check.py     # 页面填充率检查
 │   └── boundary_test.py       # 边界测试
 │
@@ -225,8 +245,8 @@ resume_generator_pro/
 │   ├── resume.cls             # 文档类（排版参数）
 │   └── fonts/                 # 字体文件
 │
-├── output/                    ← 生成结果自动存放
-│   └── {公司}_{岗位}_{日期}/
+├── output/                    ← 生成结果自动存放（按人员隔离）
+│   └── {person_id}/{公司}_{岗位}_{日期}/
 │       ├── resume-zh_CN.tex
 │       ├── resume-zh_CN.pdf
 │       └── generation_log.md
@@ -269,7 +289,8 @@ cp -r /path/to/resume_generator_pro/skills/resume-gen your-project/skills/resume
 
 skill 运行需要以下资源在同一项目中：
 
-- `data/profile.md` + `data/experiences/` — 用户数据
+- `data/{person_id}/profile.md` + `data/{person_id}/experiences/` — 用户数据
+- `tools/person_manager.py` — 多人档案管理
 - `latex_src/resume/` — LaTeX 模板
 - `tools/page_fill_check.py` — 填充率检查
 - `xelatex` — 系统 PATH 中可用
@@ -335,7 +356,7 @@ topsep=0.1em, itemsep=0.1em
 <details>
 <summary><strong>Q: 可以同时投多家公司吗？</strong></summary>
 
-可以。每次生成的简历独立存放在 `output/{公司}_{岗位}_{日期}/` 目录下，互不影响。
+可以。每次生成的简历独立存放在 `output/{person_id}/{公司}_{岗位}_{日期}/` 目录下，互不影响。
 </details>
 
 <details>

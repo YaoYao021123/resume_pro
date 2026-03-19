@@ -92,3 +92,43 @@ A: 可以。每次生成的简历都独立存放在 `output/` 目录下，互不
 
 **Q: 生成的 LaTeX 看起来不对怎么办？**
 A: 特殊字符需要转义：`&` 写成 `\&`，`%` 写成 `\%`。如果报错，检查 `output/{目录}/resume.tex` 中是否有未转义的字符。
+
+---
+
+## 多人档案管理
+
+系统支持管理多个人的简历数据（比如帮朋友/家人做简历）。
+
+### 方式一：Web UI 管理
+
+启动 `python3 web/server.py`，侧边栏顶部的"当前档案"下拉菜单可以切换人员。点击齿轮按钮打开档案管理弹窗，可添加/删除人员。
+
+### 方式二：命令行
+
+```bash
+# 迁移旧数据（首次自动运行，也可手动）
+python3 tools/migrate_to_multi_person.py
+
+# 为指定人员生成简历
+python3 tools/generate_resume.py --person alice '你的JD文本'
+```
+
+### 数据结构
+
+多人模式下，每个人的数据独立存放：
+
+```
+data/
+├── persons.json              # 人员注册表
+├── _shared/experiences/      # 共享模板
+├── default/                  # 默认人员（迁移自旧数据）
+│   ├── profile.md
+│   ├── experiences/
+│   └── work_materials/
+└── alice/                    # 其他人员
+    ├── profile.md
+    ├── experiences/
+    └── work_materials/
+```
+
+输出也按人员隔离：`output/{person_id}/{公司}_{岗位}_{日期}/`

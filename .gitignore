@@ -1,10 +1,23 @@
 # ─── 用户隐私数据（绝不提交） ───────────────────
+# Legacy 单人模式
 data/profile.md
 data/experiences/*.md
 !data/experiences/_template.md
 !data/experiences/README.md
 data/work_materials/*
 !data/work_materials/README.md
+
+# 多人模式
+data/persons.json
+data/*/profile.md
+data/*/experiences/*.md
+data/*/work_materials/*
+data/*/extra_info.json
+data/*/ext_draft.json
+
+# 保留共享模板
+!data/_shared/
+!data/_shared/**
 
 # ─── 生成输出 ─────────────────────────────────────
 output/
@@ -32,6 +45,9 @@ __pycache__/
 .venv/
 venv/
 
+# ─── Node.js ─────────────────────────────────────
+node_modules/
+
 # ─── OS / Editor ─────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -44,3 +60,20 @@ Thumbs.db
 # ─── Claude Code 本地配置 ─────────────────────────
 .claude/settings.local.json
 .claude/projects/
+
+# ─── 清理回收站 ────────────────────────────────
+.trash/
+
+# ─── 密钥与环境变量（绝不提交） ──────────────────
+.env
+.env.local
+.env.*
+!.env.example
+server/.env
+*.key
+private.*.key
+
+# ─── Chrome Extension 运行时数据 ─────────────────
+data/extension.db
+data/extension.db-wal
+data/extension.db-shm

@@ -12,19 +12,72 @@ import json
 import os
 import re
 import shutil
+import subprocess as _sp
 import urllib.parse
 import webbrowser
 import zipfile
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / 'data'
-PROFILE_PATH = DATA_DIR / 'profile.md'
-EXPERIENCES_DIR = DATA_DIR / 'experiences'
-WORK_MATERIALS_DIR = DATA_DIR / 'work_materials'
-OUTPUT_DIR = PROJECT_ROOT / 'output'
 WEB_DIR = PROJECT_ROOT / 'web'
+
+# 多人档案管理支持
+import sys
+_tools_parent = str(PROJECT_ROOT)
+if _tools_parent not in sys.path:
+    sys.path.insert(0, _tools_parent)
+
+from tools.person_manager import (
+    get_active_person_id,
+    get_person_profile_path,
+    get_person_experiences_dir,
+    get_person_work_materials_dir,
+    get_person_output_dir,
+    list_persons,
+    create_person,
+    set_active_person,
+    delete_person,
+    is_multi_person_mode,
+)
+from tools.migrate_to_multi_person import maybe_migrate as _maybe_migrate
+from tools import gen_log
+from tools.ext_db import (
+    log_fill as ext_log_fill,
+    log_correction as ext_log_correction,
+    get_field_mappings as ext_get_field_mappings,
+    update_field_mapping as ext_update_field_mapping,
+    get_corrections_summary as ext_get_corrections_summary,
+    get_fill_history as ext_get_fill_history,
+)
+from tools.model_config import (
+    get_model_config,
+    save_model_config,
+    load_local_env,
+)
+
+load_local_env()
+
+
+def _profile_path():
+    return get_person_profile_path(get_active_person_id())
+
+def _experiences_dir():
+    return get_person_experiences_dir(get_active_person_id())
+
+def _work_materials_dir():
+    return get_person_work_materials_dir(get_active_person_id())
+
+def _output_dir():
+    return get_person_output_dir(get_active_person_id())
+
+def _extra_info_path():
+    return _profile_path().parent / 'extra_info.json'
+
+def _ext_draft_path():
+    return _profile_path().parent / 'ext_draft.json'
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB
 
@@ -33,10 +86,11 @@ MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB
 
 def parse_profile() -> dict:
     """将 profile.md 解析为 JSON 结构"""
+    PROFILE_PATH = _profile_path()
     if not PROFILE_PATH.exists():
         return {}
 
-    text = PROFILE_PATH.read_text(encoding='utf-8')
+    text = _profile_path().read_text(encoding='utf-8')
     lines = text.split('\n')
 
     data = {
@@ -520,7 +574,7 @@ def sanitize_filename(name: str) -> str:
 
 def get_next_experience_number() -> int:
     """获取下一个经历文件编号"""
-    existing = sorted(EXPERIENCES_DIR.glob('[0-9][0-9]_*.md'))
+    existing = sorted(_experiences_dir().glob('[0-9][0-9]_*.md'))
     if existing:
         try:
             return int(existing[-1].name[:2]) + 1
@@ -531,14 +585,14 @@ def get_next_experience_number() -> int:
 
 def handle_md_upload(content: bytes, filename: str, company_name: str) -> str:
     """处理 .md 文件上传 → data/experiences/"""
-    EXPERIENCES_DIR.mkdir(parents=True, exist_ok=True)
+    _experiences_dir().mkdir(parents=True, exist_ok=True)
 
     if re.match(r'^\d{2}_', filename):
-        target = EXPERIENCES_DIR / sanitize_filename(filename)
+        target = _experiences_dir() / sanitize_filename(filename)
     else:
         num = get_next_experience_number()
         safe_name = sanitize_filename(company_name or filename.replace('.md', ''))
-        target = EXPERIENCES_DIR / f'{num:02d}_{safe_name}.md'
+        target = _experiences_dir() / f'{num:02d}_{safe_name}.md'
 
     target.write_bytes(content)
     return str(target.relative_to(PROJECT_ROOT))
@@ -549,7 +603,7 @@ def handle_pdf_upload(content: bytes, filename: str, company_name: str) -> str:
     if not company_name:
         raise ValueError("PDF 文件上传需要填写关联公司名称")
 
-    materials_dir = WORK_MATERIALS_DIR / sanitize_filename(company_name)
+    materials_dir = _work_materials_dir() / sanitize_filename(company_name)
     materials_dir.mkdir(parents=True, exist_ok=True)
 
     target = materials_dir / sanitize_filename(filename)
@@ -657,7 +711,7 @@ def render_experience_md(data: dict) -> str:
 
 def save_experience_form(data: dict) -> str:
     """保存表单录入的经历为 .md 文件（支持新建和更新）"""
-    EXPERIENCES_DIR.mkdir(parents=True, exist_ok=True)
+    _experiences_dir().mkdir(parents=True, exist_ok=True)
 
     company = data.get('company', '').strip()
     if not company:
@@ -667,7 +721,7 @@ def save_experience_form(data: dict) -> str:
     if update_filename:
         # Update existing file
         safe_name = sanitize_filename(update_filename)
-        target = EXPERIENCES_DIR / safe_name
+        target = _experiences_dir() / safe_name
         if not target.exists():
             raise ValueError(f'文件不存在: {safe_name}')
         filename = safe_name
@@ -676,7 +730,7 @@ def save_experience_form(data: dict) -> str:
         num = get_next_experience_number()
         safe_name = sanitize_filename(company)
         filename = f'{num:02d}_{safe_name}.md'
-        target = EXPERIENCES_DIR / filename
+        target = _experiences_dir() / filename
 
     md_content = render_experience_md(data)
     target.write_text(md_content, encoding='utf-8')
@@ -692,20 +746,30 @@ def list_experiences() -> dict:
     work_materials = []
 
     # 扫描 experiences/
-    if EXPERIENCES_DIR.exists():
-        for f in sorted(EXPERIENCES_DIR.iterdir()):
+    if _experiences_dir().exists():
+        for f in sorted(_experiences_dir().iterdir()):
             if f.name in ('_template.md', 'README.md') or f.name.startswith('.'):
                 continue
             if f.is_file():
+                parsed = parse_experience_file(f)
                 experiences.append({
                     'filename': f.name,
                     'size': f.stat().st_size,
-                    'type': 'experience'
+                    'type': 'experience',
+                    'company': parsed.get('company', ''),
+                    'city': parsed.get('city', ''),
+                    'department': parsed.get('department', ''),
+                    'role': parsed.get('role', ''),
+                    'time_start': parsed.get('time_start', ''),
+                    'time_end': parsed.get('time_end', ''),
+                    'tags': parsed.get('tags', ''),
+                    'notes': parsed.get('notes', ''),
+                    'work_items': parsed.get('work_items', []),
                 })
 
     # 扫描 work_materials/
-    if WORK_MATERIALS_DIR.exists():
-        for d in sorted(WORK_MATERIALS_DIR.iterdir()):
+    if _work_materials_dir().exists():
+        for d in sorted(_work_materials_dir().iterdir()):
             if d.name == 'README.md' or d.name.startswith('.'):
                 continue
             if d.is_dir():
@@ -804,15 +868,94 @@ def _extract_pdf_metadata(content: bytes, filename: str) -> dict:
     return result
 
 
+def _sanitize_ext_draft_value(value: str, kind: str) -> str:
+    text = str(value or '').strip()
+    placeholders = {
+        'jd': {'QA JD'},
+        'interview': {'QA Interview'},
+    }
+    if text in placeholders.get(kind, set()):
+        return ''
+    return text
+
+
+def _summarize_generation_text(text: str, limit: int = 72) -> str:
+    compact = re.sub(r'\s+', ' ', str(text or '')).strip()
+    if not compact:
+        return ''
+    if len(compact) <= limit:
+        return compact
+    return compact[: max(0, limit - 1)].rstrip() + '…'
+
+
+# ─── 版本快照 ─────────────────────────────────────────────────
+
+def _create_version_snapshot(out_dir: Path, fill_rate: float = 0, pages: int = 1) -> int:
+    """编译成功后创建 tex 快照，返回新版本号"""
+    versions_dir = out_dir / 'versions'
+    versions_dir.mkdir(parents=True, exist_ok=True)
+    versions_json = versions_dir / 'versions.json'
+
+    versions = []
+    if versions_json.exists():
+        try:
+            versions = json.loads(versions_json.read_text(encoding='utf-8'))
+        except (json.JSONDecodeError, OSError):
+            versions = []
+
+    new_version = (versions[-1]['version'] + 1) if versions else 1
+    ts = datetime.now().strftime('%Y%m%dT%H%M%S')
+    snapshot_name = f'v{new_version}_{ts}.tex'
+
+    tex_src = out_dir / 'resume-zh_CN.tex'
+    if tex_src.exists():
+        shutil.copy2(str(tex_src), str(versions_dir / snapshot_name))
+
+    versions.append({
+        'version': new_version,
+        'timestamp': datetime.now().isoformat(),
+        'filename': snapshot_name,
+        'note': '',
+        'fill_rate': fill_rate,
+        'pages': pages,
+    })
+    versions_json.write_text(json.dumps(versions, ensure_ascii=False, indent=2), encoding='utf-8')
+    return new_version
+
+
+def _get_version_count(out_dir: Path) -> int:
+    """读取某个输出目录的版本数"""
+    versions_json = out_dir / 'versions' / 'versions.json'
+    if not versions_json.exists():
+        return 0
+    try:
+        versions = json.loads(versions_json.read_text(encoding='utf-8'))
+        return len(versions)
+    except (json.JSONDecodeError, OSError):
+        return 0
+
+
+def _find_xelatex() -> str:
+    """查找 xelatex 二进制路径"""
+    candidates = [
+        Path.home() / 'Library' / 'TinyTeX' / 'bin' / 'universal-darwin' / 'xelatex',
+        Path.home() / '.TinyTeX' / 'bin' / 'x86_64-linux' / 'xelatex',
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return 'xelatex'
+
+
 # ─── 简历画廊 ─────────────────────────────────────────────────
 
 def list_gallery_resumes() -> list:
     """扫描 output/ 目录，列出已生成的简历"""
     resumes = []
-    if not OUTPUT_DIR.exists():
+    if not _output_dir().exists():
         return resumes
 
-    for d in sorted(OUTPUT_DIR.iterdir(), reverse=True):
+    for d in sorted(_output_dir().iterdir(), reverse=True):
         if not d.is_dir() or d.name.startswith('.'):
             continue
         # 目录名格式: {公司名}_{岗位名}_{YYYYMMDD}
@@ -828,7 +971,14 @@ def list_gallery_resumes() -> list:
             date = f'{date[:4]}/{date[4:6]}/{date[6:]}'
 
         for pdf in pdf_files:
-            rel_path = str(pdf.relative_to(OUTPUT_DIR))
+            rel_path = str(pdf.relative_to(_output_dir()))
+            context_path = d / 'generation_context.json'
+            context = {}
+            if context_path.exists():
+                try:
+                    context = json.loads(context_path.read_text(encoding='utf-8'))
+                except (json.JSONDecodeError, OSError):
+                    context = {}
             resumes.append({
                 'company': company,
                 'role': role,
@@ -837,6 +987,15 @@ def list_gallery_resumes() -> list:
                 'pdf_name': pdf.name,
                 'pdf_path': rel_path,
                 'size': pdf.stat().st_size,
+                'version_count': _get_version_count(d),
+                'jd_text': context.get('jd_text', '') or '',
+                'interview_text': context.get('interview_text', '') or '',
+                'interview_notes': context.get('interview_notes', '') or '',
+                'jd_excerpt': _summarize_generation_text(context.get('jd_text', ''), 88),
+                'interview_excerpt': _summarize_generation_text(context.get('interview_text', ''), 66),
+                'engine': context.get('engine', ''),
+                'ai_provider': context.get('ai_provider', ''),
+                'ai_model': context.get('ai_model', ''),
             })
 
     return resumes
@@ -844,16 +1003,108 @@ def list_gallery_resumes() -> list:
 
 # ─── HTTP 请求处理器 ───────────────────────────────────────────
 
+# ─── JD 关键词提取 ────────────────────────────────────────────
+
+def _extract_jd_keywords(text: str) -> dict:
+    """从 JD 文本中提取关键词（基于规则的简单实现）"""
+    text_lower = text.lower()
+
+    # 技术栈关键词
+    tech_patterns = [
+        'python', 'java', 'javascript', 'typescript', 'c\\+\\+', 'go', 'rust',
+        'sql', 'r', 'stata', 'matlab', 'scala', 'ruby', 'swift', 'kotlin',
+        'react', 'vue', 'angular', 'node\\.js', 'django', 'flask', 'spring',
+        'tensorflow', 'pytorch', 'pandas', 'numpy', 'sklearn', 'spark',
+        'docker', 'kubernetes', 'aws', 'gcp', 'azure',
+        'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch',
+        'tableau', 'power bi', 'excel', 'spss', 'sas',
+        'git', 'linux', 'ci/cd', 'agile', 'scrum',
+    ]
+
+    # 职能关键词
+    role_patterns = {
+        '数据分析': ['数据分析', '数据挖掘', 'data analysis', 'analytics', 'bi'],
+        '产品经理': ['产品经理', '产品设计', 'product manager', 'pm', '需求分析'],
+        '运营': ['运营', '增长', 'growth', 'operation', '用户运营', '内容运营'],
+        '开发': ['开发', '研发', 'engineer', 'developer', '后端', '前端', '全栈'],
+        '算法': ['算法', 'algorithm', 'machine learning', '机器学习', '深度学习', 'nlp', 'cv'],
+        '金融': ['金融', '投资', '风控', '量化', 'finance', 'investment', '券商', '基金'],
+        '咨询': ['咨询', 'consulting', '战略', 'strategy', '行业研究'],
+        '设计': ['设计', 'design', 'ui', 'ux', '交互', '视觉'],
+        '市场': ['市场', 'marketing', '品牌', 'brand', '推广'],
+        '人力资源': ['人力', 'hr', '招聘', '薪酬', 'human resource'],
+    }
+
+    # 软技能
+    soft_skills_patterns = {
+        '沟通能力': ['沟通', 'communication', '表达'],
+        '团队协作': ['团队', 'teamwork', '协作', 'collaboration'],
+        '领导力': ['领导', 'leadership', '带团队'],
+        '抗压能力': ['抗压', '压力', 'pressure'],
+        '学习能力': ['学习能力', '快速学习', 'fast learner'],
+        '分析能力': ['分析能力', 'analytical', '逻辑'],
+    }
+
+    found_tech = []
+    for pattern in tech_patterns:
+        if re.search(r'\b' + pattern + r'\b', text_lower) or pattern in text_lower:
+            found_tech.append(pattern.replace('\\', ''))
+
+    found_roles = []
+    for role, keywords in role_patterns.items():
+        for kw in keywords:
+            if kw.lower() in text_lower:
+                found_roles.append(role)
+                break
+
+    found_soft = []
+    for skill, keywords in soft_skills_patterns.items():
+        for kw in keywords:
+            if kw.lower() in text_lower:
+                found_soft.append(skill)
+                break
+
+    # 学历要求
+    edu_req = ''
+    if '硕士' in text or 'master' in text_lower:
+        edu_req = '硕士'
+    elif '博士' in text or 'phd' in text_lower or 'doctor' in text_lower:
+        edu_req = '博士'
+    elif '本科' in text or 'bachelor' in text_lower:
+        edu_req = '本科'
+
+    # 经验要求
+    exp_req = ''
+    exp_match = re.search(r'(\d+)[年\-\+]*[\s]*(?:年|years?)', text)
+    if exp_match:
+        exp_req = f'{exp_match.group(1)}年'
+
+    return {
+        'tech_stack': found_tech,
+        'roles': found_roles,
+        'soft_skills': found_soft,
+        'education_req': edu_req,
+        'experience_req': exp_req,
+        'raw_length': len(text),
+    }
+
+
 class ResumeHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """简化日志输出"""
         print(f"[{self.log_date_time_string()}] {format % args}")
+
+    def _send_cors_headers(self):
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
 
     def _send_json(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', len(body))
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -865,8 +1116,14 @@ class ResumeHandler(BaseHTTPRequestHandler):
 
         if path == '/' or path == '/index.html':
             self._serve_html()
+        elif path == '/api/persons':
+            self._get_persons()
         elif path == '/api/profile':
             self._get_profile()
+        elif path == '/api/model-config':
+            self._get_model_config()
+        elif path == '/api/extra-info':
+            self._get_extra_info()
         elif path == '/api/experiences':
             self._get_experiences()
         elif path.startswith('/api/experiences/') and path.endswith('/content'):
@@ -877,6 +1134,34 @@ class ResumeHandler(BaseHTTPRequestHandler):
         elif path.startswith('/api/gallery/pdf/'):
             rel_path = urllib.parse.unquote(path[len('/api/gallery/pdf/'):])
             self._serve_gallery_pdf(rel_path)
+        elif path.startswith('/api/editor/tex'):
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            dir_name = params.get('dir', [''])[0]
+            self._get_editor_tex(dir_name)
+        elif path.startswith('/api/editor/versions'):
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            dir_name = params.get('dir', [''])[0]
+            self._get_editor_versions(dir_name)
+        # ─── Chrome Extension API ───
+        elif path == '/api/ext/profile':
+            self._ext_get_profile()
+        elif path == '/api/ext/fill-data':
+            self._ext_get_fill_data()
+        elif path == '/api/ext/field-map':
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            platform = params.get('platform', [''])[0]
+            self._ext_get_field_map(platform)
+        elif path == '/api/ext/history':
+            self._ext_get_history()
+        elif path == '/api/ext/draft':
+            self._ext_get_draft()
+        elif path == '/monitor' or path == '/monitor.html':
+            self._serve_monitor_html()
+        elif path == '/api/monitor/logs':
+            self._get_monitor_logs()
         else:
             self.send_error(404)
 
@@ -889,8 +1174,16 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._send_error_json('文件大小超过限制（50MB）', 413)
             return
 
-        if path == '/api/profile':
+        if path == '/api/persons':
+            self._create_person()
+        elif path == '/api/persons/active':
+            self._set_active_person()
+        elif path == '/api/profile':
             self._save_profile()
+        elif path == '/api/model-config':
+            self._save_model_config()
+        elif path == '/api/extra-info':
+            self._save_extra_info()
         elif path == '/api/experiences/form':
             self._save_experience_form()
         elif path == '/api/experiences':
@@ -899,13 +1192,43 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._upload_publication_pdf()
         elif path == '/api/generate':
             self._generate_resume()
+        elif path == '/api/editor/regenerate':
+            self._regenerate_resume()
+        elif path == '/api/editor/save':
+            self._save_editor_tex()
+        elif path == '/api/editor/saveas':
+            self._saveas_editor_tex()
+        elif path == '/api/editor/compile':
+            self._compile_editor_tex()
+        elif path == '/api/editor/versions/note':
+            self._update_version_note()
+        elif path == '/api/editor/versions/restore':
+            self._restore_version()
+        elif path == '/api/editor/synctex':
+            self._synctex_query()
+        # ─── Chrome Extension API ───
+        elif path == '/api/ext/jd-analyze':
+            self._ext_jd_analyze()
+        elif path == '/api/ext/fill-log':
+            self._ext_fill_log()
+        elif path == '/api/ext/correction':
+            self._ext_correction()
+        elif path == '/api/ext/field-map':
+            self._ext_update_field_map()
+        elif path == '/api/ext/draft':
+            self._ext_save_draft()
+        elif path == '/api/monitor/clear':
+            self._clear_monitor_logs()
         else:
             self.send_error(404)
 
     def do_DELETE(self):
         path = urllib.parse.urlparse(self.path).path
 
-        if path.startswith('/api/experiences/'):
+        if path.startswith('/api/persons/'):
+            person_id = urllib.parse.unquote(path[len('/api/persons/'):])
+            self._delete_person(person_id)
+        elif path.startswith('/api/experiences/'):
             filename = urllib.parse.unquote(path[len('/api/experiences/'):])
             self._delete_experience(filename)
         elif path.startswith('/api/gallery/'):
@@ -916,9 +1239,20 @@ class ResumeHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self._send_cors_headers()
+        self.send_header('Content-Length', '0')
         self.end_headers()
+
+    def do_PATCH(self):
+        path = urllib.parse.urlparse(self.path).path
+        if path.startswith('/api/gallery/') and path.endswith('/notes'):
+            dir_name = urllib.parse.unquote(path[len('/api/gallery/'):-len('/notes')])
+            self._save_gallery_notes(dir_name)
+        elif path.startswith('/api/gallery/') and path.endswith('/meta'):
+            dir_name = urllib.parse.unquote(path[len('/api/gallery/'):-len('/meta')])
+            self._save_gallery_meta(dir_name)
+        else:
+            self.send_error(404)
 
     # ─── 路由实现 ──────────────────────────────────────────
 
@@ -935,10 +1269,98 @@ class ResumeHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
+    def _serve_monitor_html(self):
+        html_path = WEB_DIR / 'monitor.html'
+        if not html_path.exists():
+            self.send_error(404, 'monitor.html not found')
+            return
+        content = html_path.read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', len(content))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _get_monitor_logs(self):
+        """Return gen_log entries since the given seq number."""
+        try:
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            since = int(params.get('since', ['0'])[0])
+            entries = gen_log.get_entries_since(since)
+            self._send_json({'entries': entries})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _clear_monitor_logs(self):
+        try:
+            gen_log.clear()
+            self._send_json({'ok': True})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    # ─── 人员管理 ──────────────────────────────────────────
+
+    def _get_persons(self):
+        try:
+            persons = list_persons()
+            active = get_active_person_id()
+            self._send_json({'persons': persons, 'active': active})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _create_person(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            display_name = data.get('display_name', '').strip()
+            if not display_name:
+                self._send_error_json('请填写显示名', 400)
+                return
+            person = create_person(display_name)
+            self._send_json({'success': True, 'person': person})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _set_active_person(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            person_id = data.get('person_id', '').strip()
+            if not person_id:
+                self._send_error_json('请提供 person_id', 400)
+                return
+            set_active_person(person_id)
+            self._send_json({'success': True, 'active': person_id})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _delete_person(self, person_id):
+        try:
+            if not person_id:
+                self._send_error_json('请提供 person_id', 400)
+                return
+            persons = list_persons()
+            if len(persons) <= 1:
+                self._send_error_json('至少保留一个人员', 400)
+                return
+            delete_person(person_id, delete_data=False)
+            self._send_json({'success': True, 'message': f'已删除人员: {person_id}'})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
     def _get_profile(self):
         try:
             data = parse_profile()
             self._send_json(data)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_model_config(self):
+        try:
+            self._send_json(get_model_config())
         except Exception as e:
             self._send_error_json(str(e), 500)
 
@@ -949,9 +1371,76 @@ class ResumeHandler(BaseHTTPRequestHandler):
             data = json.loads(body.decode('utf-8'))
 
             md_content = render_profile(data)
-            PROFILE_PATH.write_text(md_content, encoding='utf-8')
+            _profile_path().parent.mkdir(parents=True, exist_ok=True)
+            _profile_path().write_text(md_content, encoding='utf-8')
 
             self._send_json({'success': True, 'message': '个人信息已保存'})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _save_model_config(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            config = save_model_config({
+                'enabled': bool(data.get('enabled')),
+                'provider': data.get('provider', ''),
+                'model': data.get('model', ''),
+                'base_url': data.get('base_url', ''),
+                'api_key': data.get('api_key', ''),
+                'platform_url': data.get('platform_url', ''),
+            })
+            self._send_json({'success': True, 'config': config})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_extra_info(self):
+        try:
+            path = _extra_info_path()
+            if not path.exists():
+                self._send_json({'items': []})
+                return
+            try:
+                data = json.loads(path.read_text(encoding='utf-8'))
+            except json.JSONDecodeError:
+                data = []
+            items = data if isinstance(data, list) else data.get('items', [])
+            if not isinstance(items, list):
+                items = []
+            cleaned = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                cleaned.append({
+                    'key': str(item.get('key', '')).strip(),
+                    'value': str(item.get('value', '')).strip(),
+                })
+            self._send_json({'items': cleaned})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _save_extra_info(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            items = data.get('items', [])
+            if not isinstance(items, list):
+                self._send_error_json('items 格式错误', 400)
+                return
+            cleaned = []
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                key = str(item.get('key', '')).strip()
+                value = str(item.get('value', '')).strip()
+                if key or value:
+                    cleaned.append({'key': key, 'value': value})
+            path = _extra_info_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(cleaned, ensure_ascii=False, indent=2), encoding='utf-8')
+            self._send_json({'success': True, 'items': cleaned})
         except Exception as e:
             self._send_error_json(str(e), 500)
 
@@ -965,7 +1454,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
     def _get_experience_content(self, filename):
         try:
             safe_name = sanitize_filename(filename)
-            target = EXPERIENCES_DIR / safe_name
+            target = _experiences_dir() / safe_name
             if not target.exists():
                 self._send_error_json(f'文件不存在: {safe_name}', 404)
                 return
@@ -987,13 +1476,13 @@ class ResumeHandler(BaseHTTPRequestHandler):
             if '..' in rel_path or rel_path.startswith('/'):
                 self._send_error_json('非法路径', 403)
                 return
-            pdf_path = OUTPUT_DIR / rel_path
+            pdf_path = _output_dir() / rel_path
             if not pdf_path.exists() or not pdf_path.is_file():
                 self._send_error_json('文件不存在', 404)
                 return
-            # Ensure path is within OUTPUT_DIR
+            # Ensure path is within _output_dir()
             try:
-                pdf_path.resolve().relative_to(OUTPUT_DIR.resolve())
+                pdf_path.resolve().relative_to(_output_dir().resolve())
             except ValueError:
                 self._send_error_json('非法路径', 403)
                 return
@@ -1015,19 +1504,202 @@ class ResumeHandler(BaseHTTPRequestHandler):
             if '..' in dir_name or '/' in dir_name or dir_name.startswith('.'):
                 self._send_error_json('非法路径', 403)
                 return
-            target = OUTPUT_DIR / dir_name
+            target = _output_dir() / dir_name
             if not target.exists() or not target.is_dir():
                 self._send_error_json('目录不存在', 404)
                 return
-            # Ensure path is within OUTPUT_DIR
+            # Ensure path is within _output_dir()
             try:
-                target.resolve().relative_to(OUTPUT_DIR.resolve())
+                target.resolve().relative_to(_output_dir().resolve())
             except ValueError:
                 self._send_error_json('非法路径', 403)
                 return
             shutil.rmtree(target)
             self._send_json({'success': True, 'message': f'已删除: {dir_name}'})
         except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _save_gallery_meta(self, dir_name):
+        """更新公司名/岗位名到 generation_context.json"""
+        try:
+            if '..' in dir_name or '/' in dir_name or dir_name.startswith('.'):
+                self._send_error_json('非法路径', 403)
+                return
+            target = _output_dir() / dir_name
+            if not target.exists() or not target.is_dir():
+                self._send_error_json('目录不存在', 404)
+                return
+            try:
+                target.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+            context_path = target / 'generation_context.json'
+            context = {}
+            if context_path.exists():
+                try:
+                    context = json.loads(context_path.read_text(encoding='utf-8'))
+                except (json.JSONDecodeError, OSError):
+                    context = {}
+            if 'company' in data:
+                context['company'] = str(data['company']).strip()
+            if 'role' in data:
+                context['role'] = str(data['role']).strip()
+            context_path.write_text(json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
+            self._send_json({'success': True, 'company': context.get('company', ''), 'role': context.get('role', '')})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _save_gallery_notes(self, dir_name):
+        """保存面经笔记到 generation_context.json"""
+        try:
+            if '..' in dir_name or '/' in dir_name or dir_name.startswith('.'):
+                self._send_error_json('非法路径', 403)
+                return
+            target = _output_dir() / dir_name
+            if not target.exists() or not target.is_dir():
+                self._send_error_json('目录不存在', 404)
+                return
+            try:
+                target.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+            notes = str(data.get('interview_notes', ''))
+            context_path = target / 'generation_context.json'
+            context = {}
+            if context_path.exists():
+                try:
+                    context = json.loads(context_path.read_text(encoding='utf-8'))
+                except (json.JSONDecodeError, OSError):
+                    context = {}
+            context['interview_notes'] = notes
+            context_path.write_text(json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
+            self._send_json({'success': True})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _regenerate_resume(self):
+        """在编辑器中重新生成简历（带用户反馈），结果覆盖当前目录并记录为新版本"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+
+            dir_name = data.get('dir', '').strip()
+            feedback = data.get('feedback', '').strip()
+
+            if not dir_name or '..' in dir_name or '/' in dir_name:
+                self._send_error_json('非法路径', 403)
+                return
+
+            target_dir = _output_dir() / dir_name
+            try:
+                target_dir.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            if not target_dir.exists():
+                self._send_error_json('目录不存在', 404)
+                return
+
+            # Read original generation context
+            context_path = target_dir / 'generation_context.json'
+            if not context_path.exists():
+                self._send_error_json('找不到生成上下文，无法重新生成', 400)
+                return
+            context = json.loads(context_path.read_text(encoding='utf-8'))
+
+            jd_text = context.get('jd_text', '').strip()
+            interview_text = context.get('interview_text', '').strip()
+            company = context.get('company', '').strip()
+            role = context.get('role', '').strip()
+            prefer_ai = context.get('engine', '') == 'ai'
+
+            if not jd_text:
+                self._send_error_json('原始 JD 内容为空，无法重新生成', 400)
+                return
+
+            # Use original interview_text; feedback is passed as dedicated param
+            from tools.generate_resume import generate_resume
+
+            # Create a snapshot of current state BEFORE regenerating
+            _create_version_snapshot(target_dir, fill_rate=context.get('fill_ratio', 0) * 100)
+
+            # Generate into a temp dir (generate_resume always creates new dir)
+            result = generate_resume(
+                jd_text,
+                interview_text,
+                company=company,
+                role=role,
+                person_id=get_active_person_id(),
+                prefer_ai=prefer_ai,
+                feedback=feedback,
+            )
+
+            if not result.get('success'):
+                self._send_error_json(result.get('error', '重新生成失败'), 500)
+                return
+
+            # Move generated files from new temp dir into the current dir
+            new_dir_name = result.get('output_dir', '')
+            if new_dir_name:
+                new_dir = _output_dir() / new_dir_name
+                if new_dir.exists() and new_dir != target_dir:
+                    for item in new_dir.iterdir():
+                        if item.name == 'versions':
+                            continue  # preserve existing versions
+                        dest = target_dir / item.name
+                        if item.is_dir():
+                            if dest.exists():
+                                shutil.rmtree(dest)
+                            shutil.copytree(str(item), str(dest))
+                        else:
+                            shutil.copy2(str(item), str(dest))
+                    shutil.rmtree(str(new_dir))
+
+            # Update generation context with new metadata
+            new_context_path = target_dir / 'generation_context.json'
+            new_context = json.loads(new_context_path.read_text(encoding='utf-8')) if new_context_path.exists() else {}
+            if feedback:
+                new_context['last_feedback'] = feedback
+            new_context_path.write_text(json.dumps(new_context, ensure_ascii=False, indent=2), encoding='utf-8')
+
+            # Create version snapshot for the newly regenerated result
+            fill_ratio = result.get('fill_ratio', 0)
+            new_ver = _create_version_snapshot(target_dir, fill_rate=fill_ratio * 100)
+            # Annotate with feedback
+            if feedback:
+                versions_json_path = target_dir / 'versions' / 'versions.json'
+                if versions_json_path.exists():
+                    versions = json.loads(versions_json_path.read_text(encoding='utf-8'))
+                    for v in versions:
+                        if v['version'] == new_ver:
+                            v['note'] = f'重新生成: {feedback[:60]}'
+                            break
+                    versions_json_path.write_text(json.dumps(versions, ensure_ascii=False, indent=2), encoding='utf-8')
+
+            # Read new tex content to return to editor
+            tex_path = target_dir / 'resume-zh_CN.tex'
+            tex_content = tex_path.read_text(encoding='utf-8') if tex_path.exists() else ''
+
+            self._send_json({
+                'success': True,
+                'content': tex_content,
+                'version': new_ver,
+                'fill_ratio': fill_ratio,
+                'version_count': _get_version_count(target_dir),
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             self._send_error_json(str(e), 500)
 
     def _generate_resume(self):
@@ -1041,6 +1713,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
             interview_text = data.get('interview', '').strip()
             company_override = data.get('company', '').strip()
             role_override = data.get('role', '').strip()
+            prefer_ai = bool(data.get('prefer_ai'))
 
             if not jd_text:
                 self._send_error_json('请输入 JD 内容', 400)
@@ -1055,13 +1728,415 @@ class ResumeHandler(BaseHTTPRequestHandler):
             from tools.generate_resume import generate_resume
 
             result = generate_resume(jd_text, interview_text,
-                                     company=company_override, role=role_override)
+                                     company=company_override, role=role_override,
+                                     person_id=get_active_person_id(),
+                                     prefer_ai=prefer_ai)
             self._send_json(result)
 
         except Exception as e:
             import traceback
             traceback.print_exc()
             self._send_error_json(str(e), 500)
+
+    # ─── LaTeX Editor API ──────────────────────────────────────
+
+    def _get_editor_tex(self, dir_name):
+        """读取 output 目录中的 .tex 文件内容"""
+        try:
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            tex_path = _output_dir() / dir_name / 'resume-zh_CN.tex'
+            try:
+                tex_path.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            if not tex_path.exists():
+                self._send_error_json('文件不存在', 404)
+                return
+            content = tex_path.read_text(encoding='utf-8')
+            self._send_json({
+                'content': content,
+                'filename': 'resume-zh_CN.tex',
+                'dir_name': dir_name,
+            })
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _save_editor_tex(self):
+        """保存编辑后的 .tex 内容"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            dir_name = data.get('dir', '')
+            tex_content = data.get('content', '')
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            tex_path = _output_dir() / dir_name / 'resume-zh_CN.tex'
+            try:
+                tex_path.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            if not tex_path.parent.exists():
+                self._send_error_json('目录不存在', 404)
+                return
+            tex_path.write_text(tex_content, encoding='utf-8')
+            self._send_json({'success': True})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _saveas_editor_tex(self):
+        """另存为新目录（新公司/岗位）"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            source_dir = data.get('dir', '')
+            tex_content = data.get('content', '')
+            new_dir = data.get('new_dir', '')
+            if not new_dir or '..' in new_dir or new_dir.startswith('/'):
+                self._send_error_json('非法目录名', 403)
+                return
+            new_path = _output_dir() / new_dir
+            try:
+                new_path.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            # Create new directory
+            new_path.mkdir(parents=True, exist_ok=True)
+            # Copy latex support files from source (fallback to template)
+            src_dir = _output_dir() / source_dir if source_dir else None
+            template_dir = PROJECT_ROOT / 'latex_src' / 'resume'
+            for f in ['resume.cls', 'zh_CN-Adobefonts_external.sty',
+                      'linespacing_fix.sty']:
+                src_file = (src_dir / f) if (src_dir and (src_dir / f).exists()) else (template_dir / f)
+                if src_file.exists():
+                    shutil.copy2(str(src_file), str(new_path / f))
+
+            # Reuse shared fonts via symlink (avoid per-resume duplication)
+            dst_fonts = new_path / 'fonts'
+            if not dst_fonts.exists():
+                src_fonts = template_dir / 'fonts'
+                if src_fonts.exists():
+                    try:
+                        os.symlink(src_fonts.resolve(), dst_fonts)
+                    except OSError:
+                        if src_fonts.is_dir():
+                            shutil.copytree(str(src_fonts), str(dst_fonts))
+            # Write tex
+            tex_path = new_path / 'resume-zh_CN.tex'
+            tex_path.write_text(tex_content, encoding='utf-8')
+            self._send_json({'success': True, 'new_dir': new_dir})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _compile_editor_tex(self):
+        """保存 + 编译 + 版本快照 + 返回状态"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            dir_name = data.get('dir', '')
+            tex_content = data.get('content', '')
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            out_dir = _output_dir() / dir_name
+            tex_path = out_dir / 'resume-zh_CN.tex'
+            try:
+                tex_path.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            if not out_dir.exists():
+                self._send_error_json('目录不存在', 404)
+                return
+
+            # 1. Save
+            tex_path.write_text(tex_content, encoding='utf-8')
+
+            # 2. Find xelatex
+            xelatex_bin = _find_xelatex()
+
+            # 3. Compile with synctex
+            env = os.environ.copy()
+            xelatex_dir = str(Path(xelatex_bin).parent) if xelatex_bin != 'xelatex' else ''
+            if xelatex_dir:
+                env['PATH'] = xelatex_dir + ':' + env.get('PATH', '')
+
+            result = _sp.run(
+                [xelatex_bin, '-interaction=nonstopmode', '--synctex=1', 'resume-zh_CN.tex'],
+                cwd=str(out_dir),
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=env,
+            )
+
+            pdf_path = out_dir / 'resume-zh_CN.pdf'
+            log_path = out_dir / 'resume-zh_CN.log'
+
+            # 4. Read log tail on failure
+            log_tail = ''
+            if log_path.exists():
+                lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
+                log_tail = '\n'.join(lines[-30:])
+
+            if result.returncode != 0 or not pdf_path.exists():
+                self._send_json({
+                    'success': False,
+                    'pages': 0,
+                    'fill_rate': 0,
+                    'errors': f'编译失败 (exit code {result.returncode})',
+                    'log_tail': log_tail,
+                    'version_count': _get_version_count(out_dir),
+                })
+                return
+
+            # 5. Get page count (macOS mdls or fallback)
+            pages = 1
+            try:
+                mdls = _sp.run(
+                    ['mdls', '-name', 'kMDItemNumberOfPages', str(pdf_path)],
+                    capture_output=True, text=True, timeout=10,
+                )
+                for line in mdls.stdout.splitlines():
+                    if 'kMDItemNumberOfPages' in line and '=' in line:
+                        val = line.split('=')[1].strip()
+                        if val != '(null)':
+                            pages = int(val)
+            except Exception:
+                pass
+
+            # 6. Get fill rate
+            fill_rate = 0.0
+            try:
+                fill_check = str(PROJECT_ROOT / 'tools' / 'page_fill_check.py')
+                fr_result = _sp.run(
+                    ['python3', fill_check, str(out_dir)],
+                    capture_output=True, text=True, timeout=60, env=env,
+                )
+                m = re.search(r'填充率[：:]\s*([\d.]+)%', fr_result.stdout)
+                if m:
+                    fill_rate = float(m.group(1))
+            except Exception:
+                pass
+
+            # 7. Create version snapshot
+            version_num = _create_version_snapshot(out_dir, fill_rate, pages)
+
+            self._send_json({
+                'success': True,
+                'pages': pages,
+                'fill_rate': fill_rate,
+                'errors': '',
+                'log_tail': log_tail if pages > 1 else '',
+                'version_count': _get_version_count(out_dir),
+            })
+
+        except _sp.TimeoutExpired:
+            self._send_json({
+                'success': False, 'pages': 0, 'fill_rate': 0,
+                'errors': '编译超时（60秒）', 'log_tail': '',
+            })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_error_json(str(e), 500)
+
+    # ─── Version Management API ───────────────────────────────
+
+    def _get_editor_versions(self, dir_name):
+        """返回版本列表"""
+        try:
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            out_dir = _output_dir() / dir_name
+            try:
+                out_dir.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            versions_json = out_dir / 'versions' / 'versions.json'
+            if not versions_json.exists():
+                self._send_json({'versions': []})
+                return
+            versions = json.loads(versions_json.read_text(encoding='utf-8'))
+            self._send_json({'versions': versions})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _update_version_note(self):
+        """更新版本备注"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            dir_name = data.get('dir', '')
+            version = data.get('version', 0)
+            note = data.get('note', '')
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            out_dir = _output_dir() / dir_name
+            try:
+                out_dir.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            versions_json = out_dir / 'versions' / 'versions.json'
+            if not versions_json.exists():
+                self._send_error_json('版本记录不存在', 404)
+                return
+            versions = json.loads(versions_json.read_text(encoding='utf-8'))
+            found = False
+            for v in versions:
+                if v['version'] == version:
+                    v['note'] = note
+                    found = True
+                    break
+            if not found:
+                self._send_error_json(f'版本 {version} 不存在', 404)
+                return
+            versions_json.write_text(json.dumps(versions, ensure_ascii=False, indent=2), encoding='utf-8')
+            self._send_json({'success': True})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _restore_version(self):
+        """恢复某个版本的 tex 内容（只返回文本，不覆盖文件）"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            dir_name = data.get('dir', '')
+            version = data.get('version', 0)
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            out_dir = _output_dir() / dir_name
+            try:
+                out_dir.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            versions_json = out_dir / 'versions' / 'versions.json'
+            if not versions_json.exists():
+                self._send_error_json('版本记录不存在', 404)
+                return
+            versions = json.loads(versions_json.read_text(encoding='utf-8'))
+            target = None
+            for v in versions:
+                if v['version'] == version:
+                    target = v
+                    break
+            if not target:
+                self._send_error_json(f'版本 {version} 不存在', 404)
+                return
+            tex_path = out_dir / 'versions' / target['filename']
+            if not tex_path.exists():
+                self._send_error_json('版本文件不存在', 404)
+                return
+            content = tex_path.read_text(encoding='utf-8')
+            self._send_json({'success': True, 'content': content})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    # ─── SyncTeX API ──────────────────────────────────────────
+
+    def _synctex_query(self):
+        """SyncTeX 正向/反向查询"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            dir_name = data.get('dir', '')
+            action = data.get('action', '')  # "forward" or "inverse"
+            if not dir_name or '..' in dir_name or dir_name.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            out_dir = _output_dir() / dir_name
+            try:
+                out_dir.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+
+            pdf_file = out_dir / 'resume-zh_CN.pdf'
+            tex_file = 'resume-zh_CN.tex'
+
+            # Find synctex binary (same dir as xelatex)
+            xelatex_bin = _find_xelatex()
+            synctex_bin = str(Path(xelatex_bin).parent / 'synctex') if xelatex_bin != 'xelatex' else 'synctex'
+
+            env = os.environ.copy()
+            synctex_dir = str(Path(synctex_bin).parent) if synctex_bin != 'synctex' else ''
+            if synctex_dir:
+                env['PATH'] = synctex_dir + ':' + env.get('PATH', '')
+
+            if action == 'forward':
+                line = data.get('line', 1)
+                col = data.get('col', 0)
+                cmd = [synctex_bin, 'view', '-i', f'{line}:{col}:{tex_file}', '-o', str(pdf_file)]
+                result = _sp.run(cmd, capture_output=True, text=True, timeout=10, cwd=str(out_dir), env=env)
+                parsed = self._parse_synctex_output(result.stdout, 'forward')
+                self._send_json({'success': True, **parsed})
+
+            elif action == 'inverse':
+                page = data.get('page', 1)
+                x = data.get('x', 0)
+                y = data.get('y', 0)
+                cmd = [synctex_bin, 'edit', '-o', f'{page}:{x}:{y}:{str(pdf_file)}']
+                result = _sp.run(cmd, capture_output=True, text=True, timeout=10, cwd=str(out_dir), env=env)
+                parsed = self._parse_synctex_output(result.stdout, 'inverse')
+                self._send_json({'success': True, **parsed})
+            else:
+                self._send_error_json('action 必须为 forward 或 inverse', 400)
+
+        except _sp.TimeoutExpired:
+            self._send_error_json('SyncTeX 查询超时', 500)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    @staticmethod
+    def _parse_synctex_output(output: str, mode: str) -> dict:
+        """解析 synctex 命令行输出"""
+        result = {}
+        for line in output.splitlines():
+            line = line.strip()
+            if ':' not in line:
+                continue
+            key, _, val = line.partition(':')
+            key = key.strip()
+            val = val.strip()
+            try:
+                if key == 'Page':
+                    result['page'] = int(val)
+                elif key == 'x':
+                    result['x'] = float(val)
+                elif key == 'y':
+                    result['y'] = float(val)
+                elif key == 'h':
+                    result['h'] = float(val)
+                elif key == 'v':
+                    result['v'] = float(val)
+                elif key == 'W':
+                    result['W'] = float(val)
+                elif key == 'H':
+                    result['H'] = float(val)
+                elif key == 'Line':
+                    result['line'] = int(val)
+                elif key == 'Column':
+                    result['col'] = int(val)
+            except (ValueError, TypeError):
+                pass
+        return result
 
     def _save_experience_form(self):
         try:
@@ -1178,10 +2253,174 @@ class ResumeHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 500)
 
+    # ─── Chrome Extension API 实现 ──────────────────────────────
+
+    def _ext_read_body(self) -> dict:
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        return json.loads(body.decode('utf-8'))
+
+    def _ext_get_profile(self):
+        """GET /api/ext/profile — 返回活跃人员的结构化 profile"""
+        try:
+            data = parse_profile()
+            data['person_id'] = get_active_person_id()
+            self._send_json(data)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_get_draft(self):
+        """GET /api/ext/draft — 读取插件缓存的 JD/面经"""
+        try:
+            path = _ext_draft_path()
+            if not path.exists():
+                self._send_json({'jd': '', 'interview': ''})
+                return
+            try:
+                data = json.loads(path.read_text(encoding='utf-8'))
+            except json.JSONDecodeError:
+                data = {}
+            self._send_json({
+                'jd': _sanitize_ext_draft_value(data.get('jd', ''), 'jd'),
+                'interview': _sanitize_ext_draft_value(data.get('interview', ''), 'interview'),
+            })
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_save_draft(self):
+        """POST /api/ext/draft — 保存插件缓存的 JD/面经"""
+        try:
+            data = self._ext_read_body()
+            jd = str(data.get('jd', '')).strip()
+            interview = str(data.get('interview', '')).strip()
+            path = _ext_draft_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                json.dumps({'jd': jd, 'interview': interview}, ensure_ascii=False, indent=2),
+                encoding='utf-8'
+            )
+            self._send_json({'success': True})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_get_fill_data(self):
+        """GET /api/ext/fill-data — 返回完整填充数据包"""
+        try:
+            profile = parse_profile()
+            person_id = get_active_person_id()
+
+            # 读取所有经历
+            experiences = []
+            exp_dir = _experiences_dir()
+            if exp_dir.exists():
+                for f in sorted(exp_dir.iterdir()):
+                    if f.name in ('_template.md', 'README.md') or f.name.startswith('.'):
+                        continue
+                    if f.is_file() and f.suffix == '.md':
+                        exp = parse_experience_file(f)
+                        exp['filename'] = f.name
+                        experiences.append(exp)
+
+            self._send_json({
+                'person_id': person_id,
+                'profile': profile,
+                'experiences': experiences,
+            })
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_jd_analyze(self):
+        """POST /api/ext/jd-analyze — 提取 JD 关键词"""
+        try:
+            data = self._ext_read_body()
+            jd_text = data.get('text', '')
+            if not jd_text:
+                self._send_error_json('缺少 JD 文本', 400)
+                return
+
+            keywords = _extract_jd_keywords(jd_text)
+            self._send_json(keywords)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_fill_log(self):
+        """POST /api/ext/fill-log — 记录一次填充"""
+        try:
+            data = self._ext_read_body()
+            url = data.get('url', '')
+            platform = data.get('platform', 'generic')
+            fields_filled = data.get('fields_filled', 0)
+
+            fill_id = ext_log_fill(url, platform, fields_filled)
+            self._send_json({'fill_id': fill_id})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_correction(self):
+        """POST /api/ext/correction — 记录用户修正"""
+        try:
+            data = self._ext_read_body()
+            fill_id = data.get('fill_id')
+            corrections = data.get('corrections', [])
+
+            if not fill_id:
+                self._send_error_json('缺少 fill_id', 400)
+                return
+
+            for c in corrections:
+                ext_log_correction(
+                    fill_id=fill_id,
+                    field_name=c.get('field_name', ''),
+                    field_label=c.get('field_label', ''),
+                    original_value=c.get('original_value', ''),
+                    corrected_value=c.get('corrected_value', ''),
+                    platform=c.get('platform', 'generic'),
+                )
+
+            self._send_json({'success': True, 'count': len(corrections)})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_get_field_map(self, platform: str):
+        """GET /api/ext/field-map?platform=xxx — 获取字段映射"""
+        try:
+            mappings = ext_get_field_mappings(platform or None)
+            self._send_json({'mappings': mappings})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_update_field_map(self):
+        """POST /api/ext/field-map — 更新字段映射"""
+        try:
+            data = self._ext_read_body()
+            mappings = data.get('mappings', [])
+
+            for m in mappings:
+                ext_update_field_mapping(
+                    platform=m.get('platform', 'generic'),
+                    field_selector=m.get('field_selector', ''),
+                    field_label=m.get('field_label', ''),
+                    mapped_to=m.get('mapped_to', ''),
+                    confidence=m.get('confidence', 0.5),
+                )
+
+            self._send_json({'success': True, 'count': len(mappings)})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _ext_get_history(self):
+        """GET /api/ext/history — 获取填充历史和修正汇总"""
+        try:
+            history = ext_get_fill_history()
+            summary = ext_get_corrections_summary()
+            self._send_json({'history': history, 'summary': summary})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
     def _delete_experience(self, filename):
         try:
             safe_name = sanitize_filename(filename)
-            target = EXPERIENCES_DIR / safe_name
+            target = _experiences_dir() / safe_name
 
             if not target.exists():
                 self._send_error_json(f'文件不存在: {safe_name}', 404)
@@ -1205,9 +2444,12 @@ def main():
     parser.add_argument('--no-open', action='store_true', help='不自动打开浏览器')
     args = parser.parse_args()
 
+    # 自动迁移到多人模式
+    _maybe_migrate()
+
     # 确保目录存在
-    EXPERIENCES_DIR.mkdir(parents=True, exist_ok=True)
-    WORK_MATERIALS_DIR.mkdir(parents=True, exist_ok=True)
+    _experiences_dir().mkdir(parents=True, exist_ok=True)
+    _work_materials_dir().mkdir(parents=True, exist_ok=True)
 
     server = HTTPServer(('127.0.0.1', args.port), ResumeHandler)
     url = f'http://localhost:{args.port}'

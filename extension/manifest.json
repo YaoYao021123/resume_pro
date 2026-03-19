@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "Resume Fill — 智能网申助手",
+  "version": "0.1.0",
+  "description": "自动分析JD、智能填充网申表单，追踪修正记录",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:*/*",
+    "https://*.workday.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.linkedin.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "lib/dom-utils.js",
+        "lib/field-types.js",
+        "lib/storage.js",
+        "lib/api-client.js",
+        "adapters/base-adapter.js",
+        "adapters/workday.js",
+        "adapters/greenhouse.js",
+        "adapters/lever.js",
+        "adapters/smartrecruiters.js",
+        "adapters/linkedin.js",
+        "adapters/generic.js",
+        "content/detector.js",
+        "content/filler.js",
+        "content/tracker.js",
+        "content/jd-analyzer.js",
+        "content/sidebar.js"
+      ],
+      "css": ["content/sidebar.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

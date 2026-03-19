@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 生成监控 · Resume Generator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+header h1 { font-size: 14px; font-weight: 600; color: #f0f6fc; letter-spacing: .02em; }
+.badge {
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #21262d;
+  border: 1px solid #30363d;
+}
+.badge.live { background: #0d4429; border-color: #2ea043; color: #3fb950; }
+.header-actions { margin-left: auto; display: flex; gap: 8px; }
+.btn {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid #30363d;
+  background: #21262d; color: #c9d1d9; cursor: pointer; font-size: 12px;
+}
+.btn:hover { background: #30363d; border-color: #58a6ff; }
+.btn.danger { border-color: #f85149; color: #f85149; }
+.btn.danger:hover { background: #2d1b20; }
+#log-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.log-entry {
+  display: flex;
+  gap: 8px;
+  padding: 4px 16px;
+  line-height: 1.6;
+  border-left: 2px solid transparent;
+  transition: background .1s;
+}
+.log-entry:hover { background: #161b22; }
+.log-ts {
+  color: #484f58;
+  flex-shrink: 0;
+  min-width: 56px;
+  font-size: 11px;
+  padding-top: 1px;
+}
+.log-cat {
+  flex-shrink: 0;
+  min-width: 90px;
+  font-size: 11px;
+  font-weight: 600;
+  padding-top: 1px;
+}
+.log-body { flex: 1; white-space: pre-wrap; word-break: break-all; }
+.expand-toggle {
+  color: #58a6ff; cursor: pointer; font-size: 11px; margin-top: 3px; display: block;
+  user-select: none;
+}
+.expand-toggle:hover { text-decoration: underline; }
+.expandable { display: none; background: #161b22; border: 1px solid #21262d;
+  border-radius: 6px; padding: 10px; margin-top: 6px; white-space: pre-wrap;
+  word-break: break-all; overflow-x: auto; max-height: 500px; overflow-y: auto; }
+.expandable.open { display: block; }
+
+/* Categories */
+.cat-step    { color: #58a6ff; } .entry-step    { border-left-color: #1f6feb; }
+.cat-ai_req  { color: #d2a679; } .entry-ai_req  { border-left-color: #7a4318; }
+.cat-ai_resp { color: #3fb950; } .entry-ai_resp { border-left-color: #2ea043; }
+.cat-think   { color: #e3b341; } .entry-think   { border-left-color: #9e6a03; }
+.cat-parse   { color: #a5d6ff; } .entry-parse   { border-left-color: #0d3155; }
+.cat-compile { color: #79c0ff; } .entry-compile { border-left-color: #1158c7; }
+.cat-error   { color: #f85149; } .entry-error   { border-left-color: #8e1519; background: rgba(248,81,73,.04); }
+.cat-done    { color: #56d364; } .entry-done    { border-left-color: #26a641; }
+.cat-info    { color: #8b949e; } .entry-info    { border-left-color: transparent; }
+
+.sep { border: none; border-top: 1px solid #21262d; margin: 4px 16px; }
+
+#status-bar {
+  background: #161b22;
+  border-top: 1px solid #30363d;
+  padding: 5px 16px;
+  font-size: 11px;
+  color: #8b949e;
+  display: flex;
+  gap: 16px;
+  flex-shrink: 0;
+}
+#status-bar span { display: flex; align-items: center; gap: 4px; }
+#dot { font-size: 8px; }
+#dot.live { color: #3fb950; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ AI 生成监控</h1>
+  <span class="badge live" id="live-badge">● LIVE</span>
+  <div class="header-actions">
+    <button class="btn" onclick="toggleAutoScroll()" id="scroll-btn">⬇ 自动滚动</button>
+    <button class="btn danger" onclick="clearLogs()">清空</button>
+  </div>
+</header>
+<div id="log-container"></div>
+<div id="status-bar">
+  <span><span id="dot" class="live">●</span> <span id="conn-status">连接中…</span></span>
+  <span>共 <span id="entry-count">0</span> 条</span>
+  <span>最后更新: <span id="last-update">--</span></span>
+</div>
+
+<script>
+let lastSeq = 0;
+let autoScroll = true;
+let pollTimer = null;
+let entryCount = 0;
+
+const CAT_LABELS = {
+  step: '📋 步骤', ai_req: '📤 AI请求', ai_resp: '📥 AI响应',
+  think: '💭 思考', parse: '🔍 解析', compile: '⚙ 编译',
+  error: '🔴 错误', done: '✅ 完成', info: 'ℹ 信息',
+};
+const CAT_CLASS = {
+  step:'step', ai_req:'ai_req', ai_resp:'ai_resp',
+  think:'think', parse:'parse', compile:'compile',
+  error:'error', done:'done', info:'info',
+};
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatTs(ts) {
+  const d = new Date(ts * 1000);
+  return d.toTimeString().slice(0,8);
+}
+
+function renderEntry(e) {
+  const cat = e.category || 'info';
+  const cls = CAT_CLASS[cat] || 'info';
+  const label = CAT_LABELS[cat] || cat;
+  const ts = formatTs(e.ts);
+
+  let bodyHtml = esc(e.text || '');
+  let expandHtml = '';
+
+  if (e.data) {
+    const dataStr = typeof e.data === 'string' ? e.data : JSON.stringify(e.data, null, 2);
+    const id = 'exp_' + e.seq;
+    const preview = dataStr.length > 200 ? dataStr.slice(0, 200) + '…' : dataStr;
+    if (dataStr.length > 100) {
+      expandHtml = `<span class="expand-toggle" onclick="toggleExpand('${id}')">▶ 展开详情（${dataStr.length} 字符）</span>
+<div class="expandable" id="${id}">${esc(dataStr)}</div>`;
+    } else {
+      bodyHtml += '\n' + esc(dataStr);
+    }
+  }
+
+  return `<div class="log-entry entry-${cls}">
+  <span class="log-ts">${ts}</span>
+  <span class="log-cat cat-${cls}">${label}</span>
+  <span class="log-body">${bodyHtml}${expandHtml}</span>
+</div>`;
+}
+
+function toggleExpand(id) {
+  const el = document.getElementById(id);
+  const toggle = el.previousElementSibling;
+  el.classList.toggle('open');
+  const open = el.classList.contains('open');
+  toggle.textContent = (open ? '▼ 收起' : '▶ 展开详情') + ` (${el.textContent.length} 字符)`;
+}
+
+function toggleAutoScroll() {
+  autoScroll = !autoScroll;
+  document.getElementById('scroll-btn').textContent = autoScroll ? '⬇ 自动滚动' : '⬇ 自动滚动 (OFF)';
+  document.getElementById('scroll-btn').style.color = autoScroll ? '' : '#8b949e';
+}
+
+async function clearLogs() {
+  try {
+    await fetch('/api/monitor/clear', { method: 'POST' });
+    document.getElementById('log-container').innerHTML = '';
+    lastSeq = 0;
+    entryCount = 0;
+    updateStatus();
+  } catch(e) {}
+}
+
+function updateStatus() {
+  document.getElementById('entry-count').textContent = entryCount;
+  document.getElementById('last-update').textContent = new Date().toTimeString().slice(0,8);
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/monitor/logs?since=' + lastSeq);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const entries = data.entries || [];
+    if (entries.length > 0) {
+      const container = document.getElementById('log-container');
+      let html = '';
+      for (const e of entries) {
+        if (lastSeq > 0 && e.category === 'step') {
+          html += '<hr class="sep">';
+        }
+        html += renderEntry(e);
+        lastSeq = Math.max(lastSeq, e.seq);
+        entryCount++;
+      }
+      container.insertAdjacentHTML('beforeend', html);
+      if (autoScroll) container.scrollTop = container.scrollHeight;
+      updateStatus();
+    }
+    document.getElementById('conn-status').textContent = '已连接';
+    document.getElementById('dot').className = 'live';
+  } catch(e) {
+    document.getElementById('conn-status').textContent = '连接失败，重试中…';
+    document.getElementById('dot').className = '';
+  }
+  pollTimer = setTimeout(poll, 600);
+}
+
+// start
+document.getElementById('log-container').addEventListener('scroll', (e) => {
+  const el = e.target;
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+  if (!atBottom && autoScroll) {
+    autoScroll = false;
+    document.getElementById('scroll-btn').textContent = '⬇ 自动滚动 (OFF)';
+  } else if (atBottom && !autoScroll) {
+    // don't auto-re-enable
+  }
+});
+poll();
+</script>
+</body>
+</html>
