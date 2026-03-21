@@ -3,6 +3,7 @@ import unittest
 from fastapi.testclient import TestClient
 
 from backend.auth_billing_service.main import app, reset_runtime_state_for_tests
+from backend.auth_billing_service.models import UserRecord
 from backend.auth_billing_service.services.auth_service import AuthService
 
 
@@ -102,10 +103,15 @@ class AuthApiTests(unittest.TestCase):
 
     def test_enforces_max_three_active_sessions_per_user(self):
         target = self._next_email()
+        user = UserRecord(user_id='session-limit-user', identities={'email': target})
+        app.dependency_overrides = {}
+        from backend.auth_billing_service import main as auth_main
+        auth_main._auth_service._users_by_identity[f'email:{target}'] = user
+        auth_main._auth_service._users_by_id[user.user_id] = user
+
         tokens = []
         for _ in range(4):
-            body = self._login(target=target)
-            tokens.append(body['refresh_token'])
+            tokens.append(auth_main._session_service.issue_tokens(user.user_id).refresh_token)
 
         oldest_refresh = self.client.post('/auth/refresh', json={'refresh_token': tokens[0]})
         newest_refresh = self.client.post('/auth/refresh', json={'refresh_token': tokens[-1]})
