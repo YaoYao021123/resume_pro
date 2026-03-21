@@ -1,20 +1,40 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, status
 
 from backend.auth_billing_service.config import settings
 from backend.auth_billing_service.schemas import ErrorResponse, HealthResponse, LoginRequest
 from backend.auth_billing_service.services.auth_service import AuthService, InvalidTargetError, ThrottledError
+from backend.auth_billing_service.services.migration_service import (
+    InMemoryOwnerRepository,
+    MigrationBootstrapError,
+    MigrationService,
+)
 from backend.auth_billing_service.services.session_service import SessionNotFoundError, SessionService
 
 app = FastAPI(title=settings.app_name)
 _auth_service = AuthService(redis_url=settings.redis_url)
 _session_service = SessionService(max_active_sessions=3)
+_migration_service = MigrationService(
+    data_dir=Path(__file__).resolve().parents[2] / 'data',
+    owner_repository=InMemoryOwnerRepository(),
+)
 
 
 def reset_runtime_state_for_tests() -> None:
     _auth_service.reset()
     _session_service.reset()
+    _migration_service.reset()
+
+
+@app.on_event('startup')
+def run_bootstrap_migrations() -> None:
+    try:
+        _migration_service.bootstrap_owner_bindings()
+    except MigrationBootstrapError as exc:
+        raise RuntimeError(f'failed to bootstrap owner bindings: {exc}') from exc
 
 
 @app.get('/health', response_model=HealthResponse)
