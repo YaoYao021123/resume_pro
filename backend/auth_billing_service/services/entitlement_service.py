@@ -43,9 +43,9 @@ class EntitlementService:
         self._membership_active: dict[str, bool] = {}
         self._usage_counters: dict[tuple[str, str, str, datetime], UsageCounterRecord] = {}
         self._reservations_by_id: dict[str, EntitlementReservationRecord] = {}
-        self._reserve_by_user_request: dict[tuple[str, str], ReserveDecision] = {}
+        self._reserve_by_user_request: dict[tuple[str, str, str], ReserveDecision] = {}
         self._finalize_events_by_reservation: dict[str, EntitlementFinalizeEventRecord] = {}
-        self._finalize_decision_by_idempotency: dict[str, FinalizeDecision] = {}
+        self._finalize_decision_by_idempotency: dict[tuple[str, str], FinalizeDecision] = {}
 
     def reset(self) -> None:
         with self._lock:
@@ -62,7 +62,8 @@ class EntitlementService:
 
     def reserve(self, user_id: str, mode: str, request_id: str) -> ReserveDecision:
         with self._lock:
-            cached = self._reserve_by_user_request.get((user_id, request_id))
+            idempotency_key = (user_id, mode, request_id)
+            cached = self._reserve_by_user_request.get(idempotency_key)
             if cached is not None:
                 return cached
 
@@ -73,7 +74,7 @@ class EntitlementService:
                     remaining_after_reserve=None,
                     reset_at=None,
                 )
-                self._reserve_by_user_request[(user_id, request_id)] = decision
+                self._reserve_by_user_request[idempotency_key] = decision
                 return decision
 
             if mode != 'platform_key':
@@ -98,7 +99,7 @@ class EntitlementService:
                     reset_at=self._next_reset(period_start=period_start, period_type=period_type),
                     error_code=exceed_error,
                 )
-                self._reserve_by_user_request[(user_id, request_id)] = decision
+                self._reserve_by_user_request[idempotency_key] = decision
                 return decision
 
             counter.reserved += 1
@@ -121,12 +122,12 @@ class EntitlementService:
                 reset_at=self._next_reset(period_start=period_start, period_type=period_type),
                 error_code=None,
             )
-            self._reserve_by_user_request[(user_id, request_id)] = decision
+            self._reserve_by_user_request[idempotency_key] = decision
             return decision
 
     def finalize(self, reservation_id: str, result: str, idempotency_key: str) -> FinalizeDecision:
         with self._lock:
-            replay = self._finalize_decision_by_idempotency.get(idempotency_key)
+            replay = self._finalize_decision_by_idempotency.get((reservation_id, idempotency_key))
             if replay is not None:
                 return replay
 
@@ -145,7 +146,7 @@ class EntitlementService:
                     released=prior.released,
                     remaining=prior.remaining,
                 )
-                self._finalize_decision_by_idempotency[idempotency_key] = decision
+                self._finalize_decision_by_idempotency[(reservation_id, idempotency_key)] = decision
                 return decision
 
             if reservation.status != 'reserved':
@@ -183,7 +184,7 @@ class EntitlementService:
                 created_at=self._now_provider().astimezone(timezone.utc),
             )
             self._finalize_events_by_reservation[reservation_id] = event
-            self._finalize_decision_by_idempotency[idempotency_key] = decision
+            self._finalize_decision_by_idempotency[(reservation_id, idempotency_key)] = decision
             return decision
 
     def get_counter(self, user_id: str, mode: str = 'platform_key') -> UsageCounterRecord | None:

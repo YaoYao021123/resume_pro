@@ -32,6 +32,14 @@ class EntitlementIdempotencyTests(unittest.TestCase):
         self.assertEqual(counter.reserved, 1)
         self.assertEqual(counter.used, 0)
 
+    def test_request_id_idempotency_is_mode_scoped(self):
+        byok = self.service.reserve(user_id='u-scope', mode='byok', request_id='same-id')
+        plat = self.service.reserve(user_id='u-scope', mode='platform_key', request_id='same-id')
+        self.assertTrue(byok.allow)
+        self.assertTrue(plat.allow)
+        self.assertIsNone(byok.reservation_id)
+        self.assertIsNotNone(plat.reservation_id)
+
     def test_finalize_replay_is_idempotent(self):
         reserve = self.service.reserve(user_id='u1', mode='platform_key', request_id='req-finalize')
         first = self.service.finalize(
@@ -51,6 +59,27 @@ class EntitlementIdempotencyTests(unittest.TestCase):
         self.assertIsNotNone(counter)
         self.assertEqual(counter.reserved, 0)
         self.assertEqual(counter.used, 1)
+
+    def test_finalize_idempotency_key_is_reservation_scoped(self):
+        r1 = self.service.reserve(user_id='u-a', mode='platform_key', request_id='r1')
+        r2 = self.service.reserve(user_id='u-a', mode='platform_key', request_id='r2')
+        d1 = self.service.finalize(
+            reservation_id=r1.reservation_id,
+            result='success',
+            idempotency_key='same-key',
+        )
+        d2 = self.service.finalize(
+            reservation_id=r2.reservation_id,
+            result='success',
+            idempotency_key='same-key',
+        )
+        self.assertTrue(d1.consumed)
+        self.assertTrue(d2.consumed)
+
+        counter = self.service.get_counter(user_id='u-a', mode='platform_key')
+        self.assertIsNotNone(counter)
+        self.assertEqual(counter.used, 2)
+        self.assertEqual(counter.reserved, 0)
 
     def test_finalize_fail_releases_reserved_without_consuming(self):
         reserve = self.service.reserve(user_id='u2', mode='platform_key', request_id='req-fail')
