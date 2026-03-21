@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, status
 from backend.auth_billing_service.config import settings
 from backend.auth_billing_service.schemas import ErrorResponse, HealthResponse, LoginRequest
 from backend.auth_billing_service.services.auth_service import AuthService, InvalidTargetError, ThrottledError
+from backend.auth_billing_service.services.entitlement_service import EntitlementError, EntitlementService
 from backend.auth_billing_service.services.migration_service import (
     InMemoryOwnerRepository,
     MigrationBootstrapError,
@@ -21,12 +22,14 @@ _migration_service = MigrationService(
     data_dir=Path(__file__).resolve().parents[2] / 'data',
     owner_repository=InMemoryOwnerRepository(),
 )
+_entitlement_service = EntitlementService()
 
 
 def reset_runtime_state_for_tests() -> None:
     _auth_service.reset()
     _session_service.reset()
     _migration_service.reset()
+    _entitlement_service.reset()
 
 
 @app.on_event('startup')
@@ -105,3 +108,56 @@ def auth_logout(payload: dict):
 
     _session_service.revoke_by_refresh_token(refresh_token)
     return {'ok': True}
+
+
+@app.post('/entitlements/reserve')
+def entitlement_reserve(payload: dict):
+    user_id = payload.get('user_id')
+    request_id = payload.get('request_id')
+    mode = payload.get('mode', 'platform_key')
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='user_id is required')
+    if not request_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='request_id is required')
+
+    try:
+        decision = _entitlement_service.reserve(user_id=user_id, mode=mode, request_id=request_id)
+    except EntitlementError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return {
+        'allow': decision.allow,
+        'reservation_id': decision.reservation_id,
+        'remaining_after_reserve': decision.remaining_after_reserve,
+        'reset_at': decision.reset_at,
+        'error_code': decision.error_code,
+    }
+
+
+@app.post('/entitlements/finalize')
+def entitlement_finalize(payload: dict):
+    reservation_id = payload.get('reservation_id')
+    result = payload.get('result')
+    idempotency_key = payload.get('idempotency_key')
+    if not reservation_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='reservation_id is required')
+    if not result:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='result is required')
+    if not idempotency_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='idempotency_key is required')
+
+    try:
+        decision = _entitlement_service.finalize(
+            reservation_id=reservation_id,
+            result=result,
+            idempotency_key=idempotency_key,
+        )
+    except EntitlementError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return {
+        'finalized': decision.finalized,
+        'consumed': decision.consumed,
+        'released': decision.released,
+        'remaining': decision.remaining,
+    }
