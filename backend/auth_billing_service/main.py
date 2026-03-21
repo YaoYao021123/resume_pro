@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import os
+import time
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 
 from backend.auth_billing_service.config import settings
 from backend.auth_billing_service.schemas import ErrorResponse, HealthResponse, LoginRequest
@@ -30,6 +34,37 @@ def reset_runtime_state_for_tests() -> None:
     _session_service.reset()
     _migration_service.reset()
     _entitlement_service.reset()
+
+
+def _service_secret() -> str:
+    return os.getenv('AUTH_BILLING_SERVICE_SECRET', 'dev-secret')
+
+
+def _verify_service_signature(request: Request, *, action: str, payload: dict) -> tuple[str, str]:
+    user_id = request.headers.get('X-Auth-User-Id', '').strip()
+    request_id = request.headers.get('X-Service-Request-Id', '').strip() or str(payload.get('request_id', '')).strip()
+    reservation_id = request.headers.get('X-Service-Reservation-Id', '').strip()
+    idempotency_key = request.headers.get('X-Service-Idempotency-Key', '').strip()
+    result = request.headers.get('X-Service-Result', '').strip()
+    timestamp = request.headers.get('X-Service-Timestamp', '').strip()
+    signature = request.headers.get('X-Service-Signature', '').strip()
+
+    if not user_id or not request_id or not timestamp or not signature:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='missing service signature')
+
+    try:
+        ts = int(timestamp)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='invalid service signature') from exc
+    if abs(int(time.time()) - ts) > 300:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='expired service signature')
+
+    message = f'{action}|{user_id}|{request_id}|{reservation_id}|{idempotency_key}|{result}|{timestamp}'
+    expected = hmac.new(_service_secret().encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='invalid service signature')
+
+    return user_id, request_id
 
 
 @app.on_event('startup')
@@ -111,14 +146,16 @@ def auth_logout(payload: dict):
 
 
 @app.post('/entitlements/reserve')
-def entitlement_reserve(payload: dict):
-    user_id = payload.get('user_id')
-    request_id = payload.get('request_id')
+def entitlement_reserve(payload: dict, request: Request):
+    user_id, request_id = _verify_service_signature(request, action='reserve', payload=payload)
     mode = payload.get('mode', 'platform_key')
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='user_id is required')
-    if not request_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='request_id is required')
+    person_id = payload.get('person_id')
+    if not person_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='person_id is required')
+
+    owner_id = _migration_service.get_owner_id(person_id)
+    if owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='PERSON_NOT_AUTHORIZED')
 
     try:
         decision = _entitlement_service.reserve(user_id=user_id, mode=mode, request_id=request_id)
@@ -135,7 +172,8 @@ def entitlement_reserve(payload: dict):
 
 
 @app.post('/entitlements/finalize')
-def entitlement_finalize(payload: dict):
+def entitlement_finalize(payload: dict, request: Request):
+    _verify_service_signature(request, action='finalize', payload=payload)
     reservation_id = payload.get('reservation_id')
     result = payload.get('result')
     idempotency_key = payload.get('idempotency_key')
