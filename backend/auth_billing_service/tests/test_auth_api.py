@@ -18,7 +18,8 @@ class AuthApiTests(unittest.TestCase):
             '/auth/login',
             json={'channel': 'email', 'target': 'a@b.com', 'code': '000000'},
         )
-        self.assertIn(resp.status_code, (401, 404))
+        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(resp.json().get('detail'), 'auth routes are not ready yet')
 
 
 if __name__ == '__main__':

@@ -16,11 +16,17 @@ class Settings:
 
 
 def load_settings() -> Settings:
+    port_raw = os.getenv('AUTH_BILLING_APP_PORT', str(Settings.app_port))
+    try:
+        app_port = int(port_raw)
+    except ValueError as exc:
+        raise ValueError(f'Invalid AUTH_BILLING_APP_PORT: {port_raw}') from exc
+
     return Settings(
         app_name=os.getenv('AUTH_BILLING_APP_NAME', Settings.app_name),
         app_env=os.getenv('AUTH_BILLING_APP_ENV', Settings.app_env),
         app_host=os.getenv('AUTH_BILLING_APP_HOST', Settings.app_host),
-        app_port=int(os.getenv('AUTH_BILLING_APP_PORT', str(Settings.app_port))),
+        app_port=app_port,
         database_url=os.getenv('AUTH_BILLING_DATABASE_URL', Settings.database_url),
         redis_url=os.getenv('AUTH_BILLING_REDIS_URL', Settings.redis_url),
     )
