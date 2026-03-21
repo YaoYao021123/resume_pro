@@ -77,3 +77,7 @@ private.*.key
 data/extension.db
 data/extension.db-wal
 data/extension.db-shm
+
+# Local git worktrees
+.worktrees/
+worktrees/
