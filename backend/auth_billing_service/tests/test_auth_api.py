@@ -102,15 +102,10 @@ class AuthApiTests(unittest.TestCase):
 
     def test_enforces_max_three_active_sessions_per_user(self):
         target = self._next_email()
-        self.client.post('/auth/send-code', json={'channel': 'email', 'target': target})
         tokens = []
         for _ in range(4):
-            login_resp = self.client.post(
-                '/auth/login',
-                json={'channel': 'email', 'target': target, 'code': '000000'},
-            )
-            self.assertEqual(login_resp.status_code, 200)
-            tokens.append(login_resp.json()['refresh_token'])
+            body = self._login(target=target)
+            tokens.append(body['refresh_token'])
 
         oldest_refresh = self.client.post('/auth/refresh', json={'refresh_token': tokens[0]})
         newest_refresh = self.client.post('/auth/refresh', json={'refresh_token': tokens[-1]})
