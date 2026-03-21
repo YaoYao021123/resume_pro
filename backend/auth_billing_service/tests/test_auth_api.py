@@ -46,6 +46,13 @@ class AuthApiTests(unittest.TestCase):
         self.assertEqual(email_resp.status_code, 200)
         self.assertEqual(phone_resp.status_code, 200)
 
+    def test_login_returns_400_for_invalid_target(self):
+        login_resp = self.client.post(
+            '/auth/login',
+            json={'channel': 'email', 'target': 'bad-email', 'code': '000000'},
+        )
+        self.assertEqual(login_resp.status_code, 400)
+
     def test_send_code_returns_explicit_backend_and_applies_throttling(self):
         target = self._next_email()
         first = self.client.post('/auth/send-code', json={'channel': 'email', 'target': target})
@@ -74,6 +81,14 @@ class AuthApiTests(unittest.TestCase):
 
         old_again = self.client.post('/auth/refresh', json={'refresh_token': old_refresh})
         self.assertEqual(old_again.status_code, 401)
+
+    def test_login_verification_code_is_single_use(self):
+        target = self._next_email()
+        self.client.post('/auth/send-code', json={'channel': 'email', 'target': target})
+        first = self.client.post('/auth/login', json={'channel': 'email', 'target': target, 'code': '000000'})
+        second = self.client.post('/auth/login', json={'channel': 'email', 'target': target, 'code': '000000'})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 401)
 
     def test_logout_revokes_refresh_token(self):
         login_body = self._login(target=self._next_email())

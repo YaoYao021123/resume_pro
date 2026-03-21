@@ -30,11 +30,12 @@ class SessionService:
         self._sessions_by_user.clear()
 
     def issue_tokens(self, user_id: str) -> IssuedTokens:
+        expire_at = datetime.now(timezone.utc) + timedelta(seconds=self._access_ttl_seconds)
         session = SessionRecord(
             session_id=str(uuid4()),
             user_id=user_id,
             refresh_token=self._new_refresh_token(),
-            access_token=self._new_access_token(),
+            access_token=self._new_access_token(expire_at),
         )
         user_sessions = self._sessions_by_user.setdefault(user_id, [])
         user_sessions.append(session)
@@ -52,8 +53,9 @@ class SessionService:
             raise SessionNotFoundError('refresh token is invalid or revoked')
 
         self._sessions_by_refresh.pop(refresh_token, None)
+        expire_at = datetime.now(timezone.utc) + timedelta(seconds=self._access_ttl_seconds)
         session.refresh_token = self._new_refresh_token()
-        session.access_token = self._new_access_token()
+        session.access_token = self._new_access_token(expire_at)
         session.rotated_at = datetime.now(timezone.utc)
         self._sessions_by_refresh[session.refresh_token] = session
         return IssuedTokens(
@@ -81,8 +83,7 @@ class SessionService:
             self._sessions_by_refresh.pop(stale.refresh_token, None)
 
     @staticmethod
-    def _new_access_token() -> str:
-        expire_at = datetime.now(timezone.utc) + timedelta(hours=2)
+    def _new_access_token(expire_at: datetime) -> str:
         return f"at_{uuid4().hex}_{int(expire_at.timestamp())}"
 
     @staticmethod

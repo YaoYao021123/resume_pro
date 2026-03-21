@@ -41,7 +41,12 @@ def auth_send_code(payload: dict):
 
 @app.post('/auth/login', responses={401: {'model': ErrorResponse}})
 def auth_login(req: LoginRequest):
-    if not _auth_service.verify_login_code(channel=req.channel, target=req.target, code=req.code):
+    try:
+        valid = _auth_service.verify_login_code(channel=req.channel, target=req.target, code=req.code)
+    except InvalidTargetError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    if not valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='invalid verification code')
 
     user = _auth_service.upsert_user(channel=req.channel, target=req.target)

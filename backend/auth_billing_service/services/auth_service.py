@@ -71,7 +71,11 @@ class MemoryVerificationStore:
         if record.expires_at < datetime.now(timezone.utc):
             self._codes.pop(key, None)
             return False
-        return record.code == code
+        if record.code != code:
+            return False
+        # Single-use verification code.
+        self._codes.pop(key, None)
+        return True
 
 
 class RedisVerificationStore(MemoryVerificationStore):
@@ -93,7 +97,15 @@ class RedisVerificationStore(MemoryVerificationStore):
 
     def verify_code(self, key: str, code: str) -> bool:
         code_key = f'auth:code:{key}'
-        stored = self._redis.get(code_key)
+        getdel = getattr(self._redis, 'getdel', None)
+        if callable(getdel):
+            stored = getdel(code_key)
+        else:
+            stored = self._redis.eval(
+                "local v=redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]); end; return v",
+                1,
+                code_key,
+            )
         if stored is None:
             return False
         if isinstance(stored, bytes):
