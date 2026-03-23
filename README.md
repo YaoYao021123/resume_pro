@@ -63,6 +63,10 @@
 - **多人档案管理** — 支持管理多个人的简历数据，按人员隔离存储和输出
 - **Web UI 数据管理** — 可视化填写个人信息、管理经历、上传工作材料、在线生成
 - **`/resume` Skill 一键触发** — 在 Claude Code 中粘贴 JD 即可生成
+- **登录与配额治理（可选后端）** — 支持登录、免费/月3次、会员/周50次、BYOK 不限次
+- **支付与会员状态** — 支持微信/支付宝下单与 webhook 幂等处理，会员有效期自动续期
+- **BYOK 安全管理** — 支持按用户管理 API Key（加密存储、无明文回显、请求级优先覆盖）
+- **可观测性与重试回收** — 预占结算重试、死信告警、无效签名告警与关键指标快照
 
 ---
 
@@ -153,6 +157,33 @@ export RESUME_API_KEY="你的 API Key"
 ```
 
 未配置时，系统会继续使用本地规则引擎；若已启用外部模型但缺少 API Key / 模型名，则会直接报错而不是静默回退。
+
+#### 6. （可选）启用 Auth/Billing 后端（登录、付费、配额）
+
+当你要在部署版中启用“登录 + 会员 + 免费额度 + BYOK”时，启动 `backend/auth_billing_service` 并在 Web 服务注入以下环境变量：
+
+```bash
+export AUTH_BILLING_ENFORCE=1
+export AUTH_BILLING_BASE_URL="http://127.0.0.1:8080"
+export AUTH_BILLING_SERVICE_SECRET="change-this-service-secret"
+export AUTH_BILLING_PAYMENT_WEBHOOK_SECRET="change-this-webhook-secret"
+export AUTH_BILLING_BYOK_SECRET="change-this-byok-secret-32chars"
+```
+
+然后分别启动：
+
+```bash
+# 终端1：后端
+python3 -m uvicorn backend.auth_billing_service.main:app --host 0.0.0.0 --port 8080
+
+# 终端2：Web
+python3 web/server.py
+```
+
+配额策略：
+
+- `mode=platform_key`：免费用户每自然月 3 次；会员每自然周 50 次
+- `mode=byok`：不限次，不走平台扣额
 
 ---
 
@@ -246,6 +277,21 @@ resume_generator_pro/
 ├── web/                       ← Web UI
 │   ├── server.py              # HTTP 服务器（纯 Python，零依赖）
 │   └── index.html             # 单文件前端
+│
+├── backend/auth_billing_service/ ← 登录/付费/配额后端（FastAPI）
+│   ├── main.py                # API 入口（auth/billing/byok/entitlement）
+│   ├── models.py              # 内存数据模型（用户/订单/订阅/配额/BYOK）
+│   ├── services/              # 业务服务
+│   │   ├── auth_service.py
+│   │   ├── session_service.py
+│   │   ├── migration_service.py
+│   │   ├── entitlement_service.py
+│   │   ├── payment_service.py
+│   │   └── byok_service.py
+│   ├── workers/               # 异步补偿与回收
+│   │   ├── finalize_retry_worker.py
+│   │   └── reservation_recycle_worker.py
+│   └── tests/                 # 后端测试
 │
 ├── latex_src/resume/          ← LaTeX 模板
 │   ├── resume-zh_CN.tex       # 主文件（中文简历）
