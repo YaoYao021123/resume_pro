@@ -15,6 +15,26 @@ from web.server import _run_generate_with_entitlement
 class GenerateEntitlementIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         reset_runtime_state_for_tests()
+        self._old_secret = os.environ.get('AUTH_BILLING_SERVICE_SECRET')
+        os.environ['AUTH_BILLING_SERVICE_SECRET'] = 'unit-test-secret'
+
+    def tearDown(self) -> None:
+        if self._old_secret is None:
+            os.environ.pop('AUTH_BILLING_SERVICE_SECRET', None)
+        else:
+            os.environ['AUTH_BILLING_SERVICE_SECRET'] = self._old_secret
+
+    @staticmethod
+    def _auth_headers(user_id: str = 'owner:p1') -> dict[str, str]:
+        ts = str(int(time.time()))
+        msg = f'auth|{user_id}|{ts}'
+        sig = hmac.new(b'unit-test-secret', msg.encode('utf-8'), hashlib.sha256).hexdigest()
+        return {
+            'X-Auth-Validated': '1',
+            'X-Auth-User-Id': user_id,
+            'X-Auth-Timestamp': ts,
+            'X-Auth-Signature': sig,
+        }
 
     def test_generate_denied_when_reserve_rejects(self):
         generated = {'called': False}
@@ -25,7 +45,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=_generate,
             reserve_func=lambda **_: {'allow': False, 'error_code': 'QUOTA_EXCEEDED_MONTHLY_FREE'},
@@ -43,7 +63,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=lambda *_args, **_kwargs: {'success': True, 'output_dir': 'x'},
             reserve_func=lambda **_: {'allow': True, 'reservation_id': 'rsv-1'},
@@ -63,7 +83,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=lambda *_args, **_kwargs: {'success': True, 'output_dir': 'x'},
             reserve_func=lambda **_: {'allow': True, 'reservation_id': 'rsv-9'},
@@ -87,7 +107,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key', 'person_id': 'other-person'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=lambda *_args, **_kwargs: {'success': True},
             reserve_func=_reserve,
@@ -109,7 +129,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=_generate,
             reserve_func=lambda **_: (_ for _ in ()).throw(TimeoutError('reserve timeout')),
@@ -131,7 +151,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key', 'user_id': 'spoofed-user'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=lambda *_args, **_kwargs: {'success': True},
             reserve_func=_reserve,
@@ -153,7 +173,7 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
 
         status, body = _run_generate_with_entitlement(
             data={'jd': 'test jd', 'mode': 'platform_key'},
-            headers={'X-Auth-Validated': '1', 'X-Auth-User-Id': 'owner:p1'},
+            headers=self._auth_headers(),
             active_person_id='p1',
             generate_func=lambda *_args, **_kwargs: {'success': False, 'error': 'mock failed'},
             reserve_func=lambda **_: {'allow': True, 'reservation_id': 'rsv-fail-1'},
@@ -167,12 +187,39 @@ class GenerateEntitlementIntegrationTests(unittest.TestCase):
         self.assertEqual(len(captured), 1)
         self.assertEqual(captured[0].get('result'), 'fail')
 
+    def test_generate_rejects_invalid_auth_signature(self):
+        status, body = _run_generate_with_entitlement(
+            data={'jd': 'test jd', 'mode': 'platform_key'},
+            headers={
+                'X-Auth-Validated': '1',
+                'X-Auth-User-Id': 'owner:p1',
+                'X-Auth-Timestamp': str(int(time.time())),
+                'X-Auth-Signature': 'invalid',
+            },
+            active_person_id='p1',
+            generate_func=lambda *_args, **_kwargs: {'success': True},
+            reserve_func=lambda **_: {'allow': True, 'reservation_id': 'rsv-1'},
+            finalize_func=lambda **_: {'finalized': True},
+            enqueue_func=lambda _: None,
+            enforce_auth_billing=True,
+        )
+
+        self.assertEqual(status, 401)
+        self.assertEqual(body.get('error_code'), 'AUTH_INVALID_SIGNATURE')
+
 
 class EntitlementTrustContractTests(unittest.TestCase):
     def setUp(self) -> None:
         reset_runtime_state_for_tests()
         self.client = TestClient(app)
+        self._old_secret = os.environ.get('AUTH_BILLING_SERVICE_SECRET')
         os.environ['AUTH_BILLING_SERVICE_SECRET'] = 'unit-test-secret'
+
+    def tearDown(self) -> None:
+        if self._old_secret is None:
+            os.environ.pop('AUTH_BILLING_SERVICE_SECRET', None)
+        else:
+            os.environ['AUTH_BILLING_SERVICE_SECRET'] = self._old_secret
 
     @staticmethod
     def _sign(action: str, user_id: str, request_id: str, reservation_id: str = '', idempotency_key: str = '', result: str = ''):
@@ -230,6 +277,46 @@ class EntitlementTrustContractTests(unittest.TestCase):
             json={'reservation_id': 'rsv-x', 'result': 'success', 'idempotency_key': 'idem-x'},
         )
         self.assertEqual(resp.status_code, 401)
+
+    def test_reserve_endpoint_rejects_request_id_mismatch(self):
+        headers = self._sign(action='reserve', user_id='owner:p1', request_id='req-header')
+        resp = self.client.post(
+            '/entitlements/reserve',
+            headers=headers,
+            json={'mode': 'platform_key', 'request_id': 'req-body', 'person_id': 'p1'},
+        )
+        self.assertEqual(resp.status_code, 401)
+
+    def test_finalize_endpoint_rejects_payload_header_mismatch(self):
+        headers = self._sign(
+            action='finalize',
+            user_id='owner:p1',
+            request_id='req-3',
+            reservation_id='rsv-x',
+            idempotency_key='idem-x',
+            result='success',
+        )
+        resp = self.client.post(
+            '/entitlements/finalize',
+            headers=headers,
+            json={'reservation_id': 'rsv-x', 'result': 'fail', 'idempotency_key': 'idem-x', 'request_id': 'req-3'},
+        )
+        self.assertEqual(resp.status_code, 401)
+
+    def test_entitlement_backend_requires_configured_secret(self):
+        os.environ.pop('AUTH_BILLING_SERVICE_SECRET', None)
+        headers = {
+            'X-Auth-User-Id': 'owner:p1',
+            'X-Service-Request-Id': 'req-4',
+            'X-Service-Timestamp': str(int(time.time())),
+            'X-Service-Signature': 'bad-signature',
+        }
+        resp = self.client.post(
+            '/entitlements/reserve',
+            headers=headers,
+            json={'mode': 'platform_key', 'request_id': 'req-4', 'person_id': 'p1'},
+        )
+        self.assertEqual(resp.status_code, 500)
 
 
 if __name__ == '__main__':

@@ -65,3 +65,45 @@ class EntitlementFinalizeEventRecord:
     released: bool
     remaining: int | None
     created_at: datetime = field(default_factory=utcnow)
+
+
+@dataclass
+class PaymentOrderRecord:
+    order_no: str
+    user_id: str
+    plan: str
+    channel: str
+    amount_cents: int
+    currency: str
+    status: str
+    provider_trade_no: str | None = None
+    created_at: datetime = field(default_factory=utcnow)
+    expires_at: datetime | None = None
+    paid_at: datetime | None = None
+    updated_at: datetime = field(default_factory=utcnow)
+
+
+@dataclass
+class SubscriptionRecord:
+    user_id: str
+    plan: str
+    status: str
+    start_at: datetime
+    end_at: datetime
+    updated_at: datetime = field(default_factory=utcnow)
+
+
+
+@dataclass
+class ByokKeyRecord:
+    key_id: str
+    user_id: str
+    provider: str
+    encrypted_key: str
+    fingerprint: str
+    masked_key: str
+    key_length: int
+    active: bool = True
+    created_at: datetime = field(default_factory=utcnow)
+    updated_at: datetime = field(default_factory=utcnow)
+    deactivated_at: datetime | None = None

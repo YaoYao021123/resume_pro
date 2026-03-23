@@ -37,8 +37,9 @@ class FinalizeDecision:
 class EntitlementService:
     _BJ_TZ = ZoneInfo('Asia/Shanghai')
 
-    def __init__(self, now_provider=None) -> None:
+    def __init__(self, now_provider=None, reservation_ttl_seconds: int = 15 * 60) -> None:
         self._now_provider = now_provider or (lambda: datetime.now(timezone.utc))
+        self._reservation_ttl = timedelta(seconds=reservation_ttl_seconds)
         self._lock = RLock()
         self._membership_active: dict[str, bool] = {}
         self._usage_counters: dict[tuple[str, str, str, datetime], UsageCounterRecord] = {}
@@ -113,7 +114,7 @@ class EntitlementService:
                 period_start=period_start,
                 status='reserved',
                 created_at=now,
-                expires_at=None,
+                expires_at=now + self._reservation_ttl,
             )
             decision = ReserveDecision(
                 allow=True,
@@ -195,6 +196,44 @@ class EntitlementService:
             period_type, period_limit, _ = self._plan_for_user(user_id)
             period_start = self._period_start(now=now, period_type=period_type)
             return self._usage_counters.get((user_id, mode, period_type, period_start))
+
+    def get_reservation(self, reservation_id: str) -> EntitlementReservationRecord | None:
+        with self._lock:
+            return self._reservations_by_id.get(reservation_id)
+
+    def has_success_finalize_event(self, reservation_id: str) -> bool:
+        with self._lock:
+            event = self._finalize_events_by_reservation.get(reservation_id)
+            return bool(event and event.result == 'success')
+
+    def list_expired_reservations(self, now: datetime | None = None) -> list[EntitlementReservationRecord]:
+        current = (now or self._now_provider()).astimezone(timezone.utc)
+        with self._lock:
+            return [
+                reservation
+                for reservation in self._reservations_by_id.values()
+                if reservation.status == 'reserved'
+                and reservation.expires_at is not None
+                and reservation.expires_at <= current
+            ]
+
+    def release_reservation(self, reservation_id: str) -> bool:
+        with self._lock:
+            reservation = self._reservations_by_id.get(reservation_id)
+            if reservation is None:
+                raise EntitlementError('reservation not found')
+            if reservation.status != 'reserved':
+                return False
+
+            counter = None
+            if reservation.mode == 'platform_key' and reservation.period_type and reservation.period_start:
+                counter_key = (reservation.user_id, reservation.mode, reservation.period_type, reservation.period_start)
+                counter = self._usage_counters.get(counter_key)
+            if counter is not None and counter.reserved > 0:
+                counter.reserved -= 1
+
+            reservation.status = 'released'
+            return True
 
     def _plan_for_user(self, user_id: str) -> tuple[str, int, str]:
         if self._membership_active.get(user_id, False):
