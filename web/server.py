@@ -7,18 +7,25 @@
 
 import argparse
 import cgi
+import hashlib
+import hmac
 import io
 import json
 import os
 import re
 import shutil
+import socket
 import subprocess as _sp
+import time
 import urllib.parse
+import urllib.error
+import urllib.request
 import webbrowser
 import zipfile
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / 'data'
@@ -57,6 +64,7 @@ from tools.model_config import (
     save_model_config,
     load_local_env,
 )
+from backend.auth_billing_service.services.byok_service import ByokService, ByokValidationError
 
 load_local_env()
 
@@ -80,6 +88,328 @@ def _ext_draft_path():
     return _profile_path().parent / 'ext_draft.json'
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50MB
+ENTITLEMENT_TIMEOUT_SEC = float(os.getenv('AUTH_BILLING_TIMEOUT_SEC', '2.0'))
+
+
+def _auth_billing_enabled() -> bool:
+    return os.getenv('AUTH_BILLING_ENFORCE', '0').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _auth_billing_base_url() -> str:
+    return os.getenv('AUTH_BILLING_BASE_URL', 'http://127.0.0.1:8080').rstrip('/')
+
+
+def _auth_billing_shared_secret() -> str:
+    return os.getenv('AUTH_BILLING_SERVICE_SECRET', '')
+
+
+def _header_get(headers, key: str, default=''):
+    if headers is None:
+        return default
+    if hasattr(headers, 'get'):
+        return headers.get(key, default)
+    return default
+
+
+def _extract_auth_context(headers) -> tuple[str | None, str | None]:
+    validated = str(_header_get(headers, 'X-Auth-Validated', '')).strip().lower()
+    user_id = str(_header_get(headers, 'X-Auth-User-Id', '')).strip()
+    if validated not in {'1', 'true', 'yes'} or not user_id:
+        return None, 'AUTH_REQUIRED'
+    timestamp = str(_header_get(headers, 'X-Auth-Timestamp', '')).strip()
+    signature = str(_header_get(headers, 'X-Auth-Signature', '')).strip()
+    secret = _auth_billing_shared_secret()
+    if not secret:
+        return None, 'AUTH_BILLING_MISCONFIGURED'
+    if not timestamp or not signature:
+        return None, 'AUTH_INVALID_SIGNATURE'
+    try:
+        ts = int(timestamp)
+    except ValueError:
+        return None, 'AUTH_INVALID_SIGNATURE'
+    if abs(int(time.time()) - ts) > 300:
+        return None, 'AUTH_INVALID_SIGNATURE'
+    message = f'auth|{user_id}|{timestamp}'
+    expected = hmac.new(secret.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        return None, 'AUTH_INVALID_SIGNATURE'
+    return user_id, None
+
+
+def _sign_service_request(
+    *,
+    action: str,
+    user_id: str,
+    request_id: str,
+    reservation_id: str = '',
+    idempotency_key: str = '',
+    result: str = '',
+    timestamp: str | None = None,
+) -> dict[str, str]:
+    ts = timestamp or str(int(time.time()))
+    secret = _auth_billing_shared_secret()
+    if not secret:
+        raise RuntimeError('AUTH_BILLING_SERVICE_SECRET is required when auth billing is enabled')
+    message = f'{action}|{user_id}|{request_id}|{reservation_id}|{idempotency_key}|{result}|{ts}'
+    signature = hmac.new(secret.encode('utf-8'), message.encode('utf-8'), hashlib.sha256).hexdigest()
+    return {
+        'X-Auth-User-Id': user_id,
+        'X-Service-Request-Id': request_id,
+        'X-Service-Reservation-Id': reservation_id,
+        'X-Service-Idempotency-Key': idempotency_key,
+        'X-Service-Result': result,
+        'X-Service-Timestamp': ts,
+        'X-Service-Signature': signature,
+    }
+
+
+def _call_auth_billing(path: str, payload: dict, headers: dict[str, str], timeout: float = ENTITLEMENT_TIMEOUT_SEC) -> dict:
+    url = f'{_auth_billing_base_url()}{path}'
+    req = urllib.request.Request(
+        url=url,
+        data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+        method='POST',
+        headers={
+            'Content-Type': 'application/json',
+            **headers,
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read()
+            return json.loads(body.decode('utf-8') or '{}')
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode('utf-8') if exc.fp else ''
+        detail = ''
+        if body:
+            try:
+                detail = json.loads(body).get('detail', '')
+            except Exception:
+                detail = body
+        raise RuntimeError(f'HTTP_{exc.code}:{detail}')
+    except (urllib.error.URLError, TimeoutError, socket.timeout) as exc:
+        raise TimeoutError(str(exc)) from exc
+
+
+def _create_pending_finalize_job(job: dict):
+    jobs_path = DATA_DIR / 'pending_finalize_jobs.json'
+    payload = []
+    if jobs_path.exists():
+        try:
+            payload = json.loads(jobs_path.read_text(encoding='utf-8'))
+            if not isinstance(payload, list):
+                payload = []
+        except (OSError, json.JSONDecodeError):
+            payload = []
+    payload.append(job)
+    jobs_path.parent.mkdir(parents=True, exist_ok=True)
+    jobs_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+def _default_reserve(*, user_id: str, person_id: str, request_id: str, mode: str) -> dict:
+    headers = _sign_service_request(action='reserve', user_id=user_id, request_id=request_id)
+    return _call_auth_billing(
+        '/entitlements/reserve',
+        {
+            'mode': mode,
+            'request_id': request_id,
+            'person_id': person_id,
+            'user_id': user_id,
+        },
+        headers=headers,
+    )
+
+
+def _default_finalize(*, user_id: str, request_id: str, reservation_id: str, result: str, idempotency_key: str) -> dict:
+    headers = _sign_service_request(
+        action='finalize',
+        user_id=user_id,
+        request_id=request_id,
+        reservation_id=reservation_id,
+        idempotency_key=idempotency_key,
+        result=result,
+    )
+    return _call_auth_billing(
+        '/entitlements/finalize',
+        {
+            'reservation_id': reservation_id,
+            'result': result,
+            'idempotency_key': idempotency_key,
+            'request_id': request_id,
+            'user_id': user_id,
+        },
+        headers=headers,
+    )
+
+
+def _mask_secret(value: str) -> str:
+    if len(value) <= 8:
+        return '*' * len(value)
+    return f'{value[:4]}{"*" * (len(value) - 8)}{value[-4:]}'
+
+
+def _build_byok_ai_config_override(data: dict) -> dict | None:
+    byok = data.get('byok')
+    if not isinstance(byok, dict):
+        return None
+
+    provider = str(byok.get('provider', '')).strip()
+    model = str(byok.get('model', '')).strip()
+    api_key = str(byok.get('api_key', '')).strip()
+    if not provider or not model or not api_key:
+        return None
+
+    try:
+        provider = ByokService._validate_provider(provider)
+        api_key = ByokService._validate_api_key(api_key)
+    except ByokValidationError:
+        return None
+
+    global_config = get_model_config()
+    providers = {
+        str(item.get('id', '')).strip().lower(): item
+        for item in global_config.get('providers', [])
+        if isinstance(item, dict)
+    }
+    provider_meta = providers.get(provider)
+    if not isinstance(provider_meta, dict):
+        return None
+    base_url = str(provider_meta.get('default_base_url', '')).strip()
+
+    return {
+        'enabled': True,
+        'provider': provider,
+        'model': model,
+        'base_url': base_url,
+        'api_key': api_key,
+        'platform_url': str(provider_meta.get('platform_url', '')).strip(),
+        'api_style': str(provider_meta.get('api_style', 'openai')).strip() or 'openai',
+        'supports_json_object': bool(provider_meta.get('supports_json_object', True)),
+        'supports_thinking_off': bool(provider_meta.get('supports_thinking_off', False)),
+        'byok_masked_key': _mask_secret(api_key),
+        'byok_fingerprint': hashlib.sha256(api_key.encode('utf-8')).hexdigest()[:12],
+    }
+
+
+def _run_generate_with_entitlement(
+    *,
+    data: dict,
+    headers,
+    active_person_id: str,
+    generate_func,
+    reserve_func=_default_reserve,
+    finalize_func=_default_finalize,
+    enqueue_func=_create_pending_finalize_job,
+    enforce_auth_billing: bool | None = None,
+) -> tuple[int, dict]:
+    jd_text = data.get('jd', '').strip()
+    interview_text = data.get('interview', '').strip()
+    company_override = data.get('company', '').strip()
+    role_override = data.get('role', '').strip()
+    prefer_ai = bool(data.get('prefer_ai'))
+    mode = str(data.get('mode', 'platform_key')).strip() or 'platform_key'
+    ai_config_override = None
+
+    if not jd_text:
+        return 400, {'error': '请输入 JD 内容'}
+
+    if mode == 'byok':
+        ai_config_override = _build_byok_ai_config_override(data)
+        if ai_config_override is None:
+            return 400, {'error': 'BYOK_INVALID', 'error_code': 'BYOK_INVALID'}
+
+    if enforce_auth_billing is None:
+        enforce_auth_billing = _auth_billing_enabled()
+
+    requested_person_id = str(data.get('person_id', '')).strip()
+    person_id = (requested_person_id if enforce_auth_billing else '') or active_person_id
+    user_id = None
+    request_id = f'gen_{uuid4().hex}'
+    reservation_id = None
+
+    if enforce_auth_billing:
+        user_id, auth_error = _extract_auth_context(headers)
+        if auth_error:
+            return 401, {'error': auth_error, 'error_code': auth_error}
+
+        if mode != 'byok':
+            try:
+                reserve_decision = reserve_func(
+                    user_id=user_id,
+                    person_id=person_id,
+                    request_id=request_id,
+                    mode=mode,
+                )
+            except TimeoutError:
+                return 503, {'error': 'entitlement reserve timeout', 'error_code': 'ENTITLEMENT_RESERVE_TIMEOUT'}
+            except Exception as exc:
+                err = str(exc)
+                if 'PERSON_NOT_AUTHORIZED' in err:
+                    return 403, {'error': 'PERSON_NOT_AUTHORIZED', 'error_code': 'PERSON_NOT_AUTHORIZED'}
+                if 'QUOTA_EXCEEDED' in err:
+                    code = 'QUOTA_EXCEEDED'
+                    if 'QUOTA_EXCEEDED_MONTHLY_FREE' in err:
+                        code = 'QUOTA_EXCEEDED_MONTHLY_FREE'
+                    elif 'QUOTA_EXCEEDED_WEEKLY_MEMBER' in err:
+                        code = 'QUOTA_EXCEEDED_WEEKLY_MEMBER'
+                    return 403, {'error': code, 'error_code': code}
+                return 503, {'error': 'entitlement reserve failed', 'error_code': 'ENTITLEMENT_RESERVE_FAILED'}
+
+            if not reserve_decision.get('allow', False):
+                code = reserve_decision.get('error_code') or 'ENTITLEMENT_DENIED'
+                status = 403 if code in {'PERSON_NOT_AUTHORIZED', 'QUOTA_EXCEEDED_MONTHLY_FREE', 'QUOTA_EXCEEDED_WEEKLY_MEMBER'} else 403
+                return status, {'error': code, 'error_code': code}
+            reservation_id = reserve_decision.get('reservation_id')
+
+    finalize_result = 'success'
+    generation_exception = False
+    try:
+        result = generate_func(
+            jd_text,
+            interview_text,
+            company=company_override,
+            role=role_override,
+            person_id=person_id,
+            prefer_ai=prefer_ai,
+            ai_config_override=ai_config_override,
+        )
+        if isinstance(result, dict) and not result.get('success', True):
+            finalize_result = 'fail'
+    except Exception:
+        result = {'success': False, 'error': '生成失败'}
+        finalize_result = 'fail'
+        generation_exception = True
+
+    if enforce_auth_billing and mode == 'platform_key' and reservation_id and user_id:
+        idempotency_key = f'finalize_{finalize_result}_{uuid4().hex}'
+        try:
+            finalize_func(
+                user_id=user_id,
+                request_id=request_id,
+                reservation_id=reservation_id,
+                result=finalize_result,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            enqueue_func(
+                {
+                    'request_id': request_id,
+                    'user_id': user_id,
+                    'person_id': person_id,
+                    'mode': mode,
+                    'reservation_id': reservation_id,
+                    'idempotency_key': idempotency_key,
+                    'result': finalize_result,
+                    'status': 'pending',
+                    'retry_count': 0,
+                    'last_error': str(exc),
+                    'created_at': datetime.utcnow().isoformat() + 'Z',
+                }
+            )
+
+    if generation_exception:
+        return 500, result
+    return 200, result
 
 
 # ─── Profile.md 解析 ───────────────────────────────────────────
@@ -1709,16 +2039,6 @@ class ResumeHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(content_length)
             data = json.loads(body.decode('utf-8'))
 
-            jd_text = data.get('jd', '').strip()
-            interview_text = data.get('interview', '').strip()
-            company_override = data.get('company', '').strip()
-            role_override = data.get('role', '').strip()
-            prefer_ai = bool(data.get('prefer_ai'))
-
-            if not jd_text:
-                self._send_error_json('请输入 JD 内容', 400)
-                return
-
             # 导入生成引擎
             import sys
             tools_dir = str(PROJECT_ROOT / 'tools')
@@ -1727,11 +2047,13 @@ class ResumeHandler(BaseHTTPRequestHandler):
 
             from tools.generate_resume import generate_resume
 
-            result = generate_resume(jd_text, interview_text,
-                                     company=company_override, role=role_override,
-                                     person_id=get_active_person_id(),
-                                     prefer_ai=prefer_ai)
-            self._send_json(result)
+            status, result = _run_generate_with_entitlement(
+                data=data,
+                headers=self.headers,
+                active_person_id=get_active_person_id(),
+                generate_func=generate_resume,
+            )
+            self._send_json(result, status=status)
 
         except Exception as e:
             import traceback

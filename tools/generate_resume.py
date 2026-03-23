@@ -7,6 +7,7 @@
 默认使用本地规则引擎；配置环境变量后可选接入外部模型。
 """
 
+import hashlib
 import json
 import os
 import re
@@ -303,6 +304,31 @@ def _has_available_ai(ai_config: dict) -> bool:
 
 def _should_try_ai(ai_config: dict, prefer_ai: bool = False) -> bool:
     return bool(_has_available_ai(ai_config) and (prefer_ai or ai_config.get('enabled')))
+
+
+def _api_key_fingerprint(api_key: str | None) -> str | None:
+    if not api_key:
+        return None
+    return hashlib.sha256(api_key.encode('utf-8')).hexdigest()[:12]
+
+
+def _mask_api_key(api_key: str | None) -> str | None:
+    if not api_key:
+        return None
+    if len(api_key) <= 8:
+        return '*' * len(api_key)
+    return f'{api_key[:4]}{"*" * (len(api_key) - 8)}{api_key[-4:]}'
+
+
+def _redact_text_with_ai_config(text: str, ai_config: dict) -> str:
+    raw = str(text or '')
+    api_key = str(ai_config.get('api_key') or '')
+    if not api_key:
+        return raw
+    fingerprint = str(ai_config.get('byok_fingerprint') or _api_key_fingerprint(api_key) or '')
+    masked = str(ai_config.get('byok_masked_key') or _mask_api_key(api_key) or '')
+    replacement = f'[REDACTED_API_KEY:{masked}|fp:{fingerprint}]'
+    return raw.replace(api_key, replacement)
 
 
 def _write_generation_context(output_dir: Path, *, jd_text: str, interview_text: str,
@@ -1135,7 +1161,7 @@ def _call_openai_compatible_resume_planner(ai_config: dict, profile: dict, exper
         try:
             response_payload = _request_json(api_url, headers=auth_headers, payload=payload)
         except RuntimeError as exc:
-            msg = str(exc)
+            msg = _redact_text_with_ai_config(str(exc), ai_config)
             gen_log.emit('error', f'AI 调用失败: {msg}')
             if _is_token_limit_error(msg) or '超时' in msg or 'timeout' in msg.lower():
                 last_error = exc
@@ -1164,9 +1190,10 @@ def _call_openai_compatible_resume_planner(ai_config: dict, profile: dict, exper
     # Log raw AI response including thinking/reasoning if present
     reasoning = message.get('reasoning_content', '') or message.get('thinking', '')
     if reasoning:
-        gen_log.emit('think', f'思考过程 ({len(reasoning)} 字符)', data=reasoning)
+        gen_log.emit('think', f'思考过程 ({len(reasoning)} 字符)', data=_redact_text_with_ai_config(reasoning, ai_config))
+    safe_content = _redact_text_with_ai_config(content, ai_config)
     gen_log.emit('ai_resp', f'AI 响应原文 ({len(content)} 字符)',
-                 data={'raw': content, 'usage': response_payload.get('usage', {})})
+                 data={'raw': safe_content, 'usage': response_payload.get('usage', {})})
     if isinstance(content, list):
         content = ''.join(part.get('text', '') for part in content if isinstance(part, dict))
     plan = _extract_json_text(content)
@@ -2153,7 +2180,8 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
                     company: str = '', role: str = '',
                     person_id: str | None = None,
                     prefer_ai: bool = False,
-                    feedback: str = '') -> dict:
+                    feedback: str = '',
+                    ai_config_override: dict | None = None) -> dict:
     """
     完整的简历生成流程。
 
@@ -2186,7 +2214,11 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
     engine = 'heuristic'
     ai_provider = None
     ai_model = None
-    ai_config = get_model_config()
+    if ai_config_override is not None:
+        ai_config = dict(ai_config_override)
+        ai_config.setdefault('enabled', True)
+    else:
+        ai_config = get_model_config()
 
     # Merge feedback into interview_text (feedback takes priority: prepend)
     if feedback and feedback.strip():
@@ -2276,9 +2308,10 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
                          data={'portrait': _portrait,
                                'core_demands': (ai_plan.get('jd_understanding') or {}).get('core_demands', [])})
         except RuntimeError as exc:
+            safe_exc = _redact_text_with_ai_config(str(exc), ai_config)
             if _should_force_ai(ai_config):
-                return {'success': False, 'error': f'{ai_config.get("provider", "模型")} 生成失败：{exc}'}
-            log_lines.append(f'- 模型调用失败，已回退本地规则引擎: {exc}')
+                return {'success': False, 'error': f'{ai_config.get("provider", "模型")} 生成失败：{safe_exc}'}
+            log_lines.append(f'- 模型调用失败，已回退本地规则引擎: {safe_exc}')
     else:
         if _should_force_ai(ai_config):
             return {'success': False, 'error': '已启用模型生成，但当前环境未配置可用的 API Key 或模型'}
