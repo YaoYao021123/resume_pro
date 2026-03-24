@@ -5772,7 +5772,7 @@ function _parseTexToVisual(tex) {
   // Parse \name{}
   if (i < lines.length) {
     const nameMatch = lines[i].match(/^\\name\{(.+?)\}/);
-    if (nameMatch) result.header.name = nameMatch[1];
+    if (nameMatch) result.header.name = _cleanLatex(nameMatch[1]);
     i++;
   }
 
@@ -5945,6 +5945,28 @@ function _parseTexToVisual(tex) {
   return result;
 }
 
+function _placeholderOrValue(raw, fallback) {
+  const s = _cleanLatex((raw || '').replace(/\\_/g, '_')).trim();
+  const templateLike =
+    !s ? false :
+    /\[YOUR_[A-Z0-9_]+\]/i.test(s) ||
+    /^\[[^\]]+\](?:\s*\[[^\]]+\])*$/i.test(s) ||
+    /20XX/i.test(s) ||
+    /X\.XX\/4\.0/i.test(s) ||
+    /排名前X%/i.test(s) ||
+    /课程1/i.test(s) ||
+    /^your\.email@example\.com$/i.test(s) ||
+    /^\(\+?86\)\s*0{3,}/.test(s);
+  if (!s) return { value: '', placeholder: fallback || '' };
+  if (templateLike) return { value: '', placeholder: s };
+  return { value: s, placeholder: fallback || '' };
+}
+
+function _isZhVisual(data) {
+  const name = (data?.header?.name || '').trim();
+  return /[\u4e00-\u9fff]/.test(name) || (name === '');
+}
+
 // Parse inline LaTeX content (for skills items)
 function _parseInlineContent(raw) {
   return raw;
@@ -5987,19 +6009,23 @@ function _renderVisualEditor(data) {
   // ── Header card ──
   const headerCard = document.createElement('div');
   headerCard.className = 've-header-card';
+  const isZh = _isZhVisual(data);
+  const nameField = _placeholderOrValue(data.header.name, isZh ? '[姓名] [Name]' : 'Your Name');
+  const emailField = _placeholderOrValue(data.header.email, 'your.email@example.com');
+  const phoneField = _placeholderOrValue(data.header.phone, isZh ? '(+86) 138-0000-0000' : '(+1) 555-0100');
   headerCard.innerHTML = `
     <h2>个人信息</h2>
     <div class="ve-field-row">
       <span class="ve-field-label">姓名</span>
-      <input class="ve-field-input" data-ve="header.name" value="${_escAttr(data.header.name)}">
+      <input class="ve-field-input" data-ve="header.name" value="${_escAttr(nameField.value)}" placeholder="${_escAttr(nameField.placeholder)}">
     </div>
     <div class="ve-field-row">
       <span class="ve-field-label">邮箱</span>
-      <input class="ve-field-input" data-ve="header.email" value="${_escAttr(data.header.email)}">
+      <input class="ve-field-input" data-ve="header.email" value="${_escAttr(emailField.value)}" placeholder="${_escAttr(emailField.placeholder)}">
     </div>
     <div class="ve-field-row">
       <span class="ve-field-label">电话</span>
-      <input class="ve-field-input" data-ve="header.phone" value="${_escAttr(data.header.phone)}">
+      <input class="ve-field-input" data-ve="header.phone" value="${_escAttr(phoneField.value)}" placeholder="${_escAttr(phoneField.placeholder)}">
     </div>
   `;
   container.appendChild(headerCard);
@@ -6011,7 +6037,7 @@ function _renderVisualEditor(data) {
     <details class="ve-collapse">
       <summary>
         <span>排版间距</span>
-        <span class="ve-collapse-hint">默认收起，点击展开</span>
+        <span class="ve-collapse-hint">可选高级设置</span>
       </summary>
       <div class="ve-collapse-body">
         <div class="ve-vspace-grid">
@@ -6132,24 +6158,30 @@ function _veDateCopyGroupsHtml() {
 
 function _renderEducationSection(secEl, sec) {
   sec.entries.forEach((entry, ei) => {
+    const schoolField = _placeholderOrValue(entry.school, '学校名称');
+    const degreeField = _placeholderOrValue(entry.degree, '学历');
+    const datesField = _placeholderOrValue(entry.dates, 'YYYY/MM -- YYYY/MM');
+    const subtitleField = _placeholderOrValue(entry.subtitle, '专业 / 学院');
+    const gpaField = _placeholderOrValue(entry.gpa, 'X.XX/4.0，排名前X%');
+    const coursesField = _placeholderOrValue(entry.courses, '课程1；课程2；课程3');
     const card = document.createElement('div');
     card.className = 've-entry-card';
     card.dataset.entryIndex = ei;
     card.innerHTML = `
       <button class="ve-entry-remove" onclick="_veRemoveEntry(this)" title="删除">&times;</button>
       <div class="ve-entry-header">
-        <input class="ve-field-input ve-entry-title" data-ve="school" value="${_escAttr(entry.school)}" style="font-weight:600">
-        <input class="ve-field-input" data-ve="degree" value="${_escAttr(entry.degree)}" style="width:80px;text-align:center">
-        <input class="ve-field-input ve-entry-dates" data-ve="dates" value="${_escAttr(entry.dates)}" style="width:140px;text-align:right">
+        <input class="ve-field-input ve-entry-title" data-ve="school" value="${_escAttr(schoolField.value)}" placeholder="${_escAttr(schoolField.placeholder)}" style="font-weight:600">
+        <input class="ve-field-input" data-ve="degree" value="${_escAttr(degreeField.value)}" placeholder="${_escAttr(degreeField.placeholder)}" style="width:80px;text-align:center">
+        <input class="ve-field-input ve-entry-dates" data-ve="dates" value="${_escAttr(datesField.value)}" placeholder="${_escAttr(datesField.placeholder)}" style="width:140px;text-align:right">
       </div>
       ${_veDateCopyGroupsHtml()}
       <div class="ve-field-row" style="margin-top:4px">
-        <input class="ve-field-input" data-ve="subtitle" value="${_escAttr(entry.subtitle)}" placeholder="专业 / 学院" style="font-size:12px;color:var(--text-secondary)">
+        <input class="ve-field-input" data-ve="subtitle" value="${_escAttr(subtitleField.value)}" placeholder="${_escAttr(subtitleField.placeholder)}" style="font-size:12px;color:var(--text-secondary)">
       </div>
-      ${entry.gpa ? `<div class="ve-field-row"><span class="ve-field-label" style="min-width:30px">GPA</span><input class="ve-field-input" data-ve="gpa" value="${_escAttr(entry.gpa)}"></div>` : ''}
+      ${(entry.gpa || gpaField.placeholder) ? `<div class="ve-field-row"><span class="ve-field-label" style="min-width:30px">GPA</span><input class="ve-field-input" data-ve="gpa" value="${_escAttr(gpaField.value)}" placeholder="${_escAttr(gpaField.placeholder)}"></div>` : ''}
       <div class="ve-field-row">
         <span class="ve-field-label" style="min-width:30px">课程</span>
-        <input class="ve-field-input" data-ve="courses" value="${_escAttr(entry.courses)}" placeholder="主修课程">
+        <input class="ve-field-input" data-ve="courses" value="${_escAttr(coursesField.value)}" placeholder="${_escAttr(coursesField.placeholder)}">
       </div>
     `;
     secEl.appendChild(card);
@@ -6158,6 +6190,11 @@ function _renderEducationSection(secEl, sec) {
 
 function _renderExperienceSection(secEl, sec) {
   sec.entries.forEach((entry, ei) => {
+    const companyField = _placeholderOrValue(entry.company, '公司名称');
+    const cityField = _placeholderOrValue(entry.city, '城市');
+    const datesField = _placeholderOrValue(entry.dates, 'YYYY/MM -- YYYY/MM');
+    const roleField = _placeholderOrValue(entry.role, '职位');
+    const deptField = _placeholderOrValue(entry.dept, '部门');
     const card = document.createElement('div');
     card.className = 've-entry-card';
     card.dataset.entryIndex = ei;
@@ -6165,17 +6202,17 @@ function _renderExperienceSection(secEl, sec) {
     let headerHtml = `
       <button class="ve-entry-remove" onclick="_veRemoveEntry(this)" title="删除">&times;</button>
       <div class="ve-entry-header">
-        <input class="ve-field-input ve-entry-title" data-ve="company" value="${_escAttr(entry.company)}" style="font-weight:600">
-        <input class="ve-field-input" data-ve="city" value="${_escAttr(entry.city)}" style="width:60px;text-align:center" placeholder="城市">
-        <input class="ve-field-input ve-entry-dates" data-ve="dates" value="${_escAttr(entry.dates)}" style="width:140px;text-align:right">
+        <input class="ve-field-input ve-entry-title" data-ve="company" value="${_escAttr(companyField.value)}" placeholder="${_escAttr(companyField.placeholder)}" style="font-weight:600">
+        <input class="ve-field-input" data-ve="city" value="${_escAttr(cityField.value)}" style="width:60px;text-align:center" placeholder="${_escAttr(cityField.placeholder)}">
+        <input class="ve-field-input ve-entry-dates" data-ve="dates" value="${_escAttr(datesField.value)}" placeholder="${_escAttr(datesField.placeholder)}" style="width:140px;text-align:right">
       </div>
       ${_veDateCopyGroupsHtml()}
     `;
     if (entry.role !== undefined) {
       headerHtml += `
         <div class="ve-entry-subtitle">
-          <input class="ve-field-input" data-ve="role" value="${_escAttr(entry.role)}" style="font-size:12px;display:inline-block;width:45%" placeholder="职位">
-          <input class="ve-field-input" data-ve="dept" value="${_escAttr(entry.dept)}" style="font-size:12px;display:inline-block;width:45%;margin-left:4px" placeholder="部门">
+          <input class="ve-field-input" data-ve="role" value="${_escAttr(roleField.value)}" style="font-size:12px;display:inline-block;width:45%" placeholder="${_escAttr(roleField.placeholder)}">
+          <input class="ve-field-input" data-ve="dept" value="${_escAttr(deptField.value)}" style="font-size:12px;display:inline-block;width:45%;margin-left:4px" placeholder="${_escAttr(deptField.placeholder)}">
         </div>
       `;
     }

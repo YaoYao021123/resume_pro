@@ -1,9 +1,11 @@
 import io
 import shutil
+import subprocess
 import sys
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -61,6 +63,25 @@ Some custom achievements line that parser cannot map directly
         text = server.extract_text_from_upload('resume.docx', buf.getvalue())
         self.assertIn('张同学', text)
         self.assertIn('alex.sample@example.com', text)
+
+    @mock.patch('web.server._sp.run')
+    @mock.patch('web.server.shutil.which', return_value='pdftotext')
+    def test_extract_pdf_text_prefers_high_quality_engine(self, _which, mock_run):
+        # Simulate pdftotext returning readable CJK while pypdf/PyPDF2 return mojibake.
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=['pdftotext'],
+            returncode=0,
+            stdout='姚尧 Yao Yao\n教育背景\n香港大学 硕士\n',
+            stderr='',
+        )
+        # Skip python pdf engines by making imports fail via side effect on function internals:
+        # easiest is directly calling the selector with one good and one bad sample.
+        engine, text = server._choose_best_text_candidate([
+            ('pypdf', 'ိဩ Yao Yao\nࣟ\nն࿐'),
+            ('pdftotext', '姚尧 Yao Yao\n教育背景\n香港大学 硕士'),
+        ])
+        self.assertEqual(engine, 'pdftotext')
+        self.assertIn('教育背景', text)
 
     def test_extract_text_from_upload_utf16_txt(self):
         raw = "张同学\nalex.sample@example.com\n产品经理".encode('utf-16')

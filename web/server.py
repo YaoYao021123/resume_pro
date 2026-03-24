@@ -479,20 +479,139 @@ def _decode_text_bytes(content: bytes) -> str:
     return content.decode('latin-1', errors='replace')
 
 
+def _is_cjk_char(ch: str) -> bool:
+    code = ord(ch)
+    return (
+        0x4E00 <= code <= 0x9FFF or
+        0x3400 <= code <= 0x4DBF or
+        0x20000 <= code <= 0x2A6DF
+    )
+
+
+def _text_quality_score(text: str) -> float:
+    if not text:
+        return float('-inf')
+
+    total = max(len(text), 1)
+    replacement_ratio = text.count('\ufffd') / total
+    printable = sum(1 for ch in text if ch.isprintable() or ch in '\n\r\t')
+    printable_ratio = printable / total
+
+    exotic_letters = 0
+    for ch in text:
+        if not ch.isalpha():
+            continue
+        if _is_cjk_char(ch):
+            continue
+        if ch.isascii():
+            continue
+        exotic_letters += 1
+    exotic_ratio = exotic_letters / total
+
+    marker_pool = (
+        '教育', '实习', '工作经历', '获奖', '技能', '项目',
+        'education', 'experience', 'skills', 'gpa', '@',
+    )
+    lower = text.lower()
+    marker_hits = sum(1 for marker in marker_pool if marker in lower)
+
+    # 长文本通常更完整，给轻微加分避免截断提取被选中
+    length_boost = min(total / 3000.0, 1.0)
+    return (
+        printable_ratio * 2.5 +
+        marker_hits * 0.35 +
+        length_boost * 0.4 -
+        replacement_ratio * 4.0 -
+        exotic_ratio * 3.0
+    )
+
+
+def _choose_best_text_candidate(candidates: list[tuple[str, str]]) -> tuple[str, str]:
+    if not candidates:
+        raise ValueError('no text candidates')
+    scored = [(_text_quality_score(text), engine, text) for engine, text in candidates if text and text.strip()]
+    if not scored:
+        raise ValueError('all text candidates are empty')
+    scored.sort(key=lambda item: item[0], reverse=True)
+    _, engine, text = scored[0]
+    return engine, text
+
+
 def _extract_pdf_text(content: bytes) -> str:
-    text = ''
+    candidates: list[tuple[str, str]] = []
+    errors: list[str] = []
+
     try:
         import pypdf
         reader = pypdf.PdfReader(io.BytesIO(content))
-        text = '\n'.join((page.extract_text() or '') for page in reader.pages)
-    except ImportError:
+        text = '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
+        if text:
+            candidates.append(('pypdf', text))
+    except Exception as e:
+        errors.append(f'pypdf: {e}')
+
+    try:
+        import PyPDF2
+        reader = PyPDF2.PdfReader(io.BytesIO(content))
+        text = '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
+        if text:
+            candidates.append(('PyPDF2', text))
+    except Exception as e:
+        errors.append(f'PyPDF2: {e}')
+
+    try:
+        from pdfminer.high_level import extract_text as _pdfminer_extract_text
+        with tempfile.NamedTemporaryFile(suffix='.pdf') as tmp:
+            tmp.write(content)
+            tmp.flush()
+            text = (_pdfminer_extract_text(tmp.name) or '').strip()
+            if text:
+                candidates.append(('pdfminer', text))
+    except Exception as e:
+        errors.append(f'pdfminer: {e}')
+
+    try:
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(content)) as doc:
+            text = '\n'.join((page.extract_text() or '') for page in doc.pages).strip()
+            if text:
+                candidates.append(('pdfplumber', text))
+    except Exception as e:
+        errors.append(f'pdfplumber: {e}')
+
+    try:
+        import fitz
+        doc = fitz.open(stream=content, filetype='pdf')
+        text = '\n'.join(page.get_text() or '' for page in doc).strip()
+        doc.close()
+        if text:
+            candidates.append(('pymupdf', text))
+    except Exception as e:
+        errors.append(f'pymupdf: {e}')
+
+    pdftotext_bin = shutil.which('pdftotext')
+    if pdftotext_bin:
         try:
-            import PyPDF2
-            reader = PyPDF2.PdfReader(io.BytesIO(content))
-            text = '\n'.join((page.extract_text() or '') for page in reader.pages)
-        except ImportError as e:
-            raise ValueError('缺少 PDF 解析依赖（pypdf/PyPDF2）') from e
-    return text.strip()
+            with tempfile.NamedTemporaryFile(suffix='.pdf') as tmp:
+                tmp.write(content)
+                tmp.flush()
+                result = _sp.run(
+                    [pdftotext_bin, '-layout', tmp.name, '-'],
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    candidates.append(('pdftotext', result.stdout.strip()))
+        except Exception as e:
+            errors.append(f'pdftotext: {e}')
+
+    if not candidates:
+        detail = '; '.join(errors) if errors else 'no engine available'
+        raise ValueError(f'无法解析 PDF 文本: {detail}')
+
+    _, best_text = _choose_best_text_candidate(candidates)
+    return best_text
 
 
 def _extract_docx_text(content: bytes) -> str:
