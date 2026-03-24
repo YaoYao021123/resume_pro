@@ -153,6 +153,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px 12px;
+  overflow-y: auto;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.35s var(--ease-out);
@@ -167,6 +169,8 @@ body {
   border-radius: var(--radius);
   width: 420px;
   max-width: 90vw;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   padding: 28px;
   box-shadow: 0 24px 80px rgba(20,20,19,0.18);
   transform: translateY(20px) scale(0.97);
@@ -890,11 +894,46 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   transition: all 0.3s var(--ease-out);
 }
 .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: var(--green);
+  background: var(--green-light);
+}
+.drop-zone.has-file .dz-icon,
+.drop-zone.has-file .main-text { color: var(--green); }
+.drop-zone.parsed {
+  border-color: var(--blue);
+  background: rgba(106,155,204,0.1);
+}
+.drop-zone.parsed .dz-icon,
+.drop-zone.parsed .main-text { color: var(--blue); }
 .drop-zone .dz-icon { margin-bottom: 10px; color: var(--text-muted); transition: color 0.3s; }
 .drop-zone:hover .dz-icon { color: var(--accent); }
 .drop-zone .main-text { font-size: 14px; font-family: var(--font-heading); color: var(--text-secondary); font-weight: 500; }
 .drop-zone .sub-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .drop-zone input[type="file"] { display: none; }
+
+.import-file-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+.import-file-status.ready {
+  color: var(--green);
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+.import-file-status.ready::before {
+  content: '✓ ';
+}
+#import-parse-btn.ready {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+#import-parse-btn.ready:hover {
+  background: var(--accent-hover);
+}
 
 /* ═══ File List ═══ */
 .file-item {
@@ -2406,6 +2445,10 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   min-height: 1.6em;
   transition: border-color 0.15s;
 }
+.ve-bullet-content[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
 .ve-bullet-content:focus {
   outline: none;
   border-color: var(--blue);
@@ -2953,7 +2996,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
           <div class="sub-text">支持 .pdf .docx .md .txt</div>
           <input type="file" id="import-file-input" accept=".pdf,.docx,.md,.txt" style="display:none">
         </div>
-        <div id="import-file-name" style="font-size:12px;color:var(--text-muted);margin-top:10px;"></div>
+        <div id="import-file-name" class="import-file-status"></div>
         <div class="btn-group" style="margin-top:12px;">
           <button class="btn btn-secondary" id="import-parse-btn" onclick="parseImportedResume()" disabled>解析文件</button>
         </div>
@@ -4063,18 +4106,46 @@ function _emptyImportStructured() {
 function setupImportUpload() {
   const fi = document.getElementById('import-file-input');
   if (!fi) return;
+  const dropZone = fi.closest('.drop-zone');
+  const mainText = dropZone ? dropZone.querySelector('.main-text') : null;
+  const subText = dropZone ? dropZone.querySelector('.sub-text') : null;
   fi.addEventListener('change', e => {
     importSelectedFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     const nameEl = document.getElementById('import-file-name');
     const parseBtn = document.getElementById('import-parse-btn');
     if (importSelectedFile) {
-      nameEl.textContent = `已选择: ${importSelectedFile.name}`;
+      nameEl.textContent = `已选择 ${importSelectedFile.name}，点击“解析文件”继续`;
+      nameEl.className = 'import-file-status ready';
+      if (dropZone) {
+        dropZone.classList.add('has-file');
+        dropZone.classList.remove('parsed');
+      }
+      if (mainText) mainText.textContent = `已选择：${importSelectedFile.name}`;
+      if (subText) subText.textContent = '如需替换，点击这里重新选择文件';
       parseBtn.disabled = false;
+      parseBtn.classList.add('ready');
     } else {
       nameEl.textContent = '';
+      nameEl.className = 'import-file-status';
+      if (dropZone) {
+        dropZone.classList.remove('has-file');
+        dropZone.classList.remove('parsed');
+      }
+      if (mainText) mainText.textContent = '点击选择简历文件';
+      if (subText) subText.textContent = '支持 .pdf .docx .md .txt';
       parseBtn.disabled = true;
+      parseBtn.classList.remove('ready');
     }
   });
+  if (!fi.files || fi.files.length === 0) {
+    const nameEl = document.getElementById('import-file-name');
+    const parseBtn = document.getElementById('import-parse-btn');
+    if (nameEl) nameEl.className = 'import-file-status';
+    if (parseBtn) {
+      parseBtn.disabled = true;
+      parseBtn.classList.remove('ready');
+    }
+  }
 }
 
 function _renderImportEducationRows(list) {
@@ -4259,6 +4330,15 @@ async function parseImportedResume() {
     importedStructuredData = data.structured || _emptyImportStructured();
     _populateImportStructured(importedStructuredData);
     showToast('解析完成，请确认后编译');
+    const dropZone = document.querySelector('#import-file-input')?.closest('.drop-zone');
+    if (dropZone) {
+      dropZone.classList.remove('has-file');
+      dropZone.classList.add('parsed');
+      const mainText = dropZone.querySelector('.main-text');
+      const subText = dropZone.querySelector('.sub-text');
+      if (mainText) mainText.textContent = `解析完成：${importSelectedFile?.name || ''}`;
+      if (subText) subText.textContent = '可重新上传其他文件覆盖解析结果';
+    }
   } catch (e) {
     showToast('解析失败: ' + e.message, 'error');
   } finally {
@@ -5951,6 +6031,8 @@ function _placeholderOrValue(raw, fallback) {
     !s ? false :
     /\[YOUR_[A-Z0-9_]+\]/i.test(s) ||
     /^\[[^\]]+\](?:\s*\[[^\]]+\])*$/i.test(s) ||
+    /\[(奖项名称|语言列表|工具列表|项目\/职责标题|外语水平|部门名称|职位名称)\]/.test(s) ||
+    /描述你的工作内容和成果/.test(s) ||
     /20XX/i.test(s) ||
     /X\.XX\/4\.0/i.test(s) ||
     /排名前X%/i.test(s) ||
@@ -5960,6 +6042,23 @@ function _placeholderOrValue(raw, fallback) {
   if (!s) return { value: '', placeholder: fallback || '' };
   if (templateLike) return { value: '', placeholder: s };
   return { value: s, placeholder: fallback || '' };
+}
+
+function _isTemplateLikeText(raw) {
+  const s = _cleanLatex((raw || '').replace(/\\_/g, '_')).trim();
+  if (!s) return false;
+  return (
+    /\[YOUR_[A-Z0-9_]+\]/i.test(s) ||
+    /^\[[^\]]+\](?:\s*\[[^\]]+\])*$/i.test(s) ||
+    /\[(奖项名称|语言列表|工具列表|项目\/职责标题|外语水平|部门名称|职位名称)\]/.test(s) ||
+    /描述你的工作内容和成果/.test(s) ||
+    /20XX/i.test(s) ||
+    /X\.XX\/4\.0/i.test(s) ||
+    /排名前X%/i.test(s) ||
+    /课程1/i.test(s) ||
+    /^your\.email@example\.com$/i.test(s) ||
+    /^\(\+?86\)\s*0{3,}/.test(s)
+  );
 }
 
 function _isZhVisual(data) {
@@ -6311,11 +6410,13 @@ function _renderExperienceSection_single(secEl, entry, ei, beforeEl) {
 
 function _renderAwardsSection(secEl, sec) {
   sec.entries.forEach((entry, ei) => {
+    const nameField = _placeholderOrValue(entry.name, '奖项名称');
+    const dateField = _placeholderOrValue(entry.date, '20XX/XX');
     const row = document.createElement('div');
     row.className = 've-award-row';
     row.innerHTML = `
-      <input class="ve-field-input ve-award-name" data-ve="name" value="${_escAttr(entry.name)}">
-      <input class="ve-field-input ve-award-date" data-ve="date" value="${_escAttr(entry.date)}" style="width:100px;text-align:right">
+      <input class="ve-field-input ve-award-name" data-ve="name" value="${_escAttr(nameField.value)}" placeholder="${_escAttr(nameField.placeholder)}">
+      <input class="ve-field-input ve-award-date" data-ve="date" value="${_escAttr(dateField.value)}" placeholder="${_escAttr(dateField.placeholder)}" style="width:100px;text-align:right">
       <button class="ve-bullet-del" onclick="this.parentElement.remove()" title="删除">&times;</button>
     `;
     secEl.appendChild(row);
@@ -6359,7 +6460,13 @@ function _createSkillRowEl(item) {
   const content = document.createElement('div');
   content.className = 've-bullet-content';
   content.contentEditable = 'true';
-  content.innerHTML = _latexToHtml(item || '');
+  if (_isTemplateLikeText(item || '')) {
+    content.innerHTML = '';
+    content.dataset.placeholder = _cleanLatex(item || '');
+  } else {
+    content.innerHTML = _latexToHtml(item || '');
+    delete content.dataset.placeholder;
+  }
   row.appendChild(content);
   const del = document.createElement('button');
   del.className = 've-bullet-del';
@@ -6380,7 +6487,14 @@ function _createBulletEl(b) {
   let html = '';
   if (b.bold) html += '<b>' + _escHtml(b.bold) + '</b> ';
   html += _escHtml(b.text);
-  content.innerHTML = html;
+  const plainText = `${b.bold ? `${b.bold} ` : ''}${b.text || ''}`.trim();
+  if (_isTemplateLikeText(plainText)) {
+    content.innerHTML = '';
+    content.dataset.placeholder = _cleanLatex(plainText);
+  } else {
+    content.innerHTML = html;
+    delete content.dataset.placeholder;
+  }
   bullet.appendChild(content);
 
   const del = document.createElement('button');
