@@ -163,7 +163,8 @@
 ### 文件结构
 ```
 latex_src/resume/
-├── resume-zh_CN.tex   ← 主文件（中文简历）
+├── resume-zh_CN.tex   ← 中文模板
+├── resume-en.tex      ← 英文模板
 ├── resume.cls         ← 文档类（定义排版命令）
 ├── zh_CN-Adobefonts_external.sty
 ├── linespacing_fix.sty
@@ -190,7 +191,10 @@ export PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH"
 # export PATH="$HOME/.TinyTeX/bin/x86_64-linux:$PATH"
 
 cd /path/to/output/dir/
+# 中文
 xelatex -interaction=nonstopmode resume-zh_CN.tex
+# 英文
+xelatex -interaction=nonstopmode resume-en.tex
 ```
 
 ---
@@ -271,8 +275,8 @@ python3 tools/page_fill_check.py <output_dir> [xelatex_path]
 每次生成简历，输出到（多人模式下按人员隔离）：
 ```
 output/{person_id}/{公司名}_{岗位名}_{YYYYMMDD}/
-├── resume-zh_CN.tex
-├── resume-zh_CN.pdf
+├── resume-zh_CN.tex / resume-en.tex
+├── resume-zh_CN.pdf / resume-en.pdf
 └── generation_log.md
 ```
 

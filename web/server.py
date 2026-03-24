@@ -16,12 +16,14 @@ import re
 import shutil
 import socket
 import subprocess as _sp
+import tempfile
 import time
 import urllib.parse
 import urllib.error
 import urllib.request
 import webbrowser
 import zipfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -65,6 +67,11 @@ from tools.model_config import (
     load_local_env,
 )
 from backend.auth_billing_service.services.byok_service import ByokService, ByokValidationError
+from tools.language_utils import (
+    normalize_language,
+    resolve_resume_filenames,
+    infer_language_from_output_dir,
+)
 
 load_local_env()
 
@@ -307,6 +314,10 @@ def _run_generate_with_entitlement(
     company_override = data.get('company', '').strip()
     role_override = data.get('role', '').strip()
     prefer_ai = bool(data.get('prefer_ai'))
+    try:
+        language = normalize_language(data.get('language'))
+    except ValueError as exc:
+        return 400, {'error': str(exc), 'error_code': 'INVALID_LANGUAGE'}
     mode = str(data.get('mode', 'platform_key')).strip() or 'platform_key'
     ai_config_override = None
 
@@ -371,6 +382,7 @@ def _run_generate_with_entitlement(
             role=role_override,
             person_id=person_id,
             prefer_ai=prefer_ai,
+            language=language,
             ai_config_override=ai_config_override,
         )
         if isinstance(result, dict) and not result.get('success', True):
@@ -410,6 +422,593 @@ def _run_generate_with_entitlement(
     if generation_exception:
         return 500, result
     return 200, result
+
+_DATE_RANGE_RE = re.compile(
+    r'(?P<start>\d{4}[\/\-.年]\d{1,2}(?:[\/\-.月]\d{1,2})?)\s*(?:--|—|–|-)\s*'
+    r'(?P<end>至今|present|Present|\d{4}[\/\-.年]\d{1,2}(?:[\/\-.月]\d{1,2})?)'
+)
+_EMAIL_RE = re.compile(r'[\w.\-+]+@[\w.\-]+\.\w+')
+_PHONE_RE = re.compile(r'(\+?\d[\d\s\-\(\)]{7,}\d)')
+
+_TEX_ESCAPE_MAP = {
+    '&': r'\&', '%': r'\%', '$': r'\$', '#': r'\#',
+    '_': r'\_', '{': r'\{', '}': r'\}', '~': r'\textasciitilde{}',
+    '^': r'\textasciicircum{}',
+}
+_TEX_ESCAPE_RE = re.compile('|'.join(re.escape(k) for k in _TEX_ESCAPE_MAP))
+
+
+def _tex_escape(text: str) -> str:
+    return _TEX_ESCAPE_RE.sub(lambda m: _TEX_ESCAPE_MAP[m.group()], str(text or ''))
+
+
+def _decode_text_bytes(content: bytes) -> str:
+    if not content:
+        return ''
+
+    bom_candidates: list[str] = []
+    if content.startswith(b'\xef\xbb\xbf'):
+        bom_candidates.append('utf-8-sig')
+    elif content.startswith(b'\xff\xfe\x00\x00') or content.startswith(b'\x00\x00\xfe\xff'):
+        bom_candidates.append('utf-32')
+    elif content.startswith(b'\xff\xfe') or content.startswith(b'\xfe\xff'):
+        bom_candidates.append('utf-16')
+
+    candidates = bom_candidates + ['utf-8', 'utf-16', 'utf-32', 'gb18030', 'gbk']
+    scored: list[tuple[float, int, str]] = []
+
+    for idx, enc in enumerate(candidates):
+        try:
+            text = content.decode(enc)
+        except UnicodeDecodeError:
+            continue
+
+        total = max(len(text), 1)
+        replacement_ratio = text.count('\ufffd') / total
+        printable = sum(1 for ch in text if ch.isprintable() or ch in '\n\r\t')
+        printable_ratio = printable / total
+        if printable_ratio < 0.85:
+            continue
+        score = printable_ratio - 2.0 * replacement_ratio
+        scored.append((score, -idx, text))
+
+    if scored:
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return scored[0][2]
+
+    return content.decode('latin-1', errors='replace')
+
+
+def _extract_pdf_text(content: bytes) -> str:
+    text = ''
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        text = '\n'.join((page.extract_text() or '') for page in reader.pages)
+    except ImportError:
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(content))
+            text = '\n'.join((page.extract_text() or '') for page in reader.pages)
+        except ImportError as e:
+            raise ValueError('缺少 PDF 解析依赖（pypdf/PyPDF2）') from e
+    return text.strip()
+
+
+def _extract_docx_text(content: bytes) -> str:
+    with zipfile.ZipFile(io.BytesIO(content)) as zf:
+        try:
+            xml_bytes = zf.read('word/document.xml')
+        except KeyError as e:
+            raise ValueError('DOCX 缺少 word/document.xml') from e
+    root = ET.fromstring(xml_bytes)
+    ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+    lines = []
+    for para in root.findall('.//w:p', ns):
+        segs = []
+        for tnode in para.findall('.//w:t', ns):
+            if tnode.text:
+                segs.append(tnode.text)
+        line = ''.join(segs).strip()
+        if line:
+            lines.append(line)
+    return '\n'.join(lines)
+
+
+def extract_text_from_upload(filename: str, content: bytes) -> str:
+    ext = Path(filename or '').suffix.lower()
+    if ext in {'.txt', '.md'}:
+        return _decode_text_bytes(content).strip()
+    if ext == '.docx':
+        return _extract_docx_text(content).strip()
+    if ext == '.pdf':
+        return _extract_pdf_text(content).strip()
+    raise ValueError(f'不支持的文件格式: {ext or "unknown"}')
+
+
+def _normalize_ym(date_str: str) -> str:
+    s = str(date_str or '').strip()
+    if not s:
+        return ''
+    if s in ('至今', 'present', 'Present'):
+        return '至今'
+    m = re.search(r'(\d{4})[\/\-.年](\d{1,2})', s)
+    if not m:
+        return s
+    return f'{m.group(1)}/{int(m.group(2)):02d}'
+
+
+def _pick_name(lines: list[str], used: set[int]) -> tuple[str, str]:
+    for idx, line in enumerate(lines):
+        if idx in used:
+            continue
+        if _EMAIL_RE.search(line) or _PHONE_RE.search(line):
+            continue
+        if len(line) > 40:
+            continue
+        if any(key in line for key in ('教育', '经历', '技能', '奖项', '项目', '工作')):
+            continue
+        used.add(idx)
+        if re.search(r'[\u4e00-\u9fff]', line):
+            return line.strip(), ''
+        return '', line.strip()
+    return '', ''
+
+
+def parse_resume_text_to_structured(text: str) -> dict:
+    raw_lines = [ln.strip() for ln in str(text or '').splitlines()]
+    lines = [ln for ln in raw_lines if ln]
+    used: set[int] = set()
+    data = {
+        'basic': {'name_zh': '', 'name_en': '', 'email': '', 'phone': ''},
+        'education': [],
+        'experiences': [],
+        'awards': [],
+        'skills': {'tech': '', 'software': '', 'languages': ''},
+        'pending_text': '',
+    }
+
+    current_section = ''
+    current_exp = None
+
+    for idx, line in enumerate(lines):
+        lower = line.lower()
+        if '教育' in line:
+            current_section = 'education'
+            used.add(idx)
+            continue
+        if any(k in line for k in ('实习经历', '工作经历', '职业经历')):
+            current_section = 'experience'
+            current_exp = None
+            used.add(idx)
+            continue
+        if any(k in line for k in ('技能', 'skills')):
+            current_section = 'skills'
+            used.add(idx)
+            continue
+        if '获奖' in line:
+            current_section = 'awards'
+            used.add(idx)
+            continue
+
+        email_match = _EMAIL_RE.search(line)
+        if email_match and not data['basic']['email']:
+            data['basic']['email'] = email_match.group().strip()
+            used.add(idx)
+            continue
+
+        phone_match = _PHONE_RE.search(line)
+        if phone_match and not data['basic']['phone']:
+            data['basic']['phone'] = phone_match.group(1).strip()
+            used.add(idx)
+            continue
+
+        if current_section == 'skills':
+            values = [seg.strip() for seg in re.split(r'[，,;；]', line) if seg.strip()]
+            if values:
+                if not data['skills']['tech']:
+                    data['skills']['tech'] = ', '.join(values)
+                else:
+                    data['skills']['software'] = ', '.join(values)
+                used.add(idx)
+                continue
+
+        dr = _DATE_RANGE_RE.search(line)
+        if dr:
+            start = _normalize_ym(dr.group('start'))
+            end = _normalize_ym(dr.group('end'))
+            prefix = line[:dr.start()].strip(' -—|｜')
+            if current_section == 'education' or any(s in line for s in ('大学', '学院', '学校')):
+                degree = ''
+                for dg in ('博士', '硕士', '本科', '大专'):
+                    if dg in line:
+                        degree = dg
+                        break
+                school = ''
+                for token in prefix.split():
+                    if any(k in token for k in ('大学', '学院', '学校')):
+                        school = token
+                        break
+                major = prefix.replace(school, '').replace(degree, '').strip()
+                data['education'].append({
+                    'school': school or prefix,
+                    'degree': degree,
+                    'major': major,
+                    'department': '',
+                    'time_start': start,
+                    'time_end': end,
+                    'gpa': '',
+                    'rank': '',
+                    'courses': '',
+                })
+                used.add(idx)
+                continue
+
+            parts = [p.strip() for p in re.split(r'[|｜]', prefix) if p.strip()]
+            if len(parts) >= 2:
+                company, role = parts[0], parts[1]
+            else:
+                tokens = [t for t in prefix.split() if t]
+                company = tokens[0] if tokens else '导入经历'
+                role = ' '.join(tokens[1:]) if len(tokens) > 1 else '岗位'
+            current_exp = {
+                'company': company,
+                'city': '',
+                'department': '',
+                'role': role,
+                'time_start': start,
+                'time_end': end,
+                'tags': '',
+                'notes': '',
+                'bullets': [],
+            }
+            data['experiences'].append(current_exp)
+            used.add(idx)
+            continue
+
+        if re.match(r'^[\-\*\u2022]\s*', line) and current_exp is not None:
+            bullet = re.sub(r'^[\-\*\u2022]\s*', '', line).strip()
+            if bullet:
+                current_exp['bullets'].append(bullet)
+                used.add(idx)
+            continue
+
+        if current_section == 'awards' and ('|' in line or '奖' in line):
+            parts = [p.strip() for p in line.split('|')]
+            if parts:
+                data['awards'].append({
+                    'name': parts[0],
+                    'issuer': parts[1] if len(parts) > 1 else '',
+                    'date': parts[2] if len(parts) > 2 else '',
+                })
+                used.add(idx)
+                continue
+
+    name_zh, name_en = _pick_name(lines, used)
+    data['basic']['name_zh'] = name_zh
+    data['basic']['name_en'] = name_en
+
+    pending_lines = [line for idx, line in enumerate(lines) if idx not in used]
+    data['pending_text'] = '\n'.join(pending_lines).strip()
+    return data
+
+
+def _sanitize_dir_part(value: str, fallback: str) -> str:
+    cleaned = re.sub(r'[\/\\:*?"<>|]+', '', str(value or '').strip())
+    cleaned = cleaned.replace(' ', '')
+    return cleaned or fallback
+
+
+def create_import_draft_dir(company: str = '', role: str = '', language: str = 'zh') -> str:
+    language = normalize_language(language)
+    tex_filename, _ = resolve_resume_filenames(language)
+    company_part = _sanitize_dir_part(company, '导入简历')
+    role_part = _sanitize_dir_part(role, '草稿')
+    base = f'{company_part}_{role_part}_{datetime.now().strftime("%Y%m%d")}'
+    out_dir = _output_dir()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    dir_name = base
+    seq = 1
+    while (out_dir / dir_name).exists():
+        seq += 1
+        dir_name = f'{base}_{seq}'
+    target = out_dir / dir_name
+    target.mkdir(parents=True, exist_ok=True)
+
+    template_dir = PROJECT_ROOT / 'latex_src' / 'resume'
+    for f in ('resume.cls', 'zh_CN-Adobefonts_external.sty', 'linespacing_fix.sty'):
+        src = template_dir / f
+        if src.exists():
+            shutil.copy2(str(src), str(target / f))
+    src_fonts = template_dir / 'fonts'
+    dst_fonts = target / 'fonts'
+    if src_fonts.exists() and not dst_fonts.exists():
+        try:
+            os.symlink(src_fonts.resolve(), dst_fonts)
+        except OSError:
+            shutil.copytree(str(src_fonts), str(dst_fonts))
+    template_tex = template_dir / tex_filename
+    if template_tex.exists():
+        shutil.copy2(str(template_tex), str(target / tex_filename))
+    else:
+        raise FileNotFoundError(f'模板文件不存在: {template_tex.name}')
+
+    context_path = target / 'generation_context.json'
+    context_payload = {
+        'company': company,
+        'role': role,
+        'engine': 'import',
+        'jd_text': '',
+        'interview_text': '',
+        'language': language,
+        'generated_at': datetime.now().isoformat(timespec='seconds'),
+    }
+    context_path.write_text(json.dumps(context_payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    return dir_name
+
+
+def _format_resume_range(start: str, end: str) -> str:
+    s = _normalize_ym(start)
+    e = _normalize_ym(end)
+    if s and e:
+        return f'{s} -- {e}'
+    return s or e or ''
+
+
+def _load_generation_context(out_dir: Path) -> dict:
+    context_path = out_dir / 'generation_context.json'
+    if not context_path.exists():
+        return {}
+    try:
+        return json.loads(context_path.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_generation_context(out_dir: Path, context: dict) -> None:
+    context_path = out_dir / 'generation_context.json'
+    context_path.write_text(json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+def _resolve_output_language(out_dir: Path, explicit_language: str | None = None) -> str:
+    if explicit_language is not None and str(explicit_language).strip():
+        return normalize_language(explicit_language)
+    return infer_language_from_output_dir(out_dir)
+
+
+def _resolve_resume_paths(out_dir: Path, explicit_language: str | None = None) -> tuple[str, Path, Path]:
+    language = _resolve_output_language(out_dir, explicit_language)
+    tex_name, pdf_name = resolve_resume_filenames(language)
+    return language, out_dir / tex_name, out_dir / pdf_name
+
+
+def render_imported_resume_tex(structured: dict, language: str = 'zh') -> str:
+    language = normalize_language(language)
+    basic = structured.get('basic', {})
+    name_parts = [basic.get('name_zh', '').strip(), basic.get('name_en', '').strip()]
+    name = ' '.join([p for p in name_parts if p]).strip() or '候选人'
+    email = basic.get('email', '').strip() or 'your.email@example.com'
+    phone = basic.get('phone', '').strip() or '(+86) 000-0000-0000'
+
+    use_zh = language == 'zh'
+    lines = [
+        '% !TEX TS-program = xelatex',
+        '% !TEX encoding = UTF-8 Unicode',
+        '',
+        r'\documentclass{resume}',
+    ]
+    if use_zh:
+        lines.append(r'\usepackage{zh_CN-Adobefonts_external}')
+    lines.extend([
+        r'\usepackage{linespacing_fix}',
+        r'\usepackage{cite}',
+        '',
+        r'\begin{document}',
+        r'\begin{Form}',
+        '',
+        r'\pagenumbering{gobble}',
+        '',
+        rf'\name{{{_tex_escape(name)}}}',
+        '',
+        r'\basicInfo{',
+        rf'\email{{{_tex_escape(email)}}} \textperiodcentered \phone{{{_tex_escape(phone)}}}',
+        r'}',
+        r'\vspace{-8pt}',
+        '',
+        rf'\section{{{"教育背景" if use_zh else "Education"}}}',
+    ])
+
+    education = structured.get('education') or []
+    for edu in education:
+        school = _tex_escape(edu.get('school', '') or '学校')
+        degree = _tex_escape(edu.get('degree', '') or '')
+        major = _tex_escape(edu.get('major', '') or '')
+        dept = _tex_escape(edu.get('department', '') or '')
+        date_range = _tex_escape(_format_resume_range(edu.get('time_start', ''), edu.get('time_end', '')))
+        lines.append(rf'\datedsubsection{{\textbf{{{school}}} \quad \normalsize {degree}}}{{{date_range}}}')
+        lines.append(rf'\textit{{{major} \quad {dept}}}')
+        lines.append('')
+
+    lines.append(rf'\section{{{"实习经历" if use_zh else "Experience"}}}')
+    experiences = structured.get('experiences') or []
+    for exp in experiences:
+        company = _tex_escape(exp.get('company', '') or '公司')
+        city = _tex_escape(exp.get('city', '') or '')
+        role = _tex_escape(exp.get('role', '') or '岗位')
+        dept = _tex_escape(exp.get('department', '') or '')
+        date_range = _tex_escape(_format_resume_range(exp.get('time_start', ''), exp.get('time_end', '')))
+        lines.append(rf'\datedsubsection{{\textbf{{{company}}} \quad \normalsize {city}}}{{{date_range}}}')
+        lines.append(rf'\role{{{role}}}{{{dept}}}')
+        lines.append(r'\vspace{-6pt}')
+        lines.append(r'\begin{itemize}')
+        bullets = exp.get('bullets') or []
+        if not bullets and exp.get('notes'):
+            bullets = [exp.get('notes', '')]
+        for bullet in bullets[:4]:
+            b = _tex_escape(str(bullet).strip())
+            if b:
+                lines.append(rf'    \item {b}')
+        lines.append(r'\end{itemize}')
+        lines.append(r'\vspace{-2pt}')
+        lines.append('')
+
+    awards = structured.get('awards') or []
+    if awards:
+        lines.append(rf'\section{{{"获奖情况" if use_zh else "Honors and Awards"}}}')
+        for award in awards[:3]:
+            title = _tex_escape(award.get('name', ''))
+            date = _tex_escape(_normalize_ym(award.get('date', '')))
+            lines.append(rf'\datedline{{\textit{{{title}}}}}{{{date}}}')
+        lines.append('')
+
+    skills = structured.get('skills') or {}
+    lines.append(rf'\section{{{"技能" if use_zh else "Skills"}}}')
+    lines.append(r'\begin{itemize}[parsep=0.5ex]')
+    if use_zh:
+        lines.append(rf'    \item \textbf{{编程与技术：}} {_tex_escape(skills.get("tech", "") or "")}')
+        lines.append(rf'    \item \textbf{{工具：}} {_tex_escape(skills.get("software", "") or "")} \quad \textbf{{语言：}} {_tex_escape(skills.get("languages", "") or "")}')
+    else:
+        lines.append(rf'    \item \textbf{{Programming \& Technical:}} {_tex_escape(skills.get("tech", "") or "")}')
+        lines.append(rf'    \item \textbf{{Tools:}} {_tex_escape(skills.get("software", "") or "")} \quad \textbf{{Languages:}} {_tex_escape(skills.get("languages", "") or "")}')
+    lines.append(r'\end{itemize}')
+    lines.append('')
+    lines.append(r'\end{Form}')
+    lines.append(r'\end{document}')
+    return '\n'.join(lines)
+
+
+def _to_profile_payload_from_import(structured: dict) -> dict:
+    basic = structured.get('basic') or {}
+    education = structured.get('education') or []
+    awards = structured.get('awards') or []
+    skills = structured.get('skills') or {}
+    return {
+        'basic': {
+            'name_zh': basic.get('name_zh', ''),
+            'name_en': basic.get('name_en', ''),
+            'email': basic.get('email', ''),
+            'phone': basic.get('phone', ''),
+            'linkedin': '',
+            'github': '',
+            'website': '',
+        },
+        'education': [{
+            'school': e.get('school', ''),
+            'degree': e.get('degree', ''),
+            'major': e.get('major', ''),
+            'department': e.get('department', ''),
+            'time_start': _normalize_ym(e.get('time_start', '')),
+            'time_end': _normalize_ym(e.get('time_end', '')),
+            'gpa': e.get('gpa', ''),
+            'rank': e.get('rank', ''),
+            'courses': e.get('courses', ''),
+        } for e in education],
+        'awards': [{
+            'name': a.get('name', ''),
+            'issuer': a.get('issuer', ''),
+            'date': _normalize_ym(a.get('date', '')),
+        } for a in awards],
+        'projects': [],
+        'publications': [],
+        'skills': {
+            'tech': skills.get('tech', ''),
+            'software': skills.get('software', ''),
+            'languages': skills.get('languages', ''),
+        },
+        'directions': {'primary': '', 'secondary': ''},
+    }
+
+
+def _persist_imported_data(structured: dict) -> list[str]:
+    payload = _to_profile_payload_from_import(structured)
+    _profile_path().parent.mkdir(parents=True, exist_ok=True)
+    _profile_path().write_text(render_profile(payload), encoding='utf-8')
+
+    written_files = []
+    for exp in (structured.get('experiences') or []):
+        bullets = exp.get('bullets') or []
+        work_items = []
+        for idx, bullet in enumerate(bullets, 1):
+            title = str(bullet).strip()[:22] or f'工作内容 {idx}'
+            work_items.append({'title': title, 'desc': str(bullet).strip()})
+        filename = save_experience_form({
+            'company': exp.get('company', '导入经历'),
+            'city': exp.get('city', ''),
+            'department': exp.get('department', ''),
+            'role': exp.get('role', '岗位'),
+            'time_start': _normalize_ym(exp.get('time_start', '')),
+            'time_end': _normalize_ym(exp.get('time_end', '')),
+            'tags': exp.get('tags', ''),
+            'work_items': work_items or [{'title': '工作内容 1', 'desc': exp.get('notes', '')}],
+            'notes': exp.get('notes', ''),
+        })
+        written_files.append(filename)
+    return written_files
+
+
+def _compile_resume_dir(out_dir: Path, language: str = 'zh') -> dict:
+    language = normalize_language(language)
+    tex_filename, pdf_filename = resolve_resume_filenames(language)
+    xelatex_bin = _find_xelatex()
+    env = os.environ.copy()
+    xelatex_dir = str(Path(xelatex_bin).parent) if xelatex_bin != 'xelatex' else ''
+    if xelatex_dir:
+        env['PATH'] = xelatex_dir + ':' + env.get('PATH', '')
+
+    result = _sp.run(
+        [xelatex_bin, '-interaction=nonstopmode', '--synctex=1', tex_filename],
+        cwd=str(out_dir),
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=env,
+    )
+
+    pdf_path = out_dir / pdf_filename
+    log_path = out_dir / f'{Path(tex_filename).stem}.log'
+    log_tail = ''
+    if log_path.exists():
+        lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
+        log_tail = '\n'.join(lines[-30:])
+
+    if result.returncode != 0 or not pdf_path.exists():
+        return {
+            'success': False,
+            'pages': 0,
+            'fill_rate': 0,
+            'error': f'编译失败 (exit code {result.returncode})',
+            'log_tail': log_tail,
+        }
+
+    pages = 1
+    try:
+        mdls = _sp.run(
+            ['mdls', '-name', 'kMDItemNumberOfPages', str(pdf_path)],
+            capture_output=True, text=True, timeout=10,
+        )
+        for line in mdls.stdout.splitlines():
+            if 'kMDItemNumberOfPages' in line and '=' in line:
+                val = line.split('=')[1].strip()
+                if val != '(null)':
+                    pages = int(val)
+    except Exception:
+        pass
+
+    fill_rate = 0.0
+    try:
+        fill_check = str(PROJECT_ROOT / 'tools' / 'page_fill_check.py')
+        fr_result = _sp.run(
+            ['python3', fill_check, str(out_dir), xelatex_bin, tex_filename],
+            capture_output=True, text=True, timeout=60, env=env,
+        )
+        m = re.search(r'填充率[：:]\s*([\d.]+)%', fr_result.stdout)
+        if m:
+            fill_rate = float(m.group(1))
+    except Exception:
+        pass
+
+    return {'success': True, 'pages': pages, 'fill_rate': fill_rate, 'error': '', 'log_tail': log_tail}
 
 
 # ─── Profile.md 解析 ───────────────────────────────────────────
@@ -1220,7 +1819,7 @@ def _summarize_generation_text(text: str, limit: int = 72) -> str:
 
 # ─── 版本快照 ─────────────────────────────────────────────────
 
-def _create_version_snapshot(out_dir: Path, fill_rate: float = 0, pages: int = 1) -> int:
+def _create_version_snapshot(out_dir: Path, fill_rate: float = 0, pages: int = 1, language: str | None = None) -> int:
     """编译成功后创建 tex 快照，返回新版本号"""
     versions_dir = out_dir / 'versions'
     versions_dir.mkdir(parents=True, exist_ok=True)
@@ -1237,7 +1836,7 @@ def _create_version_snapshot(out_dir: Path, fill_rate: float = 0, pages: int = 1
     ts = datetime.now().strftime('%Y%m%dT%H%M%S')
     snapshot_name = f'v{new_version}_{ts}.tex'
 
-    tex_src = out_dir / 'resume-zh_CN.tex'
+    _, tex_src, _ = _resolve_resume_paths(out_dir, language)
     if tex_src.exists():
         shutil.copy2(str(tex_src), str(versions_dir / snapshot_name))
 
@@ -1288,45 +1887,59 @@ def list_gallery_resumes() -> list:
     for d in sorted(_output_dir().iterdir(), reverse=True):
         if not d.is_dir() or d.name.startswith('.'):
             continue
-        # 目录名格式: {公司名}_{岗位名}_{YYYYMMDD}
-        pdf_files = list(d.glob('*.pdf'))
-        if not pdf_files:
-            continue
+        context_path = d / 'generation_context.json'
+        context = {}
+        if context_path.exists():
+            try:
+                context = json.loads(context_path.read_text(encoding='utf-8'))
+            except (json.JSONDecodeError, OSError):
+                context = {}
+
+        language = context.get('language', infer_language_from_output_dir(d))
+        try:
+            _, preferred_pdf_name = resolve_resume_filenames(language)
+        except ValueError:
+            language = infer_language_from_output_dir(d)
+            _, preferred_pdf_name = resolve_resume_filenames(language)
+
+        preferred_pdf = d / preferred_pdf_name
+        if preferred_pdf.exists():
+            pdf = preferred_pdf
+        else:
+            pdf_files = list(d.glob('*.pdf'))
+            if not pdf_files:
+                continue
+            pdf = sorted(pdf_files, reverse=True)[0]
 
         parts = d.name.split('_')
-        company = parts[0] if len(parts) >= 1 else d.name
-        role = parts[1] if len(parts) >= 2 else ''
+        parsed_company = parts[0] if len(parts) >= 1 else d.name
+        parsed_role = parts[1] if len(parts) >= 2 else ''
+        company = context.get('company', '') or parsed_company
+        role = context.get('role', '') or parsed_role
         date = parts[2] if len(parts) >= 3 else ''
         if date and len(date) == 8:
             date = f'{date[:4]}/{date[4:6]}/{date[6:]}'
+        rel_path = str(pdf.relative_to(_output_dir()))
 
-        for pdf in pdf_files:
-            rel_path = str(pdf.relative_to(_output_dir()))
-            context_path = d / 'generation_context.json'
-            context = {}
-            if context_path.exists():
-                try:
-                    context = json.loads(context_path.read_text(encoding='utf-8'))
-                except (json.JSONDecodeError, OSError):
-                    context = {}
-            resumes.append({
-                'company': company,
-                'role': role,
-                'date': date,
-                'dir_name': d.name,
-                'pdf_name': pdf.name,
-                'pdf_path': rel_path,
-                'size': pdf.stat().st_size,
-                'version_count': _get_version_count(d),
-                'jd_text': context.get('jd_text', '') or '',
-                'interview_text': context.get('interview_text', '') or '',
-                'interview_notes': context.get('interview_notes', '') or '',
-                'jd_excerpt': _summarize_generation_text(context.get('jd_text', ''), 88),
-                'interview_excerpt': _summarize_generation_text(context.get('interview_text', ''), 66),
-                'engine': context.get('engine', ''),
-                'ai_provider': context.get('ai_provider', ''),
-                'ai_model': context.get('ai_model', ''),
-            })
+        resumes.append({
+            'company': company,
+            'role': role,
+            'date': date,
+            'dir_name': d.name,
+            'pdf_name': pdf.name,
+            'pdf_path': rel_path,
+            'size': pdf.stat().st_size,
+            'version_count': _get_version_count(d),
+            'jd_text': context.get('jd_text', '') or '',
+            'interview_text': context.get('interview_text', '') or '',
+            'interview_notes': context.get('interview_notes', '') or '',
+            'jd_excerpt': _summarize_generation_text(context.get('jd_text', ''), 88),
+            'interview_excerpt': _summarize_generation_text(context.get('interview_text', ''), 66),
+            'engine': context.get('engine', ''),
+            'ai_provider': context.get('ai_provider', ''),
+            'ai_model': context.get('ai_model', ''),
+            'language': language,
+        })
 
     return resumes
 
@@ -1522,6 +2135,12 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._upload_publication_pdf()
         elif path == '/api/generate':
             self._generate_resume()
+        elif path == '/api/import-resume/create-empty':
+            self._create_import_draft()
+        elif path == '/api/import-resume/parse':
+            self._parse_import_resume()
+        elif path == '/api/import-resume/confirm-compile':
+            self._confirm_import_compile()
         elif path == '/api/editor/regenerate':
             self._regenerate_resume()
         elif path == '/api/editor/save':
@@ -1960,7 +2579,12 @@ class ResumeHandler(BaseHTTPRequestHandler):
             from tools.generate_resume import generate_resume
 
             # Create a snapshot of current state BEFORE regenerating
-            _create_version_snapshot(target_dir, fill_rate=context.get('fill_ratio', 0) * 100)
+            current_language = _resolve_output_language(target_dir, context.get('language'))
+            _create_version_snapshot(
+                target_dir,
+                fill_rate=context.get('fill_ratio', 0) * 100,
+                language=current_language,
+            )
 
             # Generate into a temp dir (generate_resume always creates new dir)
             result = generate_resume(
@@ -1971,6 +2595,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 person_id=get_active_person_id(),
                 prefer_ai=prefer_ai,
                 feedback=feedback,
+                language=current_language,
             )
 
             if not result.get('success'):
@@ -2003,7 +2628,11 @@ class ResumeHandler(BaseHTTPRequestHandler):
 
             # Create version snapshot for the newly regenerated result
             fill_ratio = result.get('fill_ratio', 0)
-            new_ver = _create_version_snapshot(target_dir, fill_rate=fill_ratio * 100)
+            new_ver = _create_version_snapshot(
+                target_dir,
+                fill_rate=fill_ratio * 100,
+                language=current_language,
+            )
             # Annotate with feedback
             if feedback:
                 versions_json_path = target_dir / 'versions' / 'versions.json'
@@ -2016,7 +2645,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
                     versions_json_path.write_text(json.dumps(versions, ensure_ascii=False, indent=2), encoding='utf-8')
 
             # Read new tex content to return to editor
-            tex_path = target_dir / 'resume-zh_CN.tex'
+            _, tex_path, pdf_path = _resolve_resume_paths(target_dir, current_language)
             tex_content = tex_path.read_text(encoding='utf-8') if tex_path.exists() else ''
 
             self._send_json({
@@ -2025,6 +2654,9 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 'version': new_ver,
                 'fill_ratio': fill_ratio,
                 'version_count': _get_version_count(target_dir),
+                'language': current_language,
+                'pdf_name': pdf_path.name,
+                'tex_name': tex_path.name,
             })
 
         except Exception as e:
@@ -2038,7 +2670,6 @@ class ResumeHandler(BaseHTTPRequestHandler):
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length)
             data = json.loads(body.decode('utf-8'))
-
             # 导入生成引擎
             import sys
             tools_dir = str(PROJECT_ROOT / 'tools')
@@ -2068,7 +2699,8 @@ class ResumeHandler(BaseHTTPRequestHandler):
             if not dir_name or '..' in dir_name or dir_name.startswith('/'):
                 self._send_error_json('非法路径', 403)
                 return
-            tex_path = _output_dir() / dir_name / 'resume-zh_CN.tex'
+            out_dir = _output_dir() / dir_name
+            language, tex_path, pdf_path = _resolve_resume_paths(out_dir)
             try:
                 tex_path.resolve().relative_to(_output_dir().resolve())
             except ValueError:
@@ -2080,8 +2712,10 @@ class ResumeHandler(BaseHTTPRequestHandler):
             content = tex_path.read_text(encoding='utf-8')
             self._send_json({
                 'content': content,
-                'filename': 'resume-zh_CN.tex',
+                'filename': tex_path.name,
                 'dir_name': dir_name,
+                'language': language,
+                'pdf_name': pdf_path.name,
             })
         except Exception as e:
             self._send_error_json(str(e), 500)
@@ -2097,7 +2731,8 @@ class ResumeHandler(BaseHTTPRequestHandler):
             if not dir_name or '..' in dir_name or dir_name.startswith('/'):
                 self._send_error_json('非法路径', 403)
                 return
-            tex_path = _output_dir() / dir_name / 'resume-zh_CN.tex'
+            out_dir = _output_dir() / dir_name
+            _, tex_path, _ = _resolve_resume_paths(out_dir)
             try:
                 tex_path.resolve().relative_to(_output_dir().resolve())
             except ValueError:
@@ -2120,6 +2755,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
             source_dir = data.get('dir', '')
             tex_content = data.get('content', '')
             new_dir = data.get('new_dir', '')
+            req_language = data.get('language')
             if not new_dir or '..' in new_dir or new_dir.startswith('/'):
                 self._send_error_json('非法目录名', 403)
                 return
@@ -2131,8 +2767,14 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 return
             # Create new directory
             new_path.mkdir(parents=True, exist_ok=True)
+            source_path = _output_dir() / source_dir if source_dir else None
+            inferred_language = req_language
+            if not inferred_language and source_path and source_path.exists():
+                inferred_language = infer_language_from_output_dir(source_path)
+            language = normalize_language(inferred_language)
+            tex_name, _ = resolve_resume_filenames(language)
             # Copy latex support files from source (fallback to template)
-            src_dir = _output_dir() / source_dir if source_dir else None
+            src_dir = source_path
             template_dir = PROJECT_ROOT / 'latex_src' / 'resume'
             for f in ['resume.cls', 'zh_CN-Adobefonts_external.sty',
                       'linespacing_fix.sty']:
@@ -2151,8 +2793,11 @@ class ResumeHandler(BaseHTTPRequestHandler):
                         if src_fonts.is_dir():
                             shutil.copytree(str(src_fonts), str(dst_fonts))
             # Write tex
-            tex_path = new_path / 'resume-zh_CN.tex'
+            tex_path = new_path / tex_name
             tex_path.write_text(tex_content, encoding='utf-8')
+            context = _load_generation_context(new_path)
+            context['language'] = language
+            _save_generation_context(new_path, context)
             self._send_json({'success': True, 'new_dir': new_dir})
         except Exception as e:
             self._send_error_json(str(e), 500)
@@ -2165,11 +2810,13 @@ class ResumeHandler(BaseHTTPRequestHandler):
             data = json.loads(body.decode('utf-8'))
             dir_name = data.get('dir', '')
             tex_content = data.get('content', '')
+            req_language = data.get('language')
             if not dir_name or '..' in dir_name or dir_name.startswith('/'):
                 self._send_error_json('非法路径', 403)
                 return
             out_dir = _output_dir() / dir_name
-            tex_path = out_dir / 'resume-zh_CN.tex'
+            language, tex_path, pdf_path = _resolve_resume_paths(out_dir, req_language)
+            tex_name, _ = resolve_resume_filenames(language)
             try:
                 tex_path.resolve().relative_to(_output_dir().resolve())
             except ValueError:
@@ -2192,7 +2839,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 env['PATH'] = xelatex_dir + ':' + env.get('PATH', '')
 
             result = _sp.run(
-                [xelatex_bin, '-interaction=nonstopmode', '--synctex=1', 'resume-zh_CN.tex'],
+                [xelatex_bin, '-interaction=nonstopmode', '--synctex=1', tex_name],
                 cwd=str(out_dir),
                 capture_output=True,
                 text=True,
@@ -2200,8 +2847,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 env=env,
             )
 
-            pdf_path = out_dir / 'resume-zh_CN.pdf'
-            log_path = out_dir / 'resume-zh_CN.log'
+            log_path = out_dir / f'{Path(tex_name).stem}.log'
 
             # 4. Read log tail on failure
             log_tail = ''
@@ -2240,7 +2886,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
             try:
                 fill_check = str(PROJECT_ROOT / 'tools' / 'page_fill_check.py')
                 fr_result = _sp.run(
-                    ['python3', fill_check, str(out_dir)],
+                    ['python3', fill_check, str(out_dir), xelatex_bin, tex_name],
                     capture_output=True, text=True, timeout=60, env=env,
                 )
                 m = re.search(r'填充率[：:]\s*([\d.]+)%', fr_result.stdout)
@@ -2250,7 +2896,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 pass
 
             # 7. Create version snapshot
-            version_num = _create_version_snapshot(out_dir, fill_rate, pages)
+            version_num = _create_version_snapshot(out_dir, fill_rate, pages, language=language)
 
             self._send_json({
                 'success': True,
@@ -2259,6 +2905,9 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 'errors': '',
                 'log_tail': log_tail if pages > 1 else '',
                 'version_count': _get_version_count(out_dir),
+                'pdf_name': pdf_path.name,
+                'tex_name': tex_name,
+                'language': language,
             })
 
         except _sp.TimeoutExpired:
@@ -2380,6 +3029,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
             data = json.loads(body.decode('utf-8'))
             dir_name = data.get('dir', '')
             action = data.get('action', '')  # "forward" or "inverse"
+            req_language = data.get('language')
             if not dir_name or '..' in dir_name or dir_name.startswith('/'):
                 self._send_error_json('非法路径', 403)
                 return
@@ -2390,8 +3040,8 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 self._send_error_json('非法路径', 403)
                 return
 
-            pdf_file = out_dir / 'resume-zh_CN.pdf'
-            tex_file = 'resume-zh_CN.tex'
+            _, tex_file_path, pdf_file = _resolve_resume_paths(out_dir, req_language)
+            tex_file = tex_file_path.name
 
             # Find synctex binary (same dir as xelatex)
             xelatex_bin = _find_xelatex()
@@ -2572,6 +3222,145 @@ class ResumeHandler(BaseHTTPRequestHandler):
             pub_data = _extract_pdf_metadata(file_content, filename)
             self._send_json(pub_data)
 
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _create_import_draft(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8')) if body else {}
+            company = str(data.get('company', '')).strip()
+            role = str(data.get('role', '')).strip()
+            try:
+                language = normalize_language(data.get('language'))
+            except ValueError as e:
+                self._send_error_json(str(e), 400)
+                return
+            dir_name = create_import_draft_dir(company, role, language=language)
+            self._send_json({'success': True, 'dir_name': dir_name})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _parse_import_resume(self):
+        try:
+            content_type = self.headers.get('Content-Type', '')
+            if 'multipart/form-data' not in content_type:
+                self._send_error_json('请使用 multipart/form-data 格式上传')
+                return
+
+            content_length = int(self.headers.get('Content-Length', 0))
+            environ = {
+                'REQUEST_METHOD': 'POST',
+                'CONTENT_TYPE': content_type,
+                'CONTENT_LENGTH': str(content_length),
+            }
+            form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ=environ)
+            file_item = form['file'] if 'file' in form else None
+            if isinstance(file_item, list):
+                file_item = file_item[0] if file_item else None
+            if file_item is None or not getattr(file_item, 'filename', ''):
+                self._send_error_json('未找到上传文件', 400)
+                return
+
+            filename = sanitize_filename(file_item.filename)
+            content = file_item.file.read()
+            text = extract_text_from_upload(filename, content)
+            if not text.strip():
+                self._send_error_json('文件内容为空或无法解析', 400)
+                return
+            parsed = parse_resume_text_to_structured(text)
+            self._send_json({'success': True, 'filename': filename, 'structured': parsed})
+        except ValueError as e:
+            self._send_error_json(str(e), 400)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _confirm_import_compile(self):
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            structured = data.get('structured')
+            if not isinstance(structured, dict):
+                self._send_error_json('structured 格式错误', 400)
+                return
+
+            company = str(data.get('company', '')).strip()
+            role = str(data.get('role', '')).strip()
+            dir_name = str(data.get('dir_name', '')).strip()
+            req_language_raw = data.get('language')
+            if dir_name:
+                if '..' in dir_name or '/' in dir_name or dir_name.startswith('.'):
+                    self._send_error_json('非法路径', 403)
+                    return
+                out_dir = _output_dir() / dir_name
+                try:
+                    out_dir.resolve().relative_to(_output_dir().resolve())
+                except ValueError:
+                    self._send_error_json('非法路径', 403)
+                    return
+                if not out_dir.exists():
+                    self._send_error_json('目标目录不存在', 404)
+                    return
+            else:
+                req_language = normalize_language(req_language_raw)
+                dir_name = create_import_draft_dir(company, role, language=req_language)
+                out_dir = _output_dir() / dir_name
+
+            inferred_language = infer_language_from_output_dir(out_dir)
+            if req_language_raw not in (None, ''):
+                req_language = normalize_language(req_language_raw)
+                if req_language != inferred_language:
+                    self._send_error_json('language 与草稿目录不一致，请新建对应语言草稿目录', 400)
+                    return
+                final_language = req_language
+            else:
+                final_language = inferred_language
+
+            tex_name, pdf_name = resolve_resume_filenames(final_language)
+            written_files = _persist_imported_data(structured)
+            tex_content = render_imported_resume_tex(structured, language=final_language)
+            (out_dir / tex_name).write_text(tex_content, encoding='utf-8')
+
+            context = _load_generation_context(out_dir)
+            context.update({
+                'company': company,
+                'role': role,
+                'engine': 'import',
+                'jd_text': '',
+                'interview_text': '',
+                'language': final_language,
+                'generated_at': datetime.now().isoformat(timespec='seconds'),
+                'written_experiences': written_files,
+            })
+            _save_generation_context(out_dir, context)
+
+            compile_result = _compile_resume_dir(out_dir, language=final_language)
+            if not compile_result.get('success'):
+                self._send_json({
+                    'success': False,
+                    'output_dir': dir_name,
+                    'error': compile_result.get('error', '编译失败'),
+                    'log_tail': compile_result.get('log_tail', ''),
+                })
+                return
+
+            _create_version_snapshot(
+                out_dir,
+                compile_result.get('fill_rate', 0.0),
+                compile_result.get('pages', 1),
+                language=final_language,
+            )
+            self._send_json({
+                'success': True,
+                'output_dir': dir_name,
+                'pdf_path': f'{dir_name}/{pdf_name}',
+                'language': final_language,
+                'pages': compile_result.get('pages', 1),
+                'fill_rate': compile_result.get('fill_rate', 0.0),
+                'log_tail': compile_result.get('log_tail', ''),
+            })
         except Exception as e:
             self._send_error_json(str(e), 500)
 

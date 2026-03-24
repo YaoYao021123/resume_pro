@@ -1151,6 +1151,49 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 .landing-feature .feat-title { font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .landing-feature .feat-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
 
+.import-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.import-block {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg);
+}
+.import-block-title {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.import-item-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.import-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.import-item-title {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.import-inline-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 /* ═══ AI Progress ═══ */
 .ai-progress-section {
   border: 1px solid var(--border);
@@ -2773,6 +2816,9 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <svg class="icon-svg"><use href="#i-cards"/></svg><span>简历画廊</span>
         <span class="nav-check" id="check-gallery"><svg><use href="#i-check"/></svg></span>
       </div>
+      <div class="nav-item" onclick="goTo('import')" data-nav="import">
+        <svg class="icon-svg"><use href="#i-upload"/></svg><span>导入/新建简历</span>
+      </div>
       <div class="nav-divider" data-divider="top"></div>
       <!-- Dynamic zone: generate + review will be promoted here when data ready -->
       <div id="nav-promoted" style="display:none"></div>
@@ -2833,6 +2879,9 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <p class="subtitle">上传 JD，AI 自动筛选经历、改写描述、排版输出单页 PDF。</p>
         <div class="landing-actions">
           <button class="btn-hero btn-hero-primary" onclick="goTo('basic')">开始填写资料</button>
+          <button class="btn-hero btn-hero-secondary" onclick="goTo('import')">
+            <svg class="icon-svg" style="width:16px;height:16px;margin-right:4px"><use href="#i-upload"/></svg>导入/新建简历
+          </button>
           <button class="btn-hero btn-hero-secondary" onclick="goTo('generate')">直接生成简历</button>
           <button class="btn-hero btn-hero-secondary" onclick="document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'})" style="border-color:rgba(120,140,93,0.3);color:var(--green)">
             <svg class="icon-svg" style="width:16px;height:16px;margin-right:4px;stroke:var(--green)"><use href="#i-cards"/></svg>简历画廊
@@ -2867,6 +2916,90 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
             <div class="ge-title">尚无简历</div>
             <div class="ge-desc">生成简历后，它们会以卡牌形式出现在这里</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 导入/新建简历 -->
+    <div class="page" id="page-import">
+      <div class="page-title">导入/新建简历</div>
+      <div class="page-desc">支持空白新建或上传已有简历（PDF / DOCX / MD / TXT）解析后确认编译</div>
+
+      <div class="form-section">
+        <h2><svg class="icon-svg"><use href="#i-plus"/></svg> 新建空白简历</h2>
+        <div class="import-grid-2">
+          <div class="form-row"><label>公司（可选）</label><input type="text" id="import-company" placeholder="用于目录命名，如：腾讯"></div>
+          <div class="form-row"><label>岗位（可选）</label><input type="text" id="import-role" placeholder="用于目录命名，如：产品经理"></div>
+        </div>
+        <div class="form-row" style="margin-top:8px;">
+          <label>语言</label>
+          <select id="import-language">
+            <option value="zh" selected>中文 (zh)</option>
+            <option value="en">English (en)</option>
+          </select>
+        </div>
+        <div class="btn-group" style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="createEmptyResumeDraft()">
+            <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-edit"/></svg>进入空白编辑页
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2><svg class="icon-svg"><use href="#i-upload"/></svg> 上传并解析简历</h2>
+        <div class="drop-zone" onclick="document.getElementById('import-file-input').click()" style="padding:30px 20px;">
+          <div class="dz-icon"><svg class="icon-svg" style="width:26px;height:26px"><use href="#i-upload"/></svg></div>
+          <div class="main-text">点击选择简历文件</div>
+          <div class="sub-text">支持 .pdf .docx .md .txt</div>
+          <input type="file" id="import-file-input" accept=".pdf,.docx,.md,.txt" style="display:none">
+        </div>
+        <div id="import-file-name" style="font-size:12px;color:var(--text-muted);margin-top:10px;"></div>
+        <div class="btn-group" style="margin-top:12px;">
+          <button class="btn btn-secondary" id="import-parse-btn" onclick="parseImportedResume()" disabled>解析文件</button>
+        </div>
+      </div>
+
+      <div class="form-section" id="import-result-section" style="display:none;">
+        <h2><svg class="icon-svg"><use href="#i-layout"/></svg> 解析结果（可编辑）</h2>
+        <div class="import-grid-2">
+          <div class="form-row"><label>中文姓名</label><input type="text" id="import-name-zh"></div>
+          <div class="form-row"><label>英文姓名</label><input type="text" id="import-name-en"></div>
+          <div class="form-row"><label>邮箱</label><input type="text" id="import-email"></div>
+          <div class="form-row"><label>电话</label><input type="text" id="import-phone"></div>
+        </div>
+
+        <div class="import-grid-2">
+          <div class="form-row"><label>技术技能</label><input type="text" id="import-skills-tech" placeholder="逗号分隔"></div>
+          <div class="form-row"><label>软件技能</label><input type="text" id="import-skills-software" placeholder="逗号分隔"></div>
+          <div class="form-row form-row-wide"><label>语言能力</label><input type="text" id="import-skills-languages"></div>
+        </div>
+
+        <div class="import-block">
+          <div class="import-block-title">教育经历</div>
+          <div id="import-education-list"></div>
+          <button class="btn btn-add" onclick="addImportEducation()"><svg><use href="#i-plus"/></svg>添加教育经历</button>
+        </div>
+
+        <div class="import-block">
+          <div class="import-block-title">实习/工作经历</div>
+          <div id="import-experiences-list"></div>
+          <button class="btn btn-add" onclick="addImportExperience()"><svg><use href="#i-plus"/></svg>添加经历</button>
+        </div>
+
+        <div class="import-block">
+          <div class="import-block-title">获奖信息</div>
+          <div id="import-awards-list"></div>
+          <button class="btn btn-add" onclick="addImportAward()"><svg><use href="#i-plus"/></svg>添加奖项</button>
+        </div>
+
+        <div class="form-row form-row-wide">
+          <label>待确认内容（无法自动映射）</label>
+          <textarea id="import-pending-text" rows="4" placeholder="这里会保留未映射内容，供你手动补充到上方对应栏位"></textarea>
+        </div>
+        <div class="btn-group" style="margin-top:12px;">
+          <button class="btn btn-primary" id="import-confirm-btn" onclick="confirmImportAndCompile()">
+            <svg class="icon-svg" style="width:12px;height:12px;margin-right:4px"><use href="#i-check"/></svg>确认并编译
+          </button>
         </div>
       </div>
     </div>
@@ -3069,6 +3202,13 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
             <label style="text-align:right;font-size:13px;color:var(--text-secondary);">岗位</label>
             <input type="text" id="gen-role" placeholder="如：算法工程师">
           </div>
+        </div>
+        <div class="form-row" style="grid-template-columns:60px 1fr;margin-bottom:12px;">
+          <label style="text-align:right;font-size:13px;color:var(--text-secondary);">语言</label>
+          <select id="gen-language">
+            <option value="zh" selected>中文 (zh)</option>
+            <option value="en">English (en)</option>
+          </select>
         </div>
         <div class="jd-tabs">
           <button class="jd-tab active" onclick="switchJdTab('paste', this)">粘贴文本</button>
@@ -3343,6 +3483,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 
 <script>
 let selectedFiles = [], educationCounter = 0, awardCounter = 0, currentPage = 'home', projectCounter = 0, pubCounter = 0, workCardCounter = 0;
+let importSelectedFile = null, importDraftDir = '', importedStructuredData = null;
 let personsData = { persons: [], active: null };
 let modelConfigState = { enabled: false, provider: 'gemini', model: '', base_url: '', api_key: '', platform_url: '', providers: [] };
 
@@ -3713,6 +3854,26 @@ function promoteNavIfReady(pct) {
 
 function showToast(msg, type='success') { const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type} show`; setTimeout(()=>t.classList.remove('show'),3000); }
 
+async function fetchJsonOrThrow(url, options = {}, actionLabel = '请求') {
+  const res = await fetch(url, options);
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    const looksHtml = /^\s*</.test(raw || '');
+    const hint = looksHtml ? '（返回了 HTML，可能是后端未重启或请求到了错误端口）' : '';
+    throw new Error(`${actionLabel}失败：返回非 JSON（HTTP ${res.status}）${hint}`);
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `${actionLabel}失败（HTTP ${res.status}）`);
+  }
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  return data;
+}
+
 async function loadProfile() {
   try {
     const res = await fetch('/api/profile'); const data = await res.json(); if (data.error) return;
@@ -3886,6 +4047,258 @@ function switchMjTab(tab, el) {
   section.querySelectorAll('.jd-content').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('mj-' + tab).classList.add('active');
+}
+
+function _emptyImportStructured() {
+  return {
+    basic: { name_zh: '', name_en: '', email: '', phone: '' },
+    education: [],
+    experiences: [],
+    awards: [],
+    skills: { tech: '', software: '', languages: '' },
+    pending_text: ''
+  };
+}
+
+function setupImportUpload() {
+  const fi = document.getElementById('import-file-input');
+  if (!fi) return;
+  fi.addEventListener('change', e => {
+    importSelectedFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    const nameEl = document.getElementById('import-file-name');
+    const parseBtn = document.getElementById('import-parse-btn');
+    if (importSelectedFile) {
+      nameEl.textContent = `已选择: ${importSelectedFile.name}`;
+      parseBtn.disabled = false;
+    } else {
+      nameEl.textContent = '';
+      parseBtn.disabled = true;
+    }
+  });
+}
+
+function _renderImportEducationRows(list) {
+  const container = document.getElementById('import-education-list');
+  container.innerHTML = '';
+  (list || []).forEach(item => addImportEducation(item));
+  if ((list || []).length === 0) addImportEducation();
+}
+
+function _renderImportExperienceRows(list) {
+  const container = document.getElementById('import-experiences-list');
+  container.innerHTML = '';
+  (list || []).forEach(item => addImportExperience(item));
+  if ((list || []).length === 0) addImportExperience();
+}
+
+function _renderImportAwardRows(list) {
+  const container = document.getElementById('import-awards-list');
+  container.innerHTML = '';
+  (list || []).forEach(item => addImportAward(item));
+}
+
+function addImportEducation(data = null) {
+  const d = data || {};
+  const card = document.createElement('div');
+  card.className = 'import-item-card';
+  card.innerHTML = `
+    <div class="import-item-header">
+      <div class="import-item-title">教育条目</div>
+      <button class="btn btn-danger" onclick="this.closest('.import-item-card').remove()">删除</button>
+    </div>
+    <div class="import-inline-2">
+      <div class="form-row"><label>学校</label><input type="text" data-field="school" value="${esc(d.school || '')}"></div>
+      <div class="form-row"><label>学历</label><input type="text" data-field="degree" value="${esc(d.degree || '')}"></div>
+      <div class="form-row"><label>专业</label><input type="text" data-field="major" value="${esc(d.major || '')}"></div>
+      <div class="form-row"><label>学院</label><input type="text" data-field="department" value="${esc(d.department || '')}"></div>
+      <div class="form-row"><label>开始时间</label><input type="text" data-field="time_start" value="${esc(d.time_start || '')}" placeholder="YYYY/MM"></div>
+      <div class="form-row"><label>结束时间</label><input type="text" data-field="time_end" value="${esc(d.time_end || '')}" placeholder="YYYY/MM"></div>
+    </div>
+  `;
+  document.getElementById('import-education-list').appendChild(card);
+}
+
+function addImportExperience(data = null) {
+  const d = data || {};
+  const bullets = Array.isArray(d.bullets) ? d.bullets.join('\n') : '';
+  const card = document.createElement('div');
+  card.className = 'import-item-card';
+  card.innerHTML = `
+    <div class="import-item-header">
+      <div class="import-item-title">经历条目</div>
+      <button class="btn btn-danger" onclick="this.closest('.import-item-card').remove()">删除</button>
+    </div>
+    <div class="import-inline-2">
+      <div class="form-row"><label>公司</label><input type="text" data-field="company" value="${esc(d.company || '')}"></div>
+      <div class="form-row"><label>职位</label><input type="text" data-field="role" value="${esc(d.role || '')}"></div>
+      <div class="form-row"><label>城市</label><input type="text" data-field="city" value="${esc(d.city || '')}"></div>
+      <div class="form-row"><label>部门</label><input type="text" data-field="department" value="${esc(d.department || '')}"></div>
+      <div class="form-row"><label>开始时间</label><input type="text" data-field="time_start" value="${esc(d.time_start || '')}" placeholder="YYYY/MM"></div>
+      <div class="form-row"><label>结束时间</label><input type="text" data-field="time_end" value="${esc(d.time_end || '')}" placeholder="YYYY/MM 或 至今"></div>
+    </div>
+    <div class="form-row form-row-wide"><label>标签（逗号分隔）</label><input type="text" data-field="tags" value="${esc(d.tags || '')}"></div>
+    <div class="form-row form-row-wide"><label>要点（每行一条）</label><textarea data-field="bullets" rows="4">${esc(bullets)}</textarea></div>
+    <div class="form-row form-row-wide"><label>补充说明</label><textarea data-field="notes" rows="2">${esc(d.notes || '')}</textarea></div>
+  `;
+  document.getElementById('import-experiences-list').appendChild(card);
+}
+
+function addImportAward(data = null) {
+  const d = data || {};
+  const card = document.createElement('div');
+  card.className = 'import-item-card';
+  card.innerHTML = `
+    <div class="import-item-header">
+      <div class="import-item-title">奖项条目</div>
+      <button class="btn btn-danger" onclick="this.closest('.import-item-card').remove()">删除</button>
+    </div>
+    <div class="import-inline-2">
+      <div class="form-row"><label>奖项名</label><input type="text" data-field="name" value="${esc(d.name || '')}"></div>
+      <div class="form-row"><label>颁发方</label><input type="text" data-field="issuer" value="${esc(d.issuer || '')}"></div>
+      <div class="form-row"><label>时间</label><input type="text" data-field="date" value="${esc(d.date || '')}" placeholder="YYYY/MM"></div>
+    </div>
+  `;
+  document.getElementById('import-awards-list').appendChild(card);
+}
+
+function _collectImportStructured() {
+  const basic = {
+    name_zh: val('import-name-zh'),
+    name_en: val('import-name-en'),
+    email: val('import-email'),
+    phone: val('import-phone'),
+  };
+  const skills = {
+    tech: val('import-skills-tech'),
+    software: val('import-skills-software'),
+    languages: val('import-skills-languages'),
+  };
+  const education = Array.from(document.querySelectorAll('#import-education-list .import-item-card')).map(card => {
+    const g = f => ((card.querySelector(`[data-field="${f}"]`) || {}).value || '').trim();
+    return {
+      school: g('school'),
+      degree: g('degree'),
+      major: g('major'),
+      department: g('department'),
+      time_start: g('time_start'),
+      time_end: g('time_end'),
+      gpa: '',
+      rank: '',
+      courses: '',
+    };
+  }).filter(item => item.school || item.degree || item.major);
+  const experiences = Array.from(document.querySelectorAll('#import-experiences-list .import-item-card')).map(card => {
+    const g = f => ((card.querySelector(`[data-field="${f}"]`) || {}).value || '').trim();
+    return {
+      company: g('company'),
+      city: g('city'),
+      department: g('department'),
+      role: g('role'),
+      time_start: g('time_start'),
+      time_end: g('time_end'),
+      tags: g('tags'),
+      notes: g('notes'),
+      bullets: g('bullets').split('\n').map(s => s.trim()).filter(Boolean),
+    };
+  }).filter(item => item.company || item.role);
+  const awards = Array.from(document.querySelectorAll('#import-awards-list .import-item-card')).map(card => {
+    const g = f => ((card.querySelector(`[data-field="${f}"]`) || {}).value || '').trim();
+    return { name: g('name'), issuer: g('issuer'), date: g('date') };
+  }).filter(item => item.name);
+  return {
+    basic, education, experiences, awards, skills,
+    pending_text: val('import-pending-text'),
+  };
+}
+
+function _populateImportStructured(data) {
+  const payload = data || _emptyImportStructured();
+  const basic = payload.basic || {};
+  const skills = payload.skills || {};
+  document.getElementById('import-name-zh').value = basic.name_zh || '';
+  document.getElementById('import-name-en').value = basic.name_en || '';
+  document.getElementById('import-email').value = basic.email || '';
+  document.getElementById('import-phone').value = basic.phone || '';
+  document.getElementById('import-skills-tech').value = skills.tech || '';
+  document.getElementById('import-skills-software').value = skills.software || '';
+  document.getElementById('import-skills-languages').value = skills.languages || '';
+  document.getElementById('import-pending-text').value = payload.pending_text || '';
+  _renderImportEducationRows(payload.education || []);
+  _renderImportExperienceRows(payload.experiences || []);
+  _renderImportAwardRows(payload.awards || []);
+  document.getElementById('import-result-section').style.display = '';
+}
+
+async function createEmptyResumeDraft() {
+  const company = val('import-company');
+  const role = val('import-role');
+  const language = val('import-language') || 'zh';
+  try {
+    const data = await fetchJsonOrThrow('/api/import-resume/create-empty', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company, role, language }),
+    }, '创建空白简历');
+    importDraftDir = data.dir_name || '';
+    showToast('已创建空白草稿，正在打开编辑器');
+    openEditor(importDraftDir);
+  } catch (e) {
+    showToast('创建空白草稿失败: ' + e.message, 'error');
+  }
+}
+
+async function parseImportedResume() {
+  if (!importSelectedFile) { showToast('请先选择文件', 'error'); return; }
+  const btn = document.getElementById('import-parse-btn');
+  btn.disabled = true;
+  btn.textContent = '解析中...';
+  try {
+    const fd = new FormData();
+    fd.append('file', importSelectedFile);
+    const data = await fetchJsonOrThrow('/api/import-resume/parse', { method: 'POST', body: fd }, '解析简历');
+    importedStructuredData = data.structured || _emptyImportStructured();
+    _populateImportStructured(importedStructuredData);
+    showToast('解析完成，请确认后编译');
+  } catch (e) {
+    showToast('解析失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '解析文件';
+  }
+}
+
+async function confirmImportAndCompile() {
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = '编译中...';
+  try {
+    const structured = _collectImportStructured();
+    const payload = {
+      dir_name: importDraftDir || '',
+      company: val('import-company'),
+      role: val('import-role'),
+      language: val('import-language') || 'zh',
+      structured,
+    };
+    const data = await fetchJsonOrThrow('/api/import-resume/confirm-compile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, '确认并编译');
+    if (!data.success) {
+      showToast(data.error || '编译失败', 'error');
+      if (data.log_tail) console.error(data.log_tail);
+      return;
+    }
+    importDraftDir = data.output_dir || importDraftDir;
+    showToast('导入并编译成功，已打开编辑器');
+    openEditor(importDraftDir);
+  } catch (e) {
+    showToast('确认并编译失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '确认并编译';
+  }
 }
 
 /* ═══ Gallery ═══ */
@@ -4196,6 +4609,7 @@ async function startGenerate() {
   const mjText = (document.getElementById('mj-text')?.value || '').trim();
   const genCompany = (document.getElementById('gen-company')?.value || '').trim();
   const genRole = (document.getElementById('gen-role')?.value || '').trim();
+  const genLanguage = (document.getElementById('gen-language')?.value || 'zh').trim();
   await loadModelConfig();
   const preferAi = isModelConfigReadyForGeneration(modelConfigState);
 
@@ -4235,7 +4649,7 @@ async function startGenerate() {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi }),
+      body: JSON.stringify({ jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi, language: genLanguage }),
     });
     const data = await res.json();
 
@@ -4704,6 +5118,9 @@ async function loadReviewPage() {
 
 /* ─── LaTeX Editor ─── */
 let currentEditorDir = null;
+let currentEditorLanguage = 'zh';
+let currentEditorPdfName = 'resume-zh_CN.pdf';
+let currentEditorTexName = 'resume-zh_CN.tex';
 
 function _syncEditorMetaInputs(company, role) {
   const ci = document.getElementById('editor-company-input');
@@ -4748,9 +5165,15 @@ function _initEditorMetaSave(dirName) {
 
 async function openEditor(dirName) {
   currentEditorDir = dirName;
+  currentEditorLanguage = 'zh';
+  currentEditorPdfName = 'resume-zh_CN.pdf';
+  currentEditorTexName = 'resume-zh_CN.tex';
   const res = await fetch('/api/editor/tex?dir=' + encodeURIComponent(dirName));
   const data = await res.json();
   if (data.error) { showToast(data.error, 'error'); return; }
+  currentEditorLanguage = data.language || currentEditorLanguage;
+  currentEditorTexName = data.filename || currentEditorTexName;
+  currentEditorPdfName = data.pdf_name || (currentEditorLanguage === 'en' ? 'resume-en.pdf' : 'resume-zh_CN.pdf');
 
   // Show/hide title vs meta-inputs
   document.getElementById('editor-title').style.display = 'none';
@@ -4807,7 +5230,7 @@ async function openEditor(dirName) {
   }
 
   // Load PDF preview via PDF.js (fallback to iframe) — delay for layout settle
-  const pdfUrl = '/api/gallery/pdf/' + encodeURIComponent(dirName) + '/resume-zh_CN.pdf';
+  const pdfUrl = '/api/gallery/pdf/' + encodeURIComponent(dirName) + '/' + encodeURIComponent(currentEditorPdfName);
   requestAnimationFrame(() => setTimeout(() => _loadEditorPdf(pdfUrl), 100));
 
   // Load versions
@@ -4838,13 +5261,16 @@ async function compileTeX() {
     const res = await fetch('/api/editor/compile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dir: currentEditorDir, content }),
+      body: JSON.stringify({ dir: currentEditorDir, content, language: currentEditorLanguage }),
     });
     const data = await res.json();
 
     if (data.success) {
+      if (data.language) currentEditorLanguage = data.language;
+      if (data.pdf_name) currentEditorPdfName = data.pdf_name;
+      if (data.tex_name) currentEditorTexName = data.tex_name;
       const pdfUrl = '/api/gallery/pdf/' + encodeURIComponent(currentEditorDir)
-        + '/resume-zh_CN.pdf?t=' + Date.now();
+        + '/' + encodeURIComponent(currentEditorPdfName) + '?t=' + Date.now();
       _loadEditorPdf(pdfUrl);
 
       const fillText = data.fill_rate ? ` | 填充率: ${data.fill_rate.toFixed(1)}%` : '';
@@ -4901,10 +5327,10 @@ function closeEditor() {
 
 function downloadEditorPdf() {
   if (!currentEditorDir) return;
-  const url = '/api/gallery/pdf/' + encodeURIComponent(currentEditorDir) + '/resume-zh_CN.pdf';
+  const url = '/api/gallery/pdf/' + encodeURIComponent(currentEditorDir) + '/' + encodeURIComponent(currentEditorPdfName);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'resume-zh_CN.pdf';
+  a.download = currentEditorPdfName;
   a.click();
 }
 
@@ -5125,6 +5551,7 @@ async function _onPdfClick(e, pageNum) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dir: currentEditorDir,
+        language: currentEditorLanguage,
         action: 'inverse',
         page: pageNum,
         x: texX,
@@ -5149,6 +5576,7 @@ async function synctexForward(line, col) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dir: currentEditorDir,
+        language: currentEditorLanguage,
         action: 'forward',
         line: line,
         col: col || 0,
@@ -6271,7 +6699,7 @@ async function saveTexAs(company, position) {
     const res = await fetch('/api/editor/saveas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dir: currentEditorDir, content, new_dir: newDir }),
+      body: JSON.stringify({ dir: currentEditorDir, content, new_dir: newDir, language: currentEditorLanguage }),
     });
     const data = await res.json();
     if (data.error) { showToast(data.error, 'error'); return; }
@@ -6333,14 +6761,16 @@ async function submitRegen() {
     if (data.content && window._cmSetContent) {
       window._cmSetContent(data.content);
     }
+    if (data.language) currentEditorLanguage = data.language;
+    if (data.pdf_name) currentEditorPdfName = data.pdf_name;
+    if (data.tex_name) currentEditorTexName = data.tex_name;
     // If visual mode is active, re-parse
     if (window._veCurrentMode === 'visual' && typeof _parseTexToVisual === 'function') {
       _parseTexToVisual(data.content || '');
     }
     // Reload PDF preview
-    const pdfSrc = `/output/${currentEditorDir}/resume-zh_CN.pdf?t=${Date.now()}`;
-    const iframe = document.getElementById('editor-pdf-iframe');
-    if (iframe) iframe.src = pdfSrc;
+    const pdfSrc = '/api/gallery/pdf/' + encodeURIComponent(currentEditorDir) + '/' + encodeURIComponent(currentEditorPdfName) + '?t=' + Date.now();
+    _loadEditorPdf(pdfSrc);
     // Update version badge + reload versions
     _updateVersionBadge(data.version_count || 0);
     await loadVersions();
@@ -6359,7 +6789,7 @@ async function submitRegen() {
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  loadPersons(); loadProfile(); loadGallery('home-gallery-content'); loadExtensionDraft(); setupDropZone(); setupPubUpload(); setupTagInputs(); loadModelConfig();
+  loadPersons(); loadProfile(); loadGallery('home-gallery-content'); loadExtensionDraft(); setupDropZone(); setupPubUpload(); setupTagInputs(); loadModelConfig(); setupImportUpload();
   const ci=document.getElementById('work-card-input'); if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addWorkCard();}});
 });
 </script>

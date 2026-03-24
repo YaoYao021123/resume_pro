@@ -201,7 +201,7 @@ def generate_advice(ratio: float, remaining_mm: float) -> dict:
 
 # ─── 主流程 ───────────────────────────────────────────────────
 
-def check_page_fill(output_dir: str, xelatex_path: str = None) -> dict:
+def check_page_fill(output_dir: str, xelatex_path: str = None, tex_filename: str = 'resume-zh_CN.tex') -> dict:
     """
     完整的页面填充率检查流程：
     1. 注入测量代码
@@ -211,14 +211,15 @@ def check_page_fill(output_dir: str, xelatex_path: str = None) -> dict:
     5. 重新编译（还原干净 PDF）
 
     参数:
-        output_dir: 包含 resume-zh_CN.tex 的目录
+        output_dir: 包含目标 tex 的目录
         xelatex_path: xelatex 可执行文件路径（可选）
+        tex_filename: 要检测的 tex 文件名（默认 resume-zh_CN.tex）
 
     返回: {ratio, status, message, suggestions, ...}
     """
     output_path = Path(output_dir)
-    tex_file = output_path / 'resume-zh_CN.tex'
-    aux_file = output_path / 'resume-zh_CN.aux'
+    tex_file = output_path / str(tex_filename or 'resume-zh_CN.tex')
+    aux_file = output_path / (tex_file.stem + '.aux')
 
     if not tex_file.exists():
         raise FileNotFoundError(f"找不到 .tex 文件: {tex_file}")

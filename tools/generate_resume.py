@@ -53,6 +53,7 @@ from tools.person_manager import (
 )
 from tools.migrate_to_multi_person import maybe_migrate as _maybe_migrate
 from tools.model_config import get_model_config, load_local_env
+from tools.language_utils import normalize_language, resolve_resume_filenames
 from tools import gen_log
 
 load_local_env()
@@ -102,6 +103,13 @@ def _to_year_month_range(raw: str) -> str:
             return start
         return f'{start} -- {end}'
     return _to_year_month(s)
+
+
+def _localize_date_text(text: str, language: str = 'zh') -> str:
+    """Localize normalized date text for output language."""
+    if normalize_language(language) == 'en':
+        return (text or '').replace('至今', 'Present')
+    return text or ''
 
 
 # ─── JD 关键词提取 ────────────────────────────────────────────
@@ -334,7 +342,7 @@ def _redact_text_with_ai_config(text: str, ai_config: dict) -> str:
 def _write_generation_context(output_dir: Path, *, jd_text: str, interview_text: str,
                               company: str, role: str, engine: str,
                               ai_provider: str | None, ai_model: str | None,
-                              fill_ratio: float) -> None:
+                              fill_ratio: float, language: str = 'zh') -> None:
     payload = {
         'company': company,
         'role': role,
@@ -344,6 +352,7 @@ def _write_generation_context(output_dir: Path, *, jd_text: str, interview_text:
         'ai_provider': ai_provider,
         'ai_model': ai_model,
         'fill_ratio': fill_ratio,
+        'language': normalize_language(language),
         'generated_at': datetime.now().isoformat(timespec='seconds'),
     }
     (output_dir / 'generation_context.json').write_text(
@@ -1527,9 +1536,11 @@ def match_experiences(experiences: list, jd_keywords: dict, max_count: int = 5) 
 
 # ─── LaTeX 生成 ───────────────────────────────────────────────
 
-def _gen_education_section(profile: dict, jd_keywords: dict) -> str:
+def _gen_education_section(profile: dict, jd_keywords: dict, language: str = 'zh') -> str:
     """生成教育背景 section"""
-    lines = [r'\section{教育背景}']
+    language = normalize_language(language)
+    section_title = 'Education' if language == 'en' else '教育背景'
+    lines = [rf'\section{{{section_title}}}']
     jd_kw_set = set(k.lower() for cat in ['tech', 'domain'] for k in jd_keywords.get(cat, []))
 
     for edu in profile.get('education', []):
@@ -1537,7 +1548,7 @@ def _gen_education_section(profile: dict, jd_keywords: dict) -> str:
             continue
         school = tex_escape(edu['school'])
         degree = tex_escape(edu.get('degree', ''))
-        time = tex_escape(_to_year_month_range(edu.get('time', '')))
+        time = tex_escape(_localize_date_text(_to_year_month_range(edu.get('time', '')), language))
         major = tex_escape(edu.get('major', ''))
         dept = tex_escape(edu.get('department', ''))
         gpa = tex_escape(edu.get('gpa', ''))
@@ -1553,9 +1564,12 @@ def _gen_education_section(profile: dict, jd_keywords: dict) -> str:
             info_parts.append(dept)
         info_line = r'\textit{' + r' \quad '.join(info_parts) + '}'
         if gpa:
-            info_line += rf' \quad \textbf{{GPA：}} {gpa}'
+            info_line += rf' \quad \textbf{{GPA:}} {gpa}'
             if rank:
-                info_line += f'，排名{rank}'
+                if language == 'en':
+                    info_line += f', Rank: {rank}'
+                else:
+                    info_line += f'，排名{rank}'
         info_line += r' \\'
         lines.append(info_line)
 
@@ -1570,18 +1584,22 @@ def _gen_education_section(profile: dict, jd_keywords: dict) -> str:
                     formatted.append(rf'\textbf{{{c_esc}}}')
                 else:
                     formatted.append(c_esc)
-            lines.append(r'\textbf{主修课程：} ' + '；'.join(formatted))
+            if language == 'en':
+                lines.append(r'\textbf{Relevant Coursework:} ' + '; '.join(formatted))
+            else:
+                lines.append(r'\textbf{主修课程：} ' + '；'.join(formatted))
 
         lines.append('')
 
     return '\n'.join(lines)
 
 
-def _gen_experience_section(experiences: list, section_title: str = '实习经历') -> str:
+def _gen_experience_section(experiences: list, section_title: str = '实习经历', language: str = 'zh') -> str:
     """生成经历 section（实习 or 研究）"""
     if not experiences:
         return ''
 
+    language = normalize_language(language)
     lines = [rf'\section{{{section_title}}}']
 
     for exp in experiences:
@@ -1589,8 +1607,8 @@ def _gen_experience_section(experiences: list, section_title: str = '实习经�
         city = tex_escape(exp.get('city', ''))
         role = tex_escape(exp.get('role', ''))
         dept = tex_escape(exp.get('department', ''))
-        ts = _to_year_month(exp.get('time_start', ''))
-        te = _to_year_month(exp.get('time_end', ''))
+        ts = _localize_date_text(_to_year_month(exp.get('time_start', '')), language)
+        te = _localize_date_text(_to_year_month(exp.get('time_end', '')), language)
         date_range = f'{ts} -- {te}' if ts and te else (ts or te)
         lines.append(rf'\datedsubsection{{\textbf{{{company}}} \quad \normalsize {city}}}{{{tex_escape(date_range)}}}')
         lines.append(rf'\role{{{role}}}{{{dept}}}')
@@ -1620,16 +1638,18 @@ def _gen_experience_section(experiences: list, section_title: str = '实习经�
     return '\n'.join(lines)
 
 
-def _gen_project_section(projects: list) -> str:
+def _gen_project_section(projects: list, language: str = 'zh') -> str:
     """生成项目经历 section"""
     if not projects:
         return ''
 
-    lines = [r'\section{项目经历}']
+    language = normalize_language(language)
+    section_title = 'Projects' if language == 'en' else '项目经历'
+    lines = [rf'\section{{{section_title}}}']
     for proj in projects:
         name = tex_escape(proj.get('name', ''))
         role = tex_escape(proj.get('role', ''))
-        time = tex_escape(_to_year_month_range(proj.get('time', '')))
+        time = tex_escape(_localize_date_text(_to_year_month_range(proj.get('time', '')), language))
         desc = tex_escape(proj.get('desc', ''))
         tags = tex_escape(proj.get('tags', ''))
 
@@ -1652,13 +1672,15 @@ def _gen_project_section(projects: list) -> str:
     return '\n'.join(lines)
 
 
-def _gen_publications_section(profile: dict) -> str:
+def _gen_publications_section(profile: dict, language: str = 'zh') -> str:
     """生成论文发表 section"""
     pubs = profile.get('publications', [])
     if not pubs:
         return ''
 
-    lines = [r'\section{论文发表}', r'\vspace{2pt}']
+    language = normalize_language(language)
+    section_title = 'Publications' if language == 'en' else '论文发表'
+    lines = [rf'\section{{{section_title}}}', r'\vspace{2pt}']
     for pub in pubs:
         title = tex_escape(pub.get('title', ''))
         authors = tex_escape(pub.get('authors', ''))
@@ -1673,16 +1695,18 @@ def _gen_publications_section(profile: dict) -> str:
     return '\n'.join(lines)
 
 
-def _gen_awards_section(awards: list) -> str:
+def _gen_awards_section(awards: list, language: str = 'zh') -> str:
     """生成获奖情况 section"""
     awards = [a for a in awards if a.get('name')]
     if not awards:
         return ''
 
-    lines = [r'\section{获奖情况}', r'\vspace{1pt}']
+    language = normalize_language(language)
+    section_title = 'Honors and Awards' if language == 'en' else '获奖情况'
+    lines = [rf'\section{{{section_title}}}', r'\vspace{1pt}']
     for a in awards:
         name = tex_escape(a['name'])
-        time = tex_escape(_to_year_month(a.get('time', '--')))
+        time = tex_escape(_localize_date_text(_to_year_month(a.get('time', '--')), language))
         if not time:
             time = '--'
         lines.append(rf'\datedline{{\textit{{{name}}}}}{{{time}}}')
@@ -1692,7 +1716,7 @@ def _gen_awards_section(awards: list) -> str:
     return '\n'.join(lines)
 
 
-def _gen_skills_section(profile: dict, jd_keywords: dict) -> str:
+def _gen_skills_section(profile: dict, jd_keywords: dict, language: str = 'zh') -> str:
     """生成技能 section"""
     tech = profile.get('skills_tech', '')
     software = profile.get('skills_software', '')
@@ -1701,17 +1725,30 @@ def _gen_skills_section(profile: dict, jd_keywords: dict) -> str:
     if not tech and not software and not lang:
         return ''
 
-    lines = [r'\section{技能}', r'\begin{itemize}[parsep=0.5ex]']
+    language = normalize_language(language)
+    section_title = 'Skills' if language == 'en' else '技能'
+    lines = [rf'\section{{{section_title}}}', r'\begin{itemize}[parsep=0.5ex]']
 
-    if tech:
-        lines.append(rf'    \item \textbf{{编程语言：}} {tex_escape(tech)}')
-    if software:
-        sw_line = rf'    \item \textbf{{工具：}} {tex_escape(software)}'
-        if lang:
-            sw_line += rf' \quad \textbf{{语言：}} {tex_escape(lang)}'
-        lines.append(sw_line)
-    elif lang:
-        lines.append(rf'    \item \textbf{{语言：}} {tex_escape(lang)}')
+    if language == 'en':
+        if tech:
+            lines.append(rf'    \item \textbf{{Programming \& Technical:}} {tex_escape(tech)}')
+        if software:
+            sw_line = rf'    \item \textbf{{Tools:}} {tex_escape(software)}'
+            if lang:
+                sw_line += rf' \quad \textbf{{Languages:}} {tex_escape(lang)}'
+            lines.append(sw_line)
+        elif lang:
+            lines.append(rf'    \item \textbf{{Languages:}} {tex_escape(lang)}')
+    else:
+        if tech:
+            lines.append(rf'    \item \textbf{{编程语言：}} {tex_escape(tech)}')
+        if software:
+            sw_line = rf'    \item \textbf{{工具：}} {tex_escape(software)}'
+            if lang:
+                sw_line += rf' \quad \textbf{{语言：}} {tex_escape(lang)}'
+            lines.append(sw_line)
+        elif lang:
+            lines.append(rf'    \item \textbf{{语言：}} {tex_escape(lang)}')
 
     lines.append(r'\end{itemize}')
     lines.append('')
@@ -1720,11 +1757,19 @@ def _gen_skills_section(profile: dict, jd_keywords: dict) -> str:
 
 def generate_latex(profile: dict, experiences: list, jd_keywords: dict,
                    selected_projects: list | None = None,
-                   selected_awards: list | None = None) -> str:
+                   selected_awards: list | None = None,
+                   language: str = 'zh') -> str:
     """组装完整 .tex 文件"""
+    language = normalize_language(language)
 
     # Header
-    name = f"{tex_escape(profile.get('name_zh', ''))} {tex_escape(profile.get('name_en', ''))}"
+    if language == 'en':
+        name_value = profile.get('name_en', '') or profile.get('name_zh', '')
+    else:
+        zh = profile.get('name_zh', '')
+        en = profile.get('name_en', '')
+        name_value = f'{zh} {en}'.strip() if (zh or en) else ''
+    name = tex_escape(name_value)
     email = profile.get('email', '')
     phone = profile.get('phone', '')
     github = profile.get('github', '')
@@ -1735,7 +1780,6 @@ def generate_latex(profile: dict, experiences: list, jd_keywords: dict,
         r'% !TEX encoding = UTF-8 Unicode',
         r'',
         r'\documentclass{resume}',
-        r'\usepackage{zh_CN-Adobefonts_external}',
         r'\usepackage{linespacing_fix}',
         r'\usepackage{cite}',
         r'',
@@ -1747,6 +1791,8 @@ def generate_latex(profile: dict, experiences: list, jd_keywords: dict,
         rf'\name{{{name}}}',
         r'',
     ]
+    if language == 'zh':
+        header_lines.insert(4, r'\usepackage{zh_CN-Adobefonts_external}')
 
     # Basic info line
     info_parts = []
@@ -1771,28 +1817,36 @@ def generate_latex(profile: dict, experiences: list, jd_keywords: dict,
     sections = []
 
     # 教育背景
-    sections.append(_gen_education_section(profile, jd_keywords))
+    sections.append(_gen_education_section(profile, jd_keywords, language=language))
 
     # 经历（分 研究 vs 实习）
     research_exp = [e for e in experiences if _classify_experience(e) == 'research']
     intern_exp = [e for e in experiences if e not in research_exp]
 
     if research_exp:
-        sections.append(_gen_experience_section(research_exp, '研究经历'))
+        research_title = 'Research Experience' if language == 'en' else '研究经历'
+        sections.append(_gen_experience_section(research_exp, research_title, language=language))
     if intern_exp:
-        sections.append(_gen_experience_section(intern_exp, '实习经历'))
+        exp_title = 'Experience' if language == 'en' else '实习经历'
+        sections.append(_gen_experience_section(intern_exp, exp_title, language=language))
 
     # 项目
-    sections.append(_gen_project_section(selected_projects if selected_projects is not None else profile.get('projects', [])[:2]))
+    sections.append(_gen_project_section(
+        selected_projects if selected_projects is not None else profile.get('projects', [])[:2],
+        language=language,
+    ))
 
     # 论文
-    sections.append(_gen_publications_section(profile))
+    sections.append(_gen_publications_section(profile, language=language))
 
     # 获奖
-    sections.append(_gen_awards_section(selected_awards if selected_awards is not None else profile.get('awards', [])[:3]))
+    sections.append(_gen_awards_section(
+        selected_awards if selected_awards is not None else profile.get('awards', [])[:3],
+        language=language,
+    ))
 
     # 技能
-    sections.append(_gen_skills_section(profile, jd_keywords))
+    sections.append(_gen_skills_section(profile, jd_keywords, language=language))
 
     # Footer
     footer = [
@@ -1827,7 +1881,7 @@ def _tune_overflow(tex_path: Path, cls_path: Path, fill_data: dict, log_lines: l
         if applied:
             actions.append(applied)
             # 重新编译检查
-            result = _compile_and_check(tex_path.parent)
+            result = _compile_and_check(tex_path.parent, tex_filename=tex_path.name)
             if result and result.get('ratio', 999) <= 1.0:
                 actions.append(f"✅ 填充率调整至 {result['ratio']*100:.1f}%")
                 return actions
@@ -1895,7 +1949,7 @@ def _tune_underfill(tex_path: Path, cls_path: Path, fill_data: dict, log_lines: 
         actions.append(desc)
 
         # 编译检查
-        result = _compile_and_check(tex_path.parent)
+        result = _compile_and_check(tex_path.parent, tex_filename=tex_path.name)
         if not result:
             continue
 
@@ -2021,12 +2075,26 @@ def _comment_out_section(tex_path: Path, section_name: str, label: str) -> str:
 
 def _tune_remove_research(tex_path: Path, cls_path: Path) -> str:
     """注释掉研究经历 section"""
-    return _comment_out_section(tex_path, '研究经历', '删除研究经历 section')
+    for section_name, label in (
+        ('研究经历', '删除研究经历 section'),
+        ('Research Experience', '删除 Research Experience section'),
+    ):
+        applied = _comment_out_section(tex_path, section_name, label)
+        if applied:
+            return applied
+    return ''
 
 
 def _tune_remove_project(tex_path: Path, cls_path: Path) -> str:
     """注释掉项目经历 section"""
-    return _comment_out_section(tex_path, '项目经历', '删除项目经历 section')
+    for section_name, label in (
+        ('项目经历', '删除项目经历 section'),
+        ('Projects', '删除 Projects section'),
+    ):
+        applied = _comment_out_section(tex_path, section_name, label)
+        if applied:
+            return applied
+    return ''
 
 
 def _tune_reduce_bullets(tex_path: Path, cls_path: Path) -> str:
@@ -2088,10 +2156,10 @@ def _tune_reduce_section_spacing(tex_path: Path, cls_path: Path) -> str:
     return ''
 
 
-def _compile_and_check(output_dir: Path) -> dict:
+def _compile_and_check(output_dir: Path, *, tex_filename: str = 'resume-zh_CN.tex') -> dict:
     """编译并检查填充率，返回 fill_data 或 None"""
     xelatex = find_xelatex()
-    tex_file = output_dir / 'resume-zh_CN.tex'
+    tex_file = output_dir / tex_filename
 
     result = subprocess.run(
         [xelatex, '-interaction=nonstopmode', tex_file.name],
@@ -2113,7 +2181,7 @@ def _compile_and_check(output_dir: Path) -> dict:
             timeout=120,
         )
 
-        aux_file = output_dir / 'resume-zh_CN.aux'
+        aux_file = output_dir / f'{tex_file.stem}.aux'
         fill_data = parse_fill_ratio(aux_file)
 
         if injected:
@@ -2148,12 +2216,12 @@ def find_xelatex() -> str:
     return 'xelatex'
 
 
-def compile_latex(output_dir: Path, xelatex: str = None) -> dict:
+def compile_latex(output_dir: Path, xelatex: str = None, *, tex_filename: str = 'resume-zh_CN.tex') -> dict:
     """编译 LaTeX，返回 {success, pdf_path, log}"""
     if not xelatex:
         xelatex = find_xelatex()
 
-    tex_file = output_dir / 'resume-zh_CN.tex'
+    tex_file = output_dir / tex_filename
 
     result = subprocess.run(
         [xelatex, '-interaction=nonstopmode', tex_file.name],
@@ -2163,7 +2231,7 @@ def compile_latex(output_dir: Path, xelatex: str = None) -> dict:
         timeout=120,
     )
 
-    pdf_file = output_dir / 'resume-zh_CN.pdf'
+    pdf_file = output_dir / f'{tex_file.stem}.pdf'
     success = pdf_file.exists() and pdf_file.stat().st_size > 0
 
     return {
@@ -2181,6 +2249,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
                     person_id: str | None = None,
                     prefer_ai: bool = False,
                     feedback: str = '',
+                    language: str = 'zh',
                     ai_config_override: dict | None = None) -> dict:
     """
     完整的简历生成流程。
@@ -2210,6 +2279,8 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
     # 解析 person_id：如果未指定，尝试获取活跃人员
     if person_id is None and is_multi_person_mode():
         person_id = get_active_person_id()
+    language = normalize_language(language)
+    tex_filename, pdf_filename = resolve_resume_filenames(language)
     log_lines = []
     engine = 'heuristic'
     ai_provider = None
@@ -2341,6 +2412,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         jd_keywords,
         selected_projects=selected_projects,
         selected_awards=selected_awards,
+        language=language,
     )
     log_lines.append(f'- LaTeX 行数: {len(tex_content.splitlines())}')
 
@@ -2371,14 +2443,14 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
             shutil.copy2(item, dest)
 
     # 写入 tex
-    tex_path = output_dir / 'resume-zh_CN.tex'
+    tex_path = output_dir / tex_filename
     tex_path.write_text(tex_content, encoding='utf-8')
     log_lines.append(f'- 输出目录: {dir_name}')
 
     # Step 6: 编译
     log_lines.append('\n## 步骤 5: 编译 PDF')
     gen_log.emit('step', '步骤 5: 编译 PDF')
-    compile_result = compile_latex(output_dir)
+    compile_result = compile_latex(output_dir, tex_filename=tex_filename)
 
     if not compile_result['success']:
         log_lines.append('- 编译失败')
@@ -2403,7 +2475,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
     fill_result = {}
     try:
         from tools.page_fill_check import check_page_fill
-        fill_result = check_page_fill(str(output_dir))
+        fill_result = check_page_fill(str(output_dir), tex_filename=tex_filename)
         fill_ratio = fill_result.get('ratio', 0)
         page_count = fill_result.get('page_count', 1)
         log_lines.append(f'- 填充率: {fill_ratio * 100:.1f}%')
@@ -2416,7 +2488,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         fill_ratio = -1
 
     # Step 8: 自动调优（溢出或偏空时）
-    tex_path = output_dir / 'resume-zh_CN.tex'
+    tex_path = output_dir / tex_filename
     cls_path = output_dir / 'resume.cls'
     tuning_applied = False
 
@@ -2428,10 +2500,10 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         if actions:
             tuning_applied = True
             # 溢出调优后重新编译 + 检查
-            compile_result2 = compile_latex(output_dir)
+            compile_result2 = compile_latex(output_dir, tex_filename=tex_filename)
             if compile_result2['success']:
                 try:
-                    fill_result = check_page_fill(str(output_dir))
+                    fill_result = check_page_fill(str(output_dir), tex_filename=tex_filename)
                     fill_ratio = fill_result.get('ratio', fill_ratio)
                     log_lines.append(f'- 溢出调优后填充率: {fill_ratio * 100:.1f}%')
                 except Exception:
@@ -2449,10 +2521,10 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
 
     # 调优后重新编译 + 检查
     if tuning_applied:
-        compile_result2 = compile_latex(output_dir)
+        compile_result2 = compile_latex(output_dir, tex_filename=tex_filename)
         if compile_result2['success']:
             try:
-                fill_result2 = check_page_fill(str(output_dir))
+                fill_result2 = check_page_fill(str(output_dir), tex_filename=tex_filename)
                 fill_ratio = fill_result2.get('ratio', fill_ratio)
                 log_lines.append(f'- 最终填充率: {fill_ratio * 100:.1f}%')
                 log_lines.append(f'- 最终页数: {fill_result2.get("page_count", 1)}')
@@ -2473,9 +2545,10 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         ai_provider=ai_provider,
         ai_model=ai_model,
         fill_ratio=fill_ratio,
+        language=language,
     )
 
-    pdf_rel = f'{dir_name}/resume-zh_CN.pdf'
+    pdf_rel = f'{dir_name}/{pdf_filename}'
 
     gen_log.emit('done', f'✅ 生成完成  填充率: {fill_ratio*100:.1f}%  输出: {dir_name}')
 
@@ -2483,6 +2556,8 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         'success': True,
         'output_dir': dir_name,
         'pdf_path': pdf_rel,
+        'language': language,
+        'tex_filename': tex_filename,
         'company': company,
         'role': role_,
         'fill_ratio': fill_ratio,
@@ -2501,6 +2576,7 @@ if __name__ == '__main__':
 
     # 简单的 CLI 参数解析
     person_id = None
+    language = 'zh'
     args = sys.argv[1:]
     filtered_args = []
     i = 0
@@ -2508,15 +2584,22 @@ if __name__ == '__main__':
         if args[i] in ('--person', '-p') and i + 1 < len(args):
             person_id = args[i + 1]
             i += 2
+        elif args[i] in ('--language', '-l') and i + 1 < len(args):
+            language = args[i + 1]
+            i += 2
         else:
             filtered_args.append(args[i])
             i += 1
 
     if not filtered_args:
-        print("用法: python3 tools/generate_resume.py [--person ID] '你的JD文本'")
+        print("用法: python3 tools/generate_resume.py [--person ID] [--language zh|en] '你的JD文本'")
         sys.exit(1)
 
     jd = filtered_args[0]
-    result = generate_resume(jd, person_id=person_id)
+    try:
+        result = generate_resume(jd, person_id=person_id, language=language)
+    except ValueError as exc:
+        print(str(exc))
+        sys.exit(2)
     import json
     print(json.dumps(result, ensure_ascii=False, indent=2))

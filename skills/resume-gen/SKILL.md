@@ -121,7 +121,7 @@ ln -sf "$TEMPLATE_DIR/fonts" "$OUTPUT_DIR/fonts"
 
 ### 3.2 写入 .tex
 
-修改 `$OUTPUT_DIR/resume-zh_CN.tex`，各 section 内容来源：
+修改 `$OUTPUT_DIR/resume-zh_CN.tex` 或 `$OUTPUT_DIR/resume-en.tex`（按 language=zh|en），各 section 内容来源：
 
 | Section | 来源 | 注意 |
 |---------|------|------|
@@ -155,10 +155,14 @@ ln -sf "$TEMPLATE_DIR/fonts" "$OUTPUT_DIR/fonts"
 ```bash
 export PATH="$HOME/Library/TinyTeX/bin/universal-darwin:$PATH"
 cd "$OUTPUT_DIR"
-xelatex -interaction=nonstopmode resume-zh_CN.tex > /tmp/xelatex_out.txt 2>&1
+xelatex -interaction=nonstopmode resume-zh_CN.tex > /tmp/xelatex_out.txt 2>&1   # zh
+# 或
+xelatex -interaction=nonstopmode resume-en.tex > /tmp/xelatex_out.txt 2>&1      # en
 echo "Exit: $?"
 sleep 2
 mdls -name kMDItemNumberOfPages resume-zh_CN.pdf
+# 或
+mdls -name kMDItemNumberOfPages resume-en.pdf
 ```
 
 - 编译失败 → 检查 `.log`，常见：`&`→`\&`，`%`→`\%`，`_`→`\_`
@@ -216,7 +220,7 @@ python3 tools/page_fill_check.py "$OUTPUT_DIR"
 ```
 ✅ 简历已生成
 - 岗位：{公司} · {岗位名}
-- 路径：output/{...}/resume-zh_CN.pdf
+- 路径：output/{...}/resume-zh_CN.pdf 或 output/{...}/resume-en.pdf
 - 页数：1 页 | 填充率：XX%
 
 📋 选入经历：

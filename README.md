@@ -234,7 +234,8 @@ result = generate_resume(
     interview_text="",           # 可选：面经内容
     company="公司名",            # 可选：覆盖自动提取
     role="岗位名",               # 可选：覆盖自动提取
-    person_id="default"          # 可选：指定人员（默认活跃人员）
+    person_id="default",         # 可选：指定人员（默认活跃人员）
+    language="zh",               # 可选：'zh' 或 'en'，默认 'zh'
 )
 print(result)  # {'pdf_path': 'output/default/...', 'log_path': '...', ...}
 ```
@@ -294,14 +295,15 @@ resume_generator_pro/
 │   └── tests/                 # 后端测试
 │
 ├── latex_src/resume/          ← LaTeX 模板
-│   ├── resume-zh_CN.tex       # 主文件（中文简历）
+│   ├── resume-zh_CN.tex       # 中文模板
+│   ├── resume-en.tex          # 英文模板
 │   ├── resume.cls             # 文档类（排版参数）
 │   └── fonts/                 # 字体文件
 │
 ├── output/                    ← 生成结果自动存放（按人员隔离）
 │   └── {person_id}/{公司}_{岗位}_{日期}/
-│       ├── resume-zh_CN.tex
-│       ├── resume-zh_CN.pdf
+│       ├── resume-zh_CN.tex / resume-en.tex
+│       ├── resume-zh_CN.pdf / resume-en.pdf
 │       └── generation_log.md
 │
 └── docs/                      ← 文档
@@ -388,7 +390,7 @@ topsep=0.1em, itemsep=0.1em
 <details>
 <summary><strong>Q: 编译报错怎么办？</strong></summary>
 
-检查 `output/{目录}/resume-zh_CN.log` 中的错误信息。常见原因：
+检查 `output/{目录}/resume-zh_CN.log` 或 `resume-en.log` 中的错误信息。常见原因：
 - 特殊字符未转义：`&` → `\&`，`%` → `\%`，`_` → `\_`
 - 使用了 `pdflatex` 而非 `xelatex`（中文需要 XeLaTeX）
 - TinyTeX 缺少宏包：运行 `tlmgr install <package-name>`
@@ -421,8 +423,48 @@ topsep=0.1em, itemsep=0.1em
 <details>
 <summary><strong>Q: 如何修改简历模板样式？</strong></summary>
 
-编辑 `latex_src/resume/resume.cls`（文档类）和 `latex_src/resume/resume-zh_CN.tex`（主文件）。修改后重新生成简历即可生效。
+编辑 `latex_src/resume/resume.cls`（文档类）以及 `resume-zh_CN.tex` / `resume-en.tex`（模板）。修改后重新生成简历即可生效。
 </details>
+
+---
+
+## 部署指南（Vercel）
+
+推荐采用 **Vercel（前端 + 轻 API）+ 独立 XeLaTeX 后端容器** 的混合部署：
+
+1. **Vercel 侧部署**
+
+将仓库连接到 Vercel，`Build Command` 设为空，`Output Directory` 设为 `web`（或按你的静态托管方式调整）。
+
+2. **后端容器部署（必须有 xelatex）**
+
+在 Railway/Render/Fly.io/自建 VM 部署 Python 服务，确保可执行：
+
+```bash
+python3 web/server.py --port 8765
+xelatex --version
+```
+
+3. **数据持久化**
+
+把 `data/` 与 `output/` 挂到持久卷；不要依赖 Vercel 无状态文件系统保存用户内容。
+
+4. **环境变量**
+
+按需配置模型参数（如 `RESUME_USE_AI=1`, `RESUME_MODEL_PROVIDER`, `RESUME_MODEL_NAME`, `RESUME_API_BASE_URL`, `RESUME_API_KEY`）。
+
+5. **前端指向后端**
+
+让前端请求你的后端域名（例如通过反向代理或统一 API 基址），并在后端开启 CORS（项目已支持）。
+
+6. **上线前自检**
+
+```bash
+python3 -m py_compile tools/*.py web/server.py
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+并实际验证 `zh/en` 两种语言均能：导入解析 -> 编译 -> 下载 PDF。
 
 ---
 
