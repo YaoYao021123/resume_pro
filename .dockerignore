@@ -1,0 +1,28 @@
+.git
+.github
+.claude
+.trash
+.playwright-mcp
+.env.*
+!.env.production.example
+
+output/
+tests/
+extension/
+docs/
+node_modules/
+__pycache__/
+*.pyc
+
+# Data: mount at runtime, don't bake into image
+data/persons.json
+data/*/
+!data/_shared/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Deploy artifacts
+nginx/ssl/
+backups/

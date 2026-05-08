@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Chrome 扩展后端 — SQLite 数据库管理
 
-管理三张表：
+管理四张表：
 - fill_history: 填充历史
 - corrections: 用户修正记录
 - field_mappings: 字段映射学习
+- applications: 投递记录
 """
 
 import sqlite3
@@ -57,6 +58,22 @@ def init_db():
             use_count INTEGER DEFAULT 0,
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(platform, field_selector)
+        );
+
+        CREATE TABLE IF NOT EXISTS applications (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            company         TEXT DEFAULT '',
+            role            TEXT DEFAULT '',
+            status          TEXT DEFAULT '投递',
+            url             TEXT DEFAULT '',
+            platform        TEXT DEFAULT '',
+            resume_dir      TEXT DEFAULT '',
+            applied_date    TEXT DEFAULT (date('now')),
+            notes           TEXT DEFAULT '',
+            fill_id         INTEGER,
+            feishu_record_id TEXT DEFAULT '',
+            created_at      TEXT DEFAULT (datetime('now')),
+            updated_at      TEXT DEFAULT (datetime('now'))
         );
     ''')
     conn.commit()
@@ -182,6 +199,73 @@ def get_fill_history(limit: int = 20) -> list:
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+# ─── 投递记录 CRUD ─────────────────────────────────────
+
+def create_application(company: str = '', role: str = '', url: str = '',
+                       platform: str = '', resume_dir: str = '',
+                       status: str = '投递', notes: str = '',
+                       fill_id: int = None) -> int:
+    """创建投递记录，返回 id"""
+    conn = _get_conn()
+    cur = conn.execute(
+        '''INSERT INTO applications
+           (company, role, status, url, platform, resume_dir, notes, fill_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        (company, role, status, url, platform, resume_dir, notes, fill_id)
+    )
+    app_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return app_id
+
+
+def get_applications(limit: int = 200, status: str = None) -> list:
+    """获取投递记录列表"""
+    conn = _get_conn()
+    if status:
+        rows = conn.execute(
+            'SELECT * FROM applications WHERE status = ? ORDER BY applied_date DESC, id DESC LIMIT ?',
+            (status, limit)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            'SELECT * FROM applications ORDER BY applied_date DESC, id DESC LIMIT ?',
+            (limit,)
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def update_application(app_id: int, **fields) -> bool:
+    """更新投递记录的指定字段，返回是否成功"""
+    allowed = {'company', 'role', 'status', 'url', 'applied_date',
+               'notes', 'resume_dir', 'platform', 'feishu_record_id'}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return False
+    updates['updated_at'] = datetime.now().isoformat()
+    set_clause = ', '.join(f'{k} = ?' for k in updates)
+    values = list(updates.values()) + [app_id]
+    conn = _get_conn()
+    cur = conn.execute(
+        f'UPDATE applications SET {set_clause} WHERE id = ?', values
+    )
+    affected = cur.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
+
+
+def delete_application(app_id: int) -> bool:
+    """删除投递记录，返回是否成功"""
+    conn = _get_conn()
+    cur = conn.execute('DELETE FROM applications WHERE id = ?', (app_id,))
+    affected = cur.rowcount
+    conn.commit()
+    conn.close()
+    return affected > 0
 
 
 # 模块加载时自动初始化

@@ -4,15 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resume Quick Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
   <div class="header">
     <div>
       <h1>Resume Quick Panel</h1>
-      <div class="subtitle">快速填写，不切屏</div>
     </div>
-    <button id="refreshBtn" class="btn btn-sm">刷新</button>
+    <div class="header-actions">
+      <button id="floatBtn" class="btn btn-sm" title="浮窗模式">浮窗</button>
+      <button id="refreshBtn" class="btn btn-sm" title="刷新简历列表">刷新</button>
+    </div>
+  </div>
+
+  <!-- Float controls (visible in floating window mode) -->
+  <div id="floatControls" class="float-controls hidden">
+    <label class="float-label">透明度</label>
+    <input id="opacitySlider" type="range" min="30" max="100" value="100" class="opacity-slider">
+    <span id="opacityVal" class="float-label">100%</span>
   </div>
 
   <div class="server-row">
@@ -21,36 +35,14 @@
   </div>
   <div class="status" id="statusText">准备中...</div>
 
-  <div id="mainPanels">
-    <div class="card">
-      <div class="card-title">1) JD + 面经上传（传回主程序）</div>
-      <label>JD 文本</label>
-      <textarea id="jdText" class="input textarea" placeholder="粘贴 JD 文本..."></textarea>
-      <label>面经文本</label>
-      <textarea id="interviewText" class="input textarea" placeholder="粘贴面经文本（可选）..."></textarea>
-      <div class="file-row">
-        <input type="file" id="jdFile" accept=".txt,.md" />
-        <input type="file" id="interviewFile" accept=".txt,.md" />
-      </div>
-      <div class="btn-row">
-        <button id="saveDraftBtn" class="btn btn-primary">传回主程序</button>
-        <button id="openMainBtn" class="btn">打开主程序</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">2) 历史简历选择打开</div>
-      <div id="historyList" class="history-list"></div>
-    </div>
+  <!-- Version selector -->
+  <div class="version-selector">
+    <select id="versionSelect" class="version-select">
+      <option value="">选择简历版本...</option>
+    </select>
   </div>
 
   <div id="editorView" class="hidden">
-    <div class="editor-toolbar">
-      <button id="backBtn" class="btn btn-sm">返回</button>
-      <div id="editorTitle" class="editor-title"></div>
-      <button id="copyAllBtn" class="btn btn-sm">复制全部</button>
-    </div>
-
     <div class="card">
       <div class="card-title">基础信息（快速填写）</div>
       <div class="grid-3">
@@ -72,7 +64,10 @@
     </div>
 
     <div class="card">
-      <div class="card-title">简历内容（类似 Visual）</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin-bottom:0">简历内容（点击复制）</div>
+        <button id="copyAllBtn" class="btn btn-sm">复制全部</button>
+      </div>
       <div id="resumeSections"></div>
     </div>
   </div>

@@ -7,16 +7,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/tabulator-tables@6.3/dist/css/tabulator.min.css" rel="stylesheet">
+<script src="https://unpkg.com/tabulator-tables@6.3/dist/js/tabulator.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #faf9f5;
-  --bg-warm: #f5f3ee;
+  --bg: #fff;
+  --bg-warm: #f7f7f7;
   --surface: #fff;
-  --surface-hover: #f9f8f4;
-  --border: #e8e6dc;
-  --border-hover: #d4d1c7;
+  --surface-hover: #f6f6f6;
+  --border: #e8e8e8;
+  --border-hover: #d2d2d2;
   --text: #141413;
   --text-secondary: #5c5b57;
   --text-muted: #9c9a93;
@@ -1662,7 +1664,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fbfaf7;
+  background: #fff;
   position: relative;
 }
 .tarot-front .tf-preview::after {
@@ -1670,7 +1672,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   position: absolute;
   inset: auto 0 0 0;
   height: 20px;
-  background: linear-gradient(180deg, rgba(251,250,247,0) 0%, rgba(251,250,247,0.96) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.96) 100%);
   pointer-events: none;
 }
 .tarot-front .tf-footer {
@@ -2216,14 +2218,114 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   transition: border-color 0.15s;
 }
 .ve-field-input:focus { outline: none; border-color: var(--blue); }
-.ve-section-title {
+.ve-section-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.ve-section-title-text {
   font-family: var(--font-heading);
   font-size: 13px;
   font-weight: 600;
   color: var(--accent);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
+  background: transparent;
+  transition: border-color 0.15s;
+}
+.ve-section-title-text:focus {
+  border-color: var(--blue);
+  background: var(--surface);
+}
+.ve-section-title-text:hover:not(:focus) {
+  border-color: var(--border);
+}
+.ve-section-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.ve-section-ctrl {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.ve-section:hover .ve-section-ctrl { opacity: 1; }
+.ve-section-ctrl:hover { color: var(--text); background: rgba(0,0,0,0.05); }
+.ve-section-ctrl.ve-sec-del:hover { color: #c44; background: rgba(204,68,68,0.08); }
+.ve-add-section-btn {
+  font-size: 12px;
+  color: var(--blue);
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  transition: all 0.15s;
+  width: 100%;
+  margin-top: 4px;
+}
+.ve-add-section-btn:hover { border-color: var(--blue); background: rgba(106,155,204,0.06); }
+.ve-section-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font-heading);
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235c5b57'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  min-width: 100%;
+  transition: border-color 0.15s;
+}
+.ve-section-select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.ve-section-preset {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--font-heading);
+  color: var(--text-muted);
+  cursor: pointer;
+  background: var(--surface);
+  transition: all 0.15s;
+  user-select: none;
+}
+.ve-section-preset:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.ve-section-preset.active {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
 }
 .ve-vspace-card h2 {
   margin-bottom: 8px;
@@ -2791,6 +2893,60 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   .tarot-card { width: 160px; height: 224px; }
   .gallery-deck { gap: 14px; }
 }
+/* ═══ Tabulator Override (投递记录) ═══ */
+.tabulator { font-family: var(--font-body); font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.tabulator .tabulator-header { background: var(--bg-warm); border-bottom: 1px solid var(--border); font-family: var(--font-heading); font-weight: 500; }
+.tabulator .tabulator-header .tabulator-col { border-right: 1px solid var(--border); }
+.tabulator .tabulator-row { border-bottom: 1px solid var(--border); }
+.tabulator .tabulator-row:hover { background: var(--surface-hover); }
+.tabulator .tabulator-row.tabulator-selected { background: var(--accent-light); }
+.tabulator .tabulator-cell { padding: 8px 12px; border-right: 1px solid var(--border); }
+.tabulator .tabulator-cell[tabulator-editing] { border: 2px solid var(--accent); border-radius: 4px; padding: 6px 10px; }
+.tabulator .tabulator-header-filter input { font-family: var(--font-body); font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+.app-status { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 500; font-family: var(--font-heading); }
+.app-status-投递 { background: rgba(106,155,204,0.15); color: #5a8ab5; }
+.app-status-笔试 { background: rgba(168,139,201,0.15); color: #8a6dbf; }
+.app-status-面试 { background: rgba(217,119,87,0.15); color: var(--accent); }
+.app-status-offer { background: rgba(120,140,93,0.15); color: var(--green); }
+.app-status-拒绝 { background: rgba(178,74,62,0.15); color: #b24a3e; }
+/* App detail modal */
+.app-detail-overlay {
+  position: fixed; inset: 0; background: rgba(20,20,19,0.5); backdrop-filter: blur(6px);
+  z-index: 1001; display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity 0.3s var(--ease-out);
+}
+.app-detail-overlay.open { opacity: 1; pointer-events: all; }
+.app-detail-modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  width: 640px; max-width: 95vw; max-height: calc(100vh - 60px); overflow-y: auto;
+  padding: 28px; box-shadow: 0 24px 80px rgba(20,20,19,0.18);
+  transform: translateY(20px) scale(0.97); transition: transform 0.35s var(--ease-out);
+}
+.app-detail-overlay.open .app-detail-modal { transform: translateY(0) scale(1); }
+.app-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.app-detail-header h3 { font-family: var(--font-heading); font-size: 17px; font-weight: 600; margin: 0; }
+.app-detail-body {}
+.app-detail-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 20px; }
+.app-detail-field { font-size: 13px; }
+.app-detail-field .adl { color: var(--text-muted); font-size: 11px; font-family: var(--font-heading); margin-bottom: 2px; }
+.app-detail-field .adv { color: var(--text); }
+.app-detail-field .adv a { color: var(--accent); text-decoration: none; }
+.app-edit-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  font-size: 13px; font-family: var(--font-body); color: var(--text); background: var(--surface);
+  transition: border-color 0.2s;
+}
+.app-edit-input:focus { outline: none; border-color: var(--accent); }
+.app-edit-textarea { resize: vertical; min-height: 48px; }
+select.app-edit-input { cursor: pointer; }
+.app-detail-divider { border-top: 1px solid var(--border); margin: 16px 0; }
+.app-detail-section { margin-bottom: 14px; }
+.app-detail-section-title {
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: var(--accent);
+  margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+}
+.app-detail-entry { font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; }
+.app-detail-bullet { font-size: 13px; line-height: 1.55; margin-bottom: 4px; padding-left: 14px; text-indent: -14px; }
 </style>
 </head>
 <body>
@@ -2819,6 +2975,7 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></symbol>
   <symbol id="i-gallery" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 15l5-5 4 4 4-4 7 7"/><circle cx="8.5" cy="8.5" r="1.5"/></symbol>
   <symbol id="i-cards" viewBox="0 0 24 24"><rect x="4" y="2" width="14" height="20" rx="2.5" stroke-width="1.5"/><rect x="7" y="4" width="14" height="20" rx="2.5" stroke-width="1.5" opacity="0.4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></symbol>
   <symbol id="i-interview" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 9h8M8 13h4"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06A1.65 1.65 0 0015 19.4a1.65 1.65 0 00-1 1.52V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.52-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.52V3a2 2 0 014 0v.09A1.65 1.65 0 0015 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.52 1H21a2 2 0 010 4h-.09A1.65 1.65 0 0019.4 15z"/></symbol>
 </svg>
@@ -2861,6 +3018,9 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
       </div>
       <div class="nav-item" onclick="goTo('import')" data-nav="import">
         <svg class="icon-svg"><use href="#i-upload"/></svg><span>导入/新建简历</span>
+      </div>
+      <div class="nav-item" onclick="goTo('applications')" data-nav="applications">
+        <svg class="icon-svg"><use href="#i-list"/></svg><span>投递记录</span>
       </div>
       <div class="nav-divider" data-divider="top"></div>
       <!-- Dynamic zone: generate + review will be promoted here when data ready -->
@@ -2964,6 +3124,39 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
     </div>
 
     <!-- 导入/新建简历 -->
+    <!-- ═══ 投递记录 ═══ -->
+    <div class="page" id="page-applications">
+      <div class="page-title">投递记录</div>
+      <div class="page-desc">跟踪每一次投递，管理求职进度</div>
+      <div class="form-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h2 style="margin-bottom:0;padding-bottom:0;border-bottom:none">
+            <svg class="icon-svg"><use href="#i-list"/></svg> 全部投递
+          </h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="addApplicationRow()">
+              <svg class="icon-svg" style="width:12px;height:12px"><use href="#i-plus"/></svg> 新增
+            </button>
+            <button class="btn btn-secondary" onclick="exportApplications()">
+              <svg class="icon-svg" style="width:12px;height:12px"><use href="#i-download"/></svg> 导出
+            </button>
+          </div>
+        </div>
+        <div id="applications-table"></div>
+      </div>
+    </div>
+
+    <!-- Application detail modal -->
+    <div id="app-detail-overlay" class="app-detail-overlay" onclick="if(event.target===this)closeAppDetail()">
+      <div class="app-detail-modal">
+        <div class="app-detail-header">
+          <h3 id="app-detail-title">投递详情</h3>
+          <button class="btn btn-secondary" onclick="closeAppDetail()" style="padding:4px 10px">&times;</button>
+        </div>
+        <div id="app-detail-body" class="app-detail-body"></div>
+      </div>
+    </div>
+
     <div class="page" id="page-import">
       <div class="page-title">导入/新建简历</div>
       <div class="page-desc">支持空白新建或上传已有简历（PDF / DOCX / MD / TXT）解析后确认编译</div>
@@ -2993,17 +3186,18 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         <div class="drop-zone" onclick="document.getElementById('import-file-input').click()" style="padding:30px 20px;">
           <div class="dz-icon"><svg class="icon-svg" style="width:26px;height:26px"><use href="#i-upload"/></svg></div>
           <div class="main-text">点击选择简历文件</div>
-          <div class="sub-text">支持 .pdf .docx .md .txt</div>
-          <input type="file" id="import-file-input" accept=".pdf,.docx,.md,.txt" style="display:none">
+          <div class="sub-text">支持 .pdf .docx .md .txt .jpg .png（中文简历推荐 .docx 或 .txt）</div>
+          <input type="file" id="import-file-input" accept=".pdf,.docx,.md,.txt,.jpg,.jpeg,.png,.bmp,.webp" style="display:none">
         </div>
         <div id="import-file-name" class="import-file-status"></div>
         <div class="btn-group" style="margin-top:12px;">
           <button class="btn btn-secondary" id="import-parse-btn" onclick="parseImportedResume()" disabled>解析文件</button>
+          <button class="btn btn-secondary" id="import-cancel-btn" onclick="cancelImportParse()" style="display:none">取消</button>
         </div>
       </div>
 
       <div class="form-section" id="import-result-section" style="display:none;">
-        <h2><svg class="icon-svg"><use href="#i-layout"/></svg> 解析结果（可编辑）</h2>
+        <h2><svg class="icon-svg"><use href="#i-layout"/></svg> 解析结果（可编辑）<span id="import-engine-badge" style="display:none;margin-left:8px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:10px;vertical-align:middle;"></span></h2>
         <div class="import-grid-2">
           <div class="form-row"><label>中文姓名</label><input type="text" id="import-name-zh"></div>
           <div class="form-row"><label>英文姓名</label><input type="text" id="import-name-en"></div>
@@ -3295,7 +3489,14 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
         </div>
       </div>
 
-      <div class="btn-group"><button class="btn btn-primary" onclick="startGenerate()" id="btn-generate" style="padding:12px 36px;font-size:15px;">开始生成</button></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="startGenerate()" id="btn-generate" style="padding:12px 36px;font-size:15px;">开始生成</button>
+        <button class="btn btn-secondary" onclick="startPlanMode()" id="btn-plan-generate" style="padding:12px 28px;font-size:15px;">
+          <svg class="icon-svg" style="width:14px;height:14px;margin-right:5px"><use href="#i-settings"/></svg>先生成方案
+        </button>
+      </div>
+
+      <div id="resume-plan-panel" class="form-section" style="display:none;margin-top:18px;"></div>
 
       <div class="ai-progress-section" id="ai-progress" style="display:none;">
         <div class="ai-progress-header"><div class="ai-dot"></div><div class="ai-label">AI 正在工作</div><div class="ai-status" id="ai-status-text">准备中...</div></div>
@@ -3830,6 +4031,7 @@ function goTo(page) {
   if (page === 'review') loadReviewPage();
   if (page === 'home') loadGallery('home-gallery-content');
   if (page === 'generate') updateGenPersonContext();
+  if (page === 'applications') loadApplications();
   window.scrollTo(0, 0);
 }
 
@@ -4109,42 +4311,61 @@ function setupImportUpload() {
   const dropZone = fi.closest('.drop-zone');
   const mainText = dropZone ? dropZone.querySelector('.main-text') : null;
   const subText = dropZone ? dropZone.querySelector('.sub-text') : null;
-  fi.addEventListener('change', e => {
-    importSelectedFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+
+  const ACCEPTED_EXTS = ['.pdf','.docx','.md','.txt','.jpg','.jpeg','.png','.bmp','.webp'];
+
+  function _setImportFile(file) {
+    importSelectedFile = file;
     const nameEl = document.getElementById('import-file-name');
     const parseBtn = document.getElementById('import-parse-btn');
-    if (importSelectedFile) {
-      nameEl.textContent = `已选择 ${importSelectedFile.name}，点击“解析文件”继续`;
+    if (file) {
+      nameEl.textContent = `已选择 ${file.name}，点击”解析文件”继续`;
       nameEl.className = 'import-file-status ready';
-      if (dropZone) {
-        dropZone.classList.add('has-file');
-        dropZone.classList.remove('parsed');
-      }
-      if (mainText) mainText.textContent = `已选择：${importSelectedFile.name}`;
+      if (dropZone) { dropZone.classList.add('has-file'); dropZone.classList.remove('parsed'); }
+      if (mainText) mainText.textContent = `已选择：${file.name}`;
       if (subText) subText.textContent = '如需替换，点击这里重新选择文件';
       parseBtn.disabled = false;
       parseBtn.classList.add('ready');
     } else {
       nameEl.textContent = '';
       nameEl.className = 'import-file-status';
-      if (dropZone) {
-        dropZone.classList.remove('has-file');
-        dropZone.classList.remove('parsed');
-      }
+      if (dropZone) { dropZone.classList.remove('has-file'); dropZone.classList.remove('parsed'); }
       if (mainText) mainText.textContent = '点击选择简历文件';
-      if (subText) subText.textContent = '支持 .pdf .docx .md .txt';
+      if (subText) subText.textContent = '支持 .pdf .docx .md .txt .jpg .png（中文简历推荐 .docx 或 .txt）';
       parseBtn.disabled = true;
       parseBtn.classList.remove('ready');
     }
+  }
+
+  fi.addEventListener('change', e => {
+    _setImportFile(e.target.files && e.target.files[0] ? e.target.files[0] : null);
   });
+
+  // 拖拽支持
+  if (dropZone) {
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const ext = '.' + (files[0].name.split('.').pop() || '').toLowerCase();
+        if (ACCEPTED_EXTS.includes(ext)) {
+          fi.files = files; // 同步到 input
+          _setImportFile(files[0]);
+        } else {
+          showToast(`不支持的文件格式: ${ext}，请上传 ${ACCEPTED_EXTS.join('/')} 格式`, 'error');
+        }
+      }
+    });
+  }
+
   if (!fi.files || fi.files.length === 0) {
     const nameEl = document.getElementById('import-file-name');
     const parseBtn = document.getElementById('import-parse-btn');
     if (nameEl) nameEl.className = 'import-file-status';
-    if (parseBtn) {
-      parseBtn.disabled = true;
-      parseBtn.classList.remove('ready');
-    }
+    if (parseBtn) { parseBtn.disabled = true; parseBtn.classList.remove('ready'); }
   }
 }
 
@@ -4318,17 +4539,40 @@ async function createEmptyResumeDraft() {
   }
 }
 
+let _importAbortController = null;
+let _importStageTimer = null;
+
 async function parseImportedResume() {
   if (!importSelectedFile) { showToast('请先选择文件', 'error'); return; }
   const btn = document.getElementById('import-parse-btn');
+  const cancelBtn = document.getElementById('import-cancel-btn');
   btn.disabled = true;
   btn.textContent = '解析中...';
+  if (cancelBtn) cancelBtn.style.display = '';
+
+  // AbortController 用于超时和取消
+  _importAbortController = new AbortController();
+  const timeoutId = setTimeout(() => _importAbortController.abort(), 120000);
+
+  // 阶段提示：10s 后提示 OCR 模型加载，30s 后提示 AI 响应慢
+  _importStageTimer = setTimeout(() => {
+    btn.textContent = '正在提取文本...';
+  }, 3000);
+  const stageTimer2 = setTimeout(() => {
+    btn.textContent = '首次使用可能需要加载 OCR 模型...';
+  }, 10000);
+  const stageTimer3 = setTimeout(() => {
+    btn.textContent = 'AI 解析响应较慢，请耐心等待...';
+  }, 30000);
+
   try {
     const fd = new FormData();
     fd.append('file', importSelectedFile);
-    const data = await fetchJsonOrThrow('/api/import-resume/parse', { method: 'POST', body: fd }, '解析简历');
+    const data = await fetchJsonOrThrow('/api/import-resume/parse', { method: 'POST', body: fd, signal: _importAbortController.signal }, '解析简历');
     importedStructuredData = data.structured || _emptyImportStructured();
     _populateImportStructured(importedStructuredData);
+    // 显示解析引擎类型
+    _showParseEngineBadge(data.engine);
     showToast('解析完成，请确认后编译');
     const dropZone = document.querySelector('#import-file-input')?.closest('.drop-zone');
     if (dropZone) {
@@ -4340,11 +4584,49 @@ async function parseImportedResume() {
       if (subText) subText.textContent = '可重新上传其他文件覆盖解析结果';
     }
   } catch (e) {
-    showToast('解析失败: ' + e.message, 'error');
+    if (e.name === 'AbortError') {
+      showToast('解析已取消或超时，建议使用 .docx 或 .txt 格式', 'warning');
+    } else {
+      showToast('解析失败: ' + e.message, 'error');
+      if (e.message && e.message.includes('PDF 中文')) {
+        showToast('💡 建议上传 .docx 或 .txt 格式的简历，PDF 中文解析可能不完整', 'warning');
+      }
+      if (e.message && (e.message.includes('PaddleOCR') || e.message.includes('OCR'))) {
+        showToast('💡 图片识别需要 PaddleOCR，请运行 pip3 install paddleocr paddlepaddle Pillow', 'warning');
+      }
+    }
   } finally {
+    clearTimeout(timeoutId);
+    clearTimeout(_importStageTimer);
+    clearTimeout(stageTimer2);
+    clearTimeout(stageTimer3);
+    _importAbortController = null;
+    _importStageTimer = null;
     btn.disabled = false;
     btn.textContent = '解析文件';
+    if (cancelBtn) cancelBtn.style.display = 'none';
   }
+}
+
+function cancelImportParse() {
+  if (_importAbortController) {
+    _importAbortController.abort();
+  }
+}
+
+function _showParseEngineBadge(engine) {
+  const badge = document.getElementById('import-engine-badge');
+  if (!badge) return;
+  if (engine === 'ai') {
+    badge.textContent = 'AI 增强解析';
+    badge.style.background = 'rgba(52,168,83,0.12)';
+    badge.style.color = '#34a853';
+  } else {
+    badge.textContent = '规则解析';
+    badge.style.background = 'rgba(255,152,0,0.12)';
+    badge.style.color = '#e67e22';
+  }
+  badge.style.display = '';
 }
 
 async function confirmImportAndCompile() {
@@ -4683,15 +4965,154 @@ function closePdfModal() {
   setTimeout(() => { iframe.src = 'about:blank'; }, 350);
 }
 
-async function startGenerate() {
+let currentResumePlan = null;
+
+async function buildGeneratePayload(extra = {}) {
   const jdText = document.getElementById('jd-text').value.trim();
-  if (!jdText) { showToast('请先输入 JD 内容', 'error'); return; }
   const mjText = (document.getElementById('mj-text')?.value || '').trim();
   const genCompany = (document.getElementById('gen-company')?.value || '').trim();
   const genRole = (document.getElementById('gen-role')?.value || '').trim();
   const genLanguage = (document.getElementById('gen-language')?.value || 'zh').trim();
   await loadModelConfig();
   const preferAi = isModelConfigReadyForGeneration(modelConfigState);
+  return { jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi, language: genLanguage, ...extra };
+}
+
+async function startPlanMode() {
+  const payload = await buildGeneratePayload();
+  if (!payload.jd) { showToast('请先输入 JD 内容', 'error'); return; }
+  const btn = document.getElementById('btn-plan-generate');
+  const panel = document.getElementById('resume-plan-panel');
+  btn.disabled = true;
+  btn.textContent = '生成方案中...';
+  panel.style.display = '';
+  panel.innerHTML = '<div style="font-size:13px;color:var(--text-secondary);">正在分析 JD、匹配经历并生成建议...</div>';
+  try {
+    const res = await fetch('/api/generate-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error && !data.success) {
+      showToast(data.error, 'error');
+      panel.innerHTML = `<h2 style="color:var(--accent);font-size:16px;margin-bottom:8px;">方案生成失败</h2><p style="font-size:13px;color:var(--text-secondary);">${esc(data.error)}</p>`;
+      return;
+    }
+    currentResumePlan = data;
+    renderResumePlan(data);
+    showToast('方案已生成，可确认后再生成 PDF');
+  } catch (e) {
+    showToast('方案请求失败: ' + e.message, 'error');
+    panel.innerHTML = `<h2 style="color:var(--accent);font-size:16px;margin-bottom:8px;">方案请求失败</h2><p style="font-size:13px;color:var(--text-secondary);">${esc(e.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="icon-svg" style="width:14px;height:14px;margin-right:5px"><use href="#i-settings"/></svg>先生成方案';
+  }
+}
+
+function renderResumePlan(plan) {
+  const panel = document.getElementById('resume-plan-panel');
+  const u = plan.jd_understanding || {};
+  const demands = Array.isArray(u.core_demands) ? u.core_demands : [];
+  const expItems = (plan.candidate_experiences || []).map((item, idx) => {
+    const checked = item.selected ? 'checked' : '';
+    const tags = item.matched_keywords?.length ? `<div style="margin-top:6px;color:var(--text-muted);font-size:11px;">匹配：${item.matched_keywords.map(esc).join(' / ')}</div>` : '';
+    const bullets = (item.rewritten_bullets || []).slice(0, 3).map(b => `<li>${esc(b)}</li>`).join('');
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;background:#fff;">
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+        <input type="checkbox" class="plan-exp-check" data-index="${idx}" ${checked} style="margin-top:3px;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--text);font-weight:600;">
+            <span>${esc(item.company)} · ${esc(item.role)}</span>
+            <span style="color:var(--text-muted);font-weight:400;">${esc(item.classification === 'research' ? '研究' : '实习/工作')}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${esc(item.time_start || '')} - ${esc(item.time_end || '')}${item.city ? ' · ' + esc(item.city) : ''}</div>
+          ${item.relevance_reason ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-top:8px;">AI建议：${esc(item.relevance_reason)}</div>` : ''}
+          ${bullets ? `<ul style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin:8px 0 0 18px;">${bullets}</ul>` : ''}
+          ${tags}
+        </div>
+      </label>
+    </div>`;
+  }).join('');
+
+  const projectItems = (plan.candidate_projects || []).map((item, idx) => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:8px;">
+    <input type="checkbox" class="plan-project-check" data-index="${idx}" ${item.selected ? 'checked' : ''}>
+    <span>${esc(item.name)}${item.role ? ' · ' + esc(item.role) : ''}</span>
+  </label>`).join('');
+  const awardItems = (plan.candidate_awards || []).map((item, idx) => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:8px;">
+    <input type="checkbox" class="plan-award-check" data-index="${idx}" ${item.selected ? 'checked' : ''}>
+    <span>${esc(item.name)}${item.time ? ' · ' + esc(item.time) : ''}</span>
+  </label>`).join('');
+
+  panel.innerHTML = `<h2 style="font-family:var(--font-heading);font-size:16px;margin-bottom:12px;">生成方案确认</h2>
+    ${plan.warning ? `<div style="font-size:12px;color:var(--accent);margin-bottom:10px;">${esc(plan.warning)}</div>` : ''}
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.65;margin-bottom:14px;">
+      <strong style="color:var(--text);">候选人画像：</strong>${esc(u.candidate_portrait || '')}
+    </div>
+    ${demands.length ? `<ul style="font-size:12px;color:var(--text-secondary);line-height:1.65;margin:0 0 16px 18px;">${demands.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+    <div class="form-row" style="display:block;margin-bottom:14px;">
+      <label style="display:block;text-align:left;font-size:13px;color:var(--text-secondary);margin-bottom:6px;">生成方向 / 修改意见</label>
+      <textarea id="plan-direction" class="jd-textarea" style="min-height:72px;" placeholder="例如：更偏产品策略、弱化研究方法、突出 AI Agent 落地和跨团队推进"></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1.7fr) minmax(240px,0.8fr);gap:14px;align-items:start;">
+      <div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">经历选择（最多 5 段，研究最多 2 段）</div>
+        ${expItems || '<div class="empty-state">暂无可选经历</div>'}
+      </div>
+      <div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fff;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">项目经历</div>
+          ${projectItems || '<div style="font-size:12px;color:var(--text-muted);">暂无项目</div>'}
+        </div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fff;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">获奖情况（最多 3 条）</div>
+          ${awardItems || '<div style="font-size:12px;color:var(--text-muted);">暂无奖项</div>'}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-primary" onclick="generateFromPlan()" id="btn-plan-final">按此方案生成 PDF</button>
+      <button class="btn btn-secondary" onclick="startPlanMode()">重新生成方案</button>
+    </div>`;
+}
+
+async function generateFromPlan() {
+  if (!currentResumePlan) { showToast('请先生成方案', 'error'); return; }
+  const selectedExperiences = Array.from(document.querySelectorAll('.plan-exp-check:checked'))
+    .map(el => currentResumePlan.candidate_experiences[Number(el.dataset.index)])
+    .filter(Boolean)
+    .slice(0, 5);
+  if (selectedExperiences.length === 0) { showToast('请至少选择一段经历', 'error'); return; }
+  const selectedProjects = Array.from(document.querySelectorAll('.plan-project-check:checked'))
+    .map(el => currentResumePlan.candidate_projects[Number(el.dataset.index)])
+    .filter(Boolean)
+    .slice(0, Math.max(0, 5 - selectedExperiences.length));
+  const selectedAwards = Array.from(document.querySelectorAll('.plan-award-check:checked'))
+    .map(el => currentResumePlan.candidate_awards[Number(el.dataset.index)]?.name)
+    .filter(Boolean)
+    .slice(0, 3);
+  const direction = (document.getElementById('plan-direction')?.value || '').trim();
+  const selectionPlan = {
+    direction_feedback: direction,
+    selected_experiences: selectedExperiences.map(item => ({
+      filename: item.filename,
+      relevance_reason: item.relevance_reason || '',
+      rewritten_bullets: item.rewritten_bullets || [],
+    })),
+    selected_projects: selectedProjects.map(item => ({
+      name: item.name,
+      relevance_reason: item.relevance_reason || '',
+      rewritten_bullets: item.rewritten_bullets || [],
+    })),
+    selected_awards: selectedAwards,
+  };
+  await startGenerate(selectionPlan, direction);
+}
+
+async function startGenerate(selectionPlan = null, planFeedback = '') {
+  const payload = await buildGeneratePayload(selectionPlan ? { selection_plan: selectionPlan, feedback: planFeedback } : {});
+  if (!payload.jd) { showToast('请先输入 JD 内容', 'error'); return; }
 
   const btn = document.getElementById('btn-generate');
   const progress = document.getElementById('ai-progress');
@@ -4729,7 +5150,7 @@ async function startGenerate() {
     const res = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi, language: genLanguage }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
 
@@ -4749,6 +5170,7 @@ async function startGenerate() {
       statusText.textContent = '生成完成';
       showToast('简历生成成功！');
       const fillPct = data.fill_ratio > 0 ? (data.fill_ratio * 100).toFixed(1) + '%' : '未检测';
+      const engineLabel = data.engine === 'ai' ? (data.ai_provider || '外部模型') : (data.engine === 'plan' ? '已确认方案' : '本地规则引擎');
       resultEl.style.display = '';
       resultEl.innerHTML = `<div class="form-section" style="border-color:rgba(120,140,93,0.3);">
         <h2 style="color:var(--green);font-size:16px;margin-bottom:12px;">
@@ -4757,7 +5179,7 @@ async function startGenerate() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-secondary);line-height:1.8;">
           <div><strong>公司：</strong>${esc(data.company || '')}</div>
           <div><strong>岗位：</strong>${esc(data.role || '')}</div>
-          <div><strong>引擎：</strong>${esc(data.engine === 'ai' ? (data.ai_provider || '外部模型') : '本地规则引擎')}</div>
+          <div><strong>引擎：</strong>${esc(engineLabel)}</div>
           <div><strong>模型：</strong>${esc(data.ai_model || '未使用')}</div>
           <div><strong>填充率：</strong>${fillPct}</div>
           <div><strong>目录：</strong>${esc(data.output_dir || '')}</div>
@@ -6179,29 +6601,20 @@ function _renderVisualEditor(data) {
   });
 
   // ── Sections ──
+  const sectionsWrap = document.createElement('div');
+  sectionsWrap.className = 've-sections-wrap';
   data.sections.forEach((sec, si) => {
-    const secEl = document.createElement('div');
-    secEl.className = 've-section';
-    secEl.dataset.sectionIndex = si;
-    secEl.dataset.sectionType = sec.type;
-
-    const titleEl = document.createElement('div');
-    titleEl.className = 've-section-title';
-    titleEl.textContent = sec.title;
-    secEl.appendChild(titleEl);
-
-    if (sec.type === 'awards') {
-      _renderAwardsSection(secEl, sec);
-    } else if (sec.type === 'skills') {
-      _renderSkillsSection(secEl, sec);
-    } else if (sec.type === 'education') {
-      _renderEducationSection(secEl, sec);
-    } else {
-      _renderExperienceSection(secEl, sec);
-    }
-
-    container.appendChild(secEl);
+    const secEl = _createSectionEl(sec, si, data.sections.length);
+    sectionsWrap.appendChild(secEl);
   });
+  container.appendChild(sectionsWrap);
+
+  // ── Add section button ──
+  const addSecBtn = document.createElement('button');
+  addSecBtn.className = 've-add-section-btn';
+  addSecBtn.textContent = '+ 添加大类';
+  addSecBtn.onclick = () => _showAddSectionDialog(data, sectionsWrap);
+  container.appendChild(addSecBtn);
 
   mount.appendChild(container);
 
@@ -6253,6 +6666,268 @@ function _veDateCopyGroupsHtml() {
       </div>
     </div>
   `;
+}
+
+// ─── Section creation & controls ──────────────────────────
+function _createSectionEl(sec, si, total) {
+  const secEl = document.createElement('div');
+  secEl.className = 've-section';
+  secEl.dataset.sectionIndex = si;
+  secEl.dataset.sectionType = sec.type;
+  secEl.dataset.secDataIdx = si;
+
+  // Title bar: [editable title] ........ [▲][▼][×]
+  const titleBar = document.createElement('div');
+  titleBar.className = 've-section-title-bar';
+
+  const titleInput = document.createElement('input');
+  titleInput.className = 've-section-title-text';
+  titleInput.value = sec.title;
+  titleInput.title = '点击编辑标题';
+
+  const ctrls = document.createElement('div');
+  ctrls.className = 've-section-ctrls';
+
+  const upBtn = document.createElement('button');
+  upBtn.className = 've-section-ctrl';
+  upBtn.innerHTML = '&#9650;';
+  upBtn.title = '上移';
+  upBtn.onclick = () => _moveSection(secEl, -1);
+
+  const downBtn = document.createElement('button');
+  downBtn.className = 've-section-ctrl';
+  downBtn.innerHTML = '&#9660;';
+  downBtn.title = '下移';
+  downBtn.onclick = () => _moveSection(secEl, 1);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 've-section-ctrl ve-sec-del';
+  delBtn.innerHTML = '&times;';
+  delBtn.title = '删除此大类';
+  delBtn.onclick = () => _deleteSection(secEl);
+
+  ctrls.appendChild(upBtn);
+  ctrls.appendChild(downBtn);
+  ctrls.appendChild(delBtn);
+  titleBar.appendChild(titleInput);
+  titleBar.appendChild(ctrls);
+  secEl.appendChild(titleBar);
+
+  // Section content
+  if (sec.type === 'awards') {
+    _renderAwardsSection(secEl, sec);
+  } else if (sec.type === 'skills') {
+    _renderSkillsSection(secEl, sec);
+  } else if (sec.type === 'education') {
+    _renderEducationSection(secEl, sec);
+  } else {
+    _renderExperienceSection(secEl, sec);
+  }
+
+  return secEl;
+}
+
+function _moveSection(secEl, direction) {
+  const wrap = secEl.parentElement;
+  if (!wrap) return;
+  const sections = [...wrap.querySelectorAll('.ve-section')];
+  const idx = sections.indexOf(secEl);
+  const targetIdx = idx + direction;
+  if (targetIdx < 0 || targetIdx >= sections.length) return;
+
+  if (direction === -1) {
+    wrap.insertBefore(secEl, sections[targetIdx]);
+  } else {
+    wrap.insertBefore(secEl, sections[targetIdx].nextSibling);
+  }
+
+  // Sync _veParsedData.sections order
+  _syncParsedSectionsFromDOM();
+}
+
+function _deleteSection(secEl) {
+  _showConfirmDialog('确定删除此大类？', () => {
+    secEl.remove();
+    _syncParsedSectionsFromDOM();
+  });
+}
+
+function _syncParsedSectionsFromDOM() {
+  const data = window._veParsedData;
+  if (!data) return;
+  const mount = document.getElementById('visual-editor-mount');
+  const sectionEls = mount.querySelectorAll('.ve-section');
+  const used = new Set();
+  const newSections = [];
+  sectionEls.forEach(secEl => {
+    const type = secEl.dataset.sectionType;
+    const titleInput = secEl.querySelector('.ve-section-title-text');
+    const title = titleInput ? titleInput.value : secEl.querySelector('.ve-section-title')?.textContent || '';
+    const secIdx = secEl.dataset.secDataIdx !== undefined ? Number(secEl.dataset.secDataIdx) : -1;
+    let existing = null;
+    if (secIdx >= 0 && secIdx < data.sections.length && !used.has(secIdx)) {
+      existing = data.sections[secIdx];
+      used.add(secIdx);
+    }
+    if (existing) {
+      existing.title = title;
+      newSections.push(existing);
+    } else {
+      newSections.push({ type, title, entries: [], items: [] });
+    }
+  });
+  data.sections = newSections;
+}
+
+function _showAddSectionDialog(data, sectionsWrap) {
+  // Remove any existing dialog
+  const existing = document.querySelector('.person-modal-overlay.ve-sec-dialog');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'person-modal-overlay ve-sec-dialog open';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'person-modal';
+  dialog.style.width = '400px';
+
+  // Preset section types
+  const presets = [
+    { label: '实习经历', type: 'experience', title: '实习经历' },
+    { label: '研究经历', type: 'research', title: '研究经历' },
+    { label: '项目经历', type: 'project', title: '项目经历' },
+    { label: '教育背景', type: 'education', title: '教育背景' },
+    { label: '获奖情况', type: 'awards', title: '获奖情况' },
+    { label: '技能特长', type: 'skills', title: '技能特长' },
+  ];
+
+  // Build preset chips HTML
+  const presetHtml = presets.map((p, i) =>
+    `<span class="ve-section-preset" data-pi="${i}">${_escHtml(p.label)}</span>`
+  ).join('');
+
+  dialog.innerHTML = `
+    <h3>添加大类 <button onclick="this.closest('.ve-sec-dialog').remove()" title="关闭">&times;</button></h3>
+    <div style="margin-bottom:14px">
+      <div class="ve-field-label" style="margin-bottom:8px">选择预设</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${presetHtml}</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="ve-field-label" style="margin-bottom:6px">自定义名称</div>
+      <input class="ve-field-input" id="ve-new-section-title" placeholder="如「自我评价」「证书」「论文发表」">
+    </div>
+    <div style="margin-bottom:18px" id="ve-custom-type-row">
+      <div class="ve-field-label" style="margin-bottom:6px">内容类型</div>
+      <select class="ve-section-select" id="ve-new-section-type">
+        <option value="experience">经历型（经历名(公司名)+角色+时间+bullets）</option>
+        <option value="education">教育型（学校+学历+日期）</option>
+        <option value="awards">获奖型（奖项+日期）</option>
+        <option value="skills">技能型（技能列表）</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" id="ve-new-section-cancel">取消</button>
+      <button class="btn btn-primary" id="ve-new-section-confirm">添加</button>
+    </div>
+  `;
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  // Close on backdrop click
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const titleInput = document.getElementById('ve-new-section-title');
+  const typeSelect = document.getElementById('ve-new-section-type');
+  const customTypeRow = document.getElementById('ve-custom-type-row');
+  const confirmBtn = document.getElementById('ve-new-section-confirm');
+  const cancelBtn = document.getElementById('ve-new-section-cancel');
+  const presetEls = dialog.querySelectorAll('.ve-section-preset');
+
+  let activePreset = -1;
+
+  // Preset chip click
+  presetEls.forEach(chip => {
+    chip.onclick = () => {
+      const pi = Number(chip.dataset.pi);
+      const p = presets[pi];
+      // Toggle
+      if (activePreset === pi) {
+        activePreset = -1;
+        chip.classList.remove('active');
+        titleInput.value = '';
+        typeSelect.value = 'experience';
+        customTypeRow.style.display = '';
+      } else {
+        presetEls.forEach(c => c.classList.remove('active'));
+        activePreset = pi;
+        chip.classList.add('active');
+        titleInput.value = p.title;
+        typeSelect.value = p.type;
+        customTypeRow.style.display = 'none';
+      }
+    };
+  });
+
+  // Typing in title clears preset selection
+  titleInput.oninput = () => {
+    if (activePreset >= 0 && titleInput.value !== presets[activePreset].title) {
+      presetEls.forEach(c => c.classList.remove('active'));
+      activePreset = -1;
+      customTypeRow.style.display = '';
+    }
+  };
+
+  cancelBtn.onclick = () => overlay.remove();
+
+  const doAdd = () => {
+    const title = titleInput.value.trim();
+    if (!title) { titleInput.style.borderColor = '#c44'; return; }
+    const type = typeSelect.value;
+    const newSec = { type, title, entries: [], items: [] };
+    data.sections.push(newSec);
+
+    const secEl = _createSectionEl(newSec, data.sections.length - 1, data.sections.length);
+    sectionsWrap.appendChild(secEl);
+    overlay.remove();
+    secEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  confirmBtn.onclick = doAdd;
+  titleInput.onkeydown = (e) => { if (e.key === 'Enter') doAdd(); };
+  titleInput.focus();
+}
+
+// ─── Internal confirm dialog ──────────────────────────────
+function _showConfirmDialog(message, onConfirm) {
+  const existing = document.querySelector('.person-modal-overlay.ve-confirm-dialog');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'person-modal-overlay ve-confirm-dialog open';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'person-modal';
+  dialog.style.width = '340px';
+
+  dialog.innerHTML = `
+    <h3>确认操作 <button onclick="this.closest('.ve-confirm-dialog').remove()" title="关闭">&times;</button></h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 20px;line-height:1.5">${_escHtml(message)}</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" id="ve-confirm-cancel">取消</button>
+      <button class="btn btn-primary" id="ve-confirm-ok">确定</button>
+    </div>
+  `;
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  document.getElementById('ve-confirm-cancel').onclick = () => overlay.remove();
+  document.getElementById('ve-confirm-ok').onclick = () => {
+    overlay.remove();
+    onConfirm();
+  };
+  document.getElementById('ve-confirm-ok').focus();
 }
 
 function _renderEducationSection(secEl, sec) {
@@ -6581,7 +7256,7 @@ function _serializeVisualToTex() {
   const sectionEls = mount.querySelectorAll('.ve-section');
   sectionEls.forEach(secEl => {
     const type = secEl.dataset.sectionType;
-    const title = secEl.querySelector('.ve-section-title').textContent;
+    const title = secEl.querySelector('.ve-section-title-text')?.value || secEl.querySelector('.ve-section-title')?.textContent || '';
     tex += `\\section{${title}}\n`;
 
     if (type === 'education') {
@@ -6943,6 +7618,242 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadPersons(); loadProfile(); loadGallery('home-gallery-content'); loadExtensionDraft(); setupDropZone(); setupPubUpload(); setupTagInputs(); loadModelConfig(); setupImportUpload();
   const ci=document.getElementById('work-card-input'); if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addWorkCard();}});
 });
+
+/* ═══ 投递记录 (Tabulator) ═══ */
+let _appTable = null;
+function initApplicationsTable() {
+  if (_appTable) return;
+  _appTable = new Tabulator('#applications-table', {
+    layout: 'fitColumns',
+    placeholder: '暂无投递记录',
+    height: '520px',
+    movableColumns: true,
+    columns: [
+      { title:'公司', field:'company', editor:'input', minWidth:90, widthGrow:2, headerFilter:'input', headerFilterPlaceholder:'搜索...' },
+      { title:'岗位', field:'role', editor:'input', minWidth:90, widthGrow:2, headerFilter:'input', headerFilterPlaceholder:'搜索...' },
+      { title:'状态', field:'status', editor:'list', width:85,
+        editorParams:{ values:['投递','笔试','面试','offer','拒绝'] },
+        formatter(cell){ const v=cell.getValue()||'投递'; return '<span class="app-status app-status-'+v+'">'+esc(v)+'</span>'; },
+        headerFilter:'list', headerFilterParams:{ values:{'':'全部','投递':'投递','笔试':'笔试','面试':'面试','offer':'offer','拒绝':'拒绝'} }
+      },
+      { title:'简历版本', field:'resume_dir', width:130,
+        formatter(cell){
+          const v=cell.getValue();
+          if(!v) return '<span style="color:var(--text-muted);font-size:11px">未关联</span>';
+          // Show compact: company_role from dir name
+          const parts=v.split('_'); const label=parts.slice(0,-1).join('_')||v;
+          return '<span style="font-size:11px;color:var(--accent);cursor:pointer" title="'+esc(v)+'">'+esc(label.length>14?label.slice(0,14)+'…':label)+'</span>';
+        },
+        headerSort:false
+      },
+      { title:'日期', field:'applied_date', editor:'input', width:100, sorter:'date', sorterParams:{format:'yyyy-MM-dd'} },
+      { title:'链接', field:'url', width:40, hozAlign:'center', headerSort:false,
+        formatter(cell){ const v=cell.getValue(); if(!v) return ''; return '<a href="'+esc(v)+'" target="_blank" rel="noopener" style="color:var(--accent)" title="'+esc(v)+'"><svg class="icon-svg" style="width:13px;height:13px"><use href="#i-link"/></svg></a>'; }
+      },
+      { title:'平台', field:'platform', width:80, headerFilter:'input' },
+      { title:'备注', field:'notes', editor:'input', minWidth:100, widthGrow:2 },
+      { title:'', width:60, headerSort:false, hozAlign:'center',
+        formatter(){ return '<span class="btn btn-secondary" style="padding:2px 8px;font-size:11px">详情</span>'; },
+        cellClick(e,cell){ openAppDetail(cell.getRow().getData()); }
+      },
+      { title:'', width:30, headerSort:false, hozAlign:'center',
+        formatter(){ return '<span style="cursor:pointer;color:#b24a3e;font-size:14px" title="删除">&times;</span>'; },
+        cellClick(e,cell){ if(confirm('确认删除此投递记录？')) deleteApplication(cell.getRow().getData().id, cell.getRow()); }
+      },
+    ],
+    cellEdited(cell){ updateApplicationField(cell.getRow().getData().id, {[cell.getField()]:cell.getValue()}); },
+    initialSort:[{ column:'applied_date', dir:'desc' }],
+  });
+}
+async function loadApplications() {
+  initApplicationsTable();
+  try {
+    const res = await fetch('/api/applications'); const data = await res.json();
+    _appTable.setData(data.applications||[]);
+  } catch(e){ showToast('加载投递记录失败: '+e.message,'error'); }
+}
+async function addApplicationRow() {
+  try {
+    const res = await fetch('/api/applications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:'',role:'',status:'投递'})});
+    const data = await res.json();
+    _appTable.addRow({id:data.id,company:'',role:'',status:'投递',applied_date:new Date().toISOString().slice(0,10),url:'',platform:'',resume_dir:'',notes:''},true);
+  } catch(e){ showToast('新增失败: '+e.message,'error'); }
+}
+async function updateApplicationField(id, fields) {
+  try { await fetch('/api/applications/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)}); }
+  catch(e){ showToast('更新失败: '+e.message,'error'); }
+}
+async function deleteApplication(id, row) {
+  try { await fetch('/api/applications/'+id,{method:'DELETE'}); row.delete(); }
+  catch(e){ showToast('删除失败: '+e.message,'error'); }
+}
+async function exportApplications() {
+  try {
+    const res = await fetch('/api/applications/export'); const data = await res.json();
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='applications_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  } catch(e){ showToast('导出失败: '+e.message,'error'); }
+}
+
+// ─── Application detail modal ───
+let _appDetailId = null;
+let _galleryCache = null;
+
+async function getGalleryOptions() {
+  if (_galleryCache) return _galleryCache;
+  try {
+    const res = await fetch('/api/gallery'); const data = await res.json();
+    _galleryCache = (data.resumes||[]).map(r=>r.dir_name);
+  } catch { _galleryCache = []; }
+  return _galleryCache;
+}
+
+async function openAppDetail(app) {
+  _appDetailId = app.id;
+  const overlay = document.getElementById('app-detail-overlay');
+  const title = document.getElementById('app-detail-title');
+  const body = document.getElementById('app-detail-body');
+  title.textContent = (app.company||'') + (app.role?' — '+app.role:'') || '投递详情';
+
+  const statuses = ['投递','笔试','面试','offer','拒绝'];
+  const statusOpts = statuses.map(s=>'<option value="'+esc(s)+'"'+(s===app.status?' selected':'')+'>'+esc(s)+'</option>').join('');
+
+  const versions = await getGalleryOptions();
+  const vOpts = '<option value="">未关联</option>' + versions.map(v=>'<option value="'+esc(v)+'"'+(v===app.resume_dir?' selected':'')+'>'+esc(v)+'</option>').join('');
+
+  let html = '<div class="app-detail-meta">';
+  html += '<div class="app-detail-field"><div class="adl">公司</div><input class="app-edit-input" data-appf="company" value="'+esc(app.company||'')+'"></div>';
+  html += '<div class="app-detail-field"><div class="adl">岗位</div><input class="app-edit-input" data-appf="role" value="'+esc(app.role||'')+'"></div>';
+  html += '<div class="app-detail-field"><div class="adl">状态</div><select class="app-edit-input" data-appf="status">'+statusOpts+'</select></div>';
+  html += '<div class="app-detail-field"><div class="adl">投递日期</div><input class="app-edit-input" data-appf="applied_date" type="date" value="'+esc(app.applied_date||'')+'"></div>';
+  html += '<div class="app-detail-field"><div class="adl">平台</div><input class="app-edit-input" data-appf="platform" value="'+esc(app.platform||'')+'"></div>';
+  html += '<div class="app-detail-field"><div class="adl">简历版本</div><select class="app-edit-input" data-appf="resume_dir">'+vOpts+'</select></div>';
+  html += '<div class="app-detail-field" style="grid-column:1/-1"><div class="adl">链接</div><input class="app-edit-input" data-appf="url" value="'+esc(app.url||'')+'" placeholder="https://..."></div>';
+  html += '<div class="app-detail-field" style="grid-column:1/-1"><div class="adl">备注</div><textarea class="app-edit-input app-edit-textarea" data-appf="notes" rows="2" placeholder="面试反馈、跟进事项...">'+esc(app.notes||'')+'</textarea></div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn btn-primary" onclick="saveAppDetail()">保存</button></div>';
+
+  body.innerHTML = html;
+
+  // Resume content below
+  const dir = app.resume_dir;
+  if (dir) {
+    body.insertAdjacentHTML('beforeend', '<div class="app-detail-divider"></div><div id="app-detail-resume" style="color:var(--text-muted);font-size:12px">加载简历内容...</div>');
+    fetchAppResumeContent(dir);
+  }
+
+  // When resume_dir select changes, reload resume preview
+  body.querySelector('[data-appf="resume_dir"]').addEventListener('change', function(){
+    const el = document.getElementById('app-detail-resume');
+    if (this.value) {
+      if (!el) body.insertAdjacentHTML('beforeend', '<div class="app-detail-divider"></div><div id="app-detail-resume" style="color:var(--text-muted);font-size:12px">加载简历内容...</div>');
+      else el.innerHTML = '加载简历内容...';
+      fetchAppResumeContent(this.value);
+    } else if (el) {
+      el.previousElementSibling?.remove(); el.remove();
+    }
+  });
+
+  overlay.classList.add('open');
+}
+
+async function saveAppDetail() {
+  if (!_appDetailId) return;
+  const fields = {};
+  document.querySelectorAll('#app-detail-body [data-appf]').forEach(el=>{
+    fields[el.dataset.appf] = el.value||'';
+  });
+  try {
+    await fetch('/api/applications/'+_appDetailId, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
+    showToast('已保存','success');
+    // Refresh table row
+    if (_appTable) {
+      const row = _appTable.getRows().find(r=>r.getData().id===_appDetailId);
+      if (row) row.update(fields);
+    }
+    // Update modal title
+    document.getElementById('app-detail-title').textContent = (fields.company||'') + (fields.role?' — '+fields.role:'');
+  } catch(e) { showToast('保存失败: '+e.message,'error'); }
+}
+
+function closeAppDetail() {
+  _appDetailId = null;
+  document.getElementById('app-detail-overlay').classList.remove('open');
+}
+
+async function fetchAppResumeContent(dirName) {
+  const container = document.getElementById('app-detail-resume');
+  try {
+    const res = await fetch('/api/editor/tex?dir='+encodeURIComponent(dirName));
+    const data = await res.json();
+    if (!data.content) { container.innerHTML='<span style="color:var(--text-muted)">简历文件不存在</span>'; return; }
+    const tex = data.content;
+    // Parse basic info
+    const name = (tex.match(/\\name\{([^}]*)\}/)||[])[1]||'';
+    const email = (tex.match(/\\email\{([^}]*)\}/)||[])[1]||'';
+    const phone = (tex.match(/\\phone\{([^}]*)\}/)||[])[1]||'';
+    // Parse sections
+    const sections = [];
+    const secRe = /\\section\{([^}]*)\}([\s\S]*?)(?=\\section\{|\\end\{Form\}|\\end\{document\})/g;
+    let m;
+    while ((m = secRe.exec(tex))) {
+      const title = m[1].replace(/\\[a-zA-Z]+\{([^}]*)\}/g,'$1').replace(/\\\\/g,'').trim();
+      const body = m[2]||'';
+      const items = [];
+      let curEntry='', curDates='';
+      body.split('\\n').forEach(raw=>{
+        const line = raw.trim();
+        const d = line.match(/^\\\\datedsubsection\{(.+?)\}\{(.+?)\}$/);
+        if (d) { curEntry=d[1].replace(/\\\\[a-zA-Z]+\{([^}]*)\}/g,'$1').trim(); curDates=d[2].replace(/\\\\[a-zA-Z]+\{([^}]*)\}/g,'$1').trim(); return; }
+        const it = line.match(/^\\\\item\\s+(.*)$/);
+        if (it) items.push({entry:curEntry,dates:curDates,text:it[1].replace(/\\\\[a-zA-Z]+\{([^}]*)\}/g,'$1').replace(/\\\\\\\\/g,'').trim()});
+      });
+      if (!items.length) {
+        // Try without double-escaping
+        let curE2='', curD2='';
+        body.split('\\n').length < 3 && body.split('\n').forEach(raw=>{
+          const line = raw.trim();
+          const d = line.match(/^\\datedsubsection\{(.+?)\}\{(.+?)\}$/);
+          if (d) { curE2=d[1].replace(/\\[a-zA-Z]+\{([^}]*)\}/g,'$1').trim(); curD2=d[2].replace(/\\[a-zA-Z]+\{([^}]*)\}/g,'$1').trim(); return; }
+          const it = line.match(/^\\item\s+(.*)$/);
+          if (it) items.push({entry:curE2,dates:curD2,text:it[1].replace(/\\[a-zA-Z]+\{([^}]*)\}/g,'$1').replace(/\\\\/g,'').replace(/\\%/g,'%').replace(/\\&/g,'&').trim()});
+        });
+      }
+      if (items.length) sections.push({title, items});
+    }
+
+    let html = '';
+    // Basic info row
+    const cleanTex = s => (s||'').replace(/\\[a-zA-Z]+\{([^}]*)\}/g,'$1').replace(/\\\\/g,'').replace(/\\%/g,'%').replace(/\\&/g,'&').trim();
+    if (name||email||phone) {
+      html += '<div class="app-detail-meta" style="margin-bottom:12px">';
+      if (name) html += '<div class="app-detail-field"><div class="adl">姓名</div><div class="adv">'+esc(cleanTex(name))+'</div></div>';
+      if (email) html += '<div class="app-detail-field"><div class="adl">邮箱</div><div class="adv">'+esc(cleanTex(email))+'</div></div>';
+      if (phone) html += '<div class="app-detail-field"><div class="adl">电话</div><div class="adv">'+esc(cleanTex(phone))+'</div></div>';
+      html += '</div>';
+    }
+    // Sections
+    sections.forEach(sec=>{
+      html += '<div class="app-detail-section"><div class="app-detail-section-title">'+esc(cleanTex(sec.title))+'</div>';
+      let lastEntry = '';
+      sec.items.forEach(item=>{
+        const entryKey = item.entry + item.dates;
+        if (entryKey && entryKey !== lastEntry) {
+          html += '<div class="app-detail-entry">'+esc(cleanTex(item.entry));
+          if (item.dates) html += ' <span style="color:var(--text-muted)">'+esc(cleanTex(item.dates))+'</span>';
+          html += '</div>';
+          lastEntry = entryKey;
+        }
+        html += '<div class="app-detail-bullet">• '+esc(cleanTex(item.text))+'</div>';
+      });
+      html += '</div>';
+    });
+    container.innerHTML = html || '<span style="color:var(--text-muted)">未解析到内容</span>';
+  } catch(e) {
+    container.innerHTML = '<span style="color:var(--text-muted)">加载失败: '+esc(e.message)+'</span>';
+  }
+}
 </script>
 <script type="module">
 try {

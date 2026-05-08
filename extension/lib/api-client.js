@@ -75,4 +75,12 @@ ResumeFill.ApiClient = {
   getHistory() {
     return this._fetch('/api/ext/history');
   },
+
+  /** 创建投递记录 */
+  logApplication(data) {
+    return this._fetch('/api/applications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };

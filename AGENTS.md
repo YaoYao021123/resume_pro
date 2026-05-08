@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Build, Test, and Lint Commands
 
@@ -53,7 +53,7 @@ Four-layer system: **Data → Generation → Web/API → Layout/Quality**.
 
 - Zero core Python dependencies — web server and all tools run on stdlib only. Backend requires `fastapi` + `uvicorn`.
 - XeLaTeX required (not pdflatex) for Chinese font support via TinyTeX.
-- AI config sources must stay consistent: `CLAUDE.md`, `skills/resume-gen/SKILL.md`, `.claude/agents/resume-generator.md`, and `tools/generate_resume.py` business rules. Update all together when behavior changes.
+- AI config sources must stay consistent: `AGENTS.md`, `skills/resume-gen/SKILL.md`, `.Codex/agents/resume-generator.md`, and `tools/generate_resume.py` business rules. Update all together when behavior changes.
 - Experience classification is strict: intern/work vs research experiences go in separate LaTeX sections, never mixed. Each experience appears in exactly one section.
 - Selection caps: total experiences ≤ 5, awards ≤ 3. Bullets: 2-3 per experience (max 4), no trailing punctuation, no fabricated data.
 

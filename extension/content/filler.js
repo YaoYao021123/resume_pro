@@ -152,6 +152,25 @@ ResumeFill.Filler = {
       const platform = ResumeFill.Detector.getPlatformName();
       const result = await ResumeFill.ApiClient.logFill(location.href, platform, filled);
       this._currentFillId = result.fill_id;
+
+      // Auto-create application record
+      try {
+        const company = ResumeFill.Detector.getCompanyName?.() || '';
+        const role = ResumeFill.Detector.getRoleName?.() || '';
+        // Get selected resume version from storage
+        const stored = await new Promise(r => chrome.storage.local.get(['last_version'], r));
+        await ResumeFill.ApiClient.logApplication({
+          company,
+          role,
+          url: location.href,
+          platform,
+          fill_id: result.fill_id,
+          resume_dir: stored.last_version || '',
+          status: '投递',
+        });
+      } catch (appErr) {
+        console.log('[ResumeFill] Failed to log application:', appErr.message);
+      }
     } catch (e) {
       console.log('[ResumeFill] Failed to log fill:', e.message);
     }

@@ -70,5 +70,49 @@ ResumeFill.Detector = {
   /** Get detected platform name */
   getPlatformName() {
     return this.getAdapter().platform;
+  },
+
+  /** Extract company name from the current page */
+  getCompanyName() {
+    // Platform-specific selectors
+    const selectors = [
+      '[data-automation-id="jobPostingHeader"] [data-automation-id="company"]',
+      '.company-name', '.employer-name',
+      '[itemprop="hiringOrganization"] [itemprop="name"]',
+      '.job-company', '.posting-categories .company',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el?.textContent?.trim()) return el.textContent.trim();
+    }
+    // Fallback: parse page title ("Role at Company" / "Company - Role")
+    const title = document.title || '';
+    const atMatch = title.match(/(?:at|@)\s+(.+?)(?:\s*[-|]|$)/i);
+    if (atMatch) return atMatch[1].trim();
+    const dashMatch = title.match(/^(.+?)\s*[-|]\s*.+/);
+    if (dashMatch && dashMatch[1].length < 40) return dashMatch[1].trim();
+    // Try hostname
+    const host = location.hostname.replace(/^(?:www|jobs|careers)\./, '').split('.')[0];
+    return host.charAt(0).toUpperCase() + host.slice(1);
+  },
+
+  /** Extract role/job title from the current page */
+  getRoleName() {
+    const selectors = [
+      '[data-automation-id="jobPostingHeader"] h2',
+      '.job-title', '.posting-headline h2', '.app-title',
+      '[itemprop="title"]', 'h1.t-24', '.jobs-details h1',
+      'h1', '.position-title',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      const text = el?.textContent?.trim();
+      if (text && text.length < 120) return text;
+    }
+    // Fallback: parse page title
+    const title = document.title || '';
+    const atMatch = title.match(/^(.+?)\s+(?:at|@)\s+/i);
+    if (atMatch) return atMatch[1].trim();
+    return '';
   }
 };

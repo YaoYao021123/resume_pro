@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """简历生成引擎
 
 从用户数据 (profile.md + experiences/) 和 JD 文本，
@@ -224,7 +225,7 @@ GEMINI_PLAN_SCHEMA: dict[str, Any] = {
                         'type': 'array',
                         'items': {'type': 'string'},
                         'minItems': 1,
-                        'maxItems': 3,
+                        'maxItems': 2,
                     },
                 },
                 'required': ['name', 'relevance_reason', 'rewritten_bullets'],
@@ -827,6 +828,120 @@ def _apply_experience_selection_rules(experiences: list, jd_keywords: dict,
     selected_intern.sort(key=lambda item: _time_sort_key(item.get('time_start', '')), reverse=True)
     selected_research.sort(key=lambda item: _time_sort_key(item.get('time_start', '')), reverse=True)
     return selected_research + selected_intern
+
+
+def _select_experiences_from_plan(experiences: list, jd_keywords: dict,
+                                  selected_entries: list[dict] | None,
+                                  max_total: int = 5) -> list[dict]:
+    """Build an exact, user-confirmed experience selection from plan-mode input."""
+    selected_entries = selected_entries or []
+    if not selected_entries:
+        return _apply_experience_selection_rules(experiences, jd_keywords, max_total=max_total)
+
+    ranked = match_experiences(experiences, jd_keywords, max_count=len(experiences))
+    exp_map = {exp.get('filename', ''): exp for exp in ranked}
+    selected_intern: list[dict] = []
+    selected_research: list[dict] = []
+    selected_names: set[str] = set()
+
+    for entry in selected_entries:
+        filename = entry.get('filename', '')
+        exp = exp_map.get(filename)
+        if not exp or filename in selected_names:
+            continue
+        classification = _classify_experience(exp)
+        if classification == 'intern' and len(selected_intern) >= 4:
+            continue
+        if classification == 'research' and len(selected_research) >= 2:
+            continue
+        if len(selected_intern) + len(selected_research) >= max_total:
+            break
+
+        selected = dict(exp)
+        ai_bullets = [_sanitize_bullet(item) for item in entry.get('rewritten_bullets', [])]
+        ai_bullets = [item for item in ai_bullets if item][:5]
+        min_count = 2 if classification == 'intern' else 1
+        selected['selected_bullets'] = _select_best_bullets(
+            ai_bullets,
+            _fallback_experience_bullets(selected, 5),
+            min_count=min_count,
+            max_count=4,
+        )
+        if not selected['selected_bullets']:
+            continue
+        selected['_reason'] = entry.get('relevance_reason', '')
+        if classification == 'intern':
+            selected_intern.append(selected)
+        else:
+            selected_research.append(selected)
+        selected_names.add(filename)
+
+    selected_intern.sort(key=lambda item: _time_sort_key(item.get('time_start', '')), reverse=True)
+    selected_research.sort(key=lambda item: _time_sort_key(item.get('time_start', '')), reverse=True)
+    return selected_research + selected_intern
+
+
+def _select_projects_from_plan(profile: dict, selected_entries: list[dict] | None,
+                               remaining_slots: int = 2) -> list[dict]:
+    if remaining_slots <= 0 or not selected_entries:
+        return []
+    project_map = {project.get('name', ''): project for project in profile.get('projects', []) if project.get('name')}
+    selected = []
+    used_names = set()
+    for entry in selected_entries:
+        name = entry.get('name', '')
+        if name in used_names or name not in project_map:
+            continue
+        project = dict(project_map[name])
+        ai_bullets = [_sanitize_bullet(item) for item in entry.get('rewritten_bullets', [])]
+        ai_bullets = [item for item in ai_bullets if item][:3]
+        project['selected_bullets'] = _select_best_bullets(
+            ai_bullets,
+            _fallback_project_bullets(project, 3),
+            min_count=1,
+            max_count=2,
+        )
+        if not project['selected_bullets']:
+            continue
+        project['_reason'] = entry.get('relevance_reason', '')
+        selected.append(project)
+        used_names.add(name)
+        if len(selected) >= min(2, remaining_slots):
+            break
+    return selected
+
+
+def _select_awards_from_plan(profile: dict, selected_names: list[str] | None,
+                             max_count: int = 3) -> list[dict]:
+    if not selected_names:
+        return []
+    name_set = set(selected_names)
+    selected = []
+    used_groups = set()
+    for award in profile.get('awards', []):
+        name = award.get('name', '').strip()
+        if not name or name not in name_set:
+            continue
+        group_key = _award_group_key(name)
+        if group_key in used_groups:
+            continue
+        selected.append(award)
+        used_groups.add(group_key)
+        if len(selected) >= max_count:
+            break
+    return selected
+
+
+def _merge_plan_entries(base_entries: list[dict], ai_entries: list[dict], key: str) -> list[dict]:
+    ai_map = {entry.get(key, ''): entry for entry in ai_entries or []}
+    merged = []
+    for entry in base_entries or []:
+        value = entry.get(key, '')
+        if value in ai_map:
+            merged.append({**entry, **ai_map[value]})
+        else:
+            merged.append(entry)
+    return merged
 
 
 def _merge_ai_keywords(jd_keywords: dict, ai_keywords: dict) -> dict:
@@ -2242,6 +2357,189 @@ def compile_latex(output_dir: Path, xelatex: str = None, *, tex_filename: str = 
     }
 
 
+# ─── Plan Mode ────────────────────────────────────────────────
+
+def build_resume_plan(jd_text: str, interview_text: str = '', *,
+                      company: str = '', role: str = '',
+                      person_id: str | None = None,
+                      prefer_ai: bool = False,
+                      feedback: str = '',
+                      language: str = 'zh',
+                      ai_config_override: dict | None = None) -> dict:
+    """Return a generation plan for user review without writing LaTeX or compiling."""
+    _maybe_migrate()
+
+    if person_id is None and is_multi_person_mode():
+        person_id = get_active_person_id()
+    language = normalize_language(language)
+    if ai_config_override is not None:
+        ai_config = dict(ai_config_override)
+        ai_config.setdefault('enabled', True)
+    else:
+        ai_config = get_model_config()
+
+    if feedback and feedback.strip():
+        prefix = f'【用户修改反馈（优先遵守）】\n{feedback.strip()}\n\n'
+        interview_text = prefix + (interview_text or '')
+
+    profile_error = _profile_setup_error(person_id)
+    if profile_error:
+        return {'success': False, 'error': profile_error}
+    experiences_error = _experiences_setup_error(person_id)
+    if experiences_error:
+        return {'success': False, 'error': experiences_error}
+
+    profile = _parse_profile(person_id)
+    experiences = load_all_experiences(person_id)
+    combined_text = jd_text + (('\n' + interview_text) if interview_text else '')
+    jd_keywords = extract_jd_keywords(combined_text)
+    if company:
+        jd_keywords['company'] = company
+    if role:
+        jd_keywords['role'] = role
+
+    engine = 'heuristic'
+    ai_provider = None
+    ai_model = None
+    ai_plan: dict = {}
+    matched = _apply_experience_selection_rules(experiences, jd_keywords)
+    selected_projects = _filter_projects(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched)))
+    selected_awards = _filter_awards(profile, jd_keywords)
+
+    if _should_try_ai(ai_config, prefer_ai=prefer_ai):
+        try:
+            ai_plan = _call_ai_resume_planner(ai_config, profile, experiences, jd_text, interview_text, person_id)
+            jd_understanding = ai_plan.get('jd_understanding') or {}
+            core_demands_text = ' '.join(jd_understanding.get('core_demands', []))
+            if core_demands_text:
+                extra = extract_jd_keywords(core_demands_text)
+                for cat in ('tech', 'domain', 'skill'):
+                    for keyword in extra.get(cat, []):
+                        if keyword not in jd_keywords.get(cat, []):
+                            jd_keywords.setdefault(cat, []).append(keyword)
+            if ai_plan.get('company') and not company:
+                jd_keywords['company'] = ai_plan['company']
+            if ai_plan.get('role') and not role:
+                jd_keywords['role'] = ai_plan['role']
+            matched = _apply_experience_selection_rules(
+                experiences,
+                jd_keywords,
+                preferred_entries=ai_plan.get('selected_experiences', []),
+            )
+            selected_projects = _filter_projects(
+                profile,
+                jd_keywords,
+                preferred_entries=ai_plan.get('selected_projects', []),
+                remaining_slots=max(0, 5 - len(matched)),
+            )
+            selected_awards = _filter_awards(
+                profile,
+                jd_keywords,
+                preferred_names=[item.get('name', '') for item in ai_plan.get('selected_awards', [])],
+            )
+            engine = 'ai'
+            ai_provider = ai_plan.get('_provider', ai_config.get('provider'))
+            ai_model = ai_plan.get('_model', ai_config.get('model'))
+        except RuntimeError as exc:
+            if _should_force_ai(ai_config):
+                return {'success': False, 'error': f'{ai_config.get("provider", "模型")} 生成方案失败：{exc}'}
+            ai_plan = {'_error': _redact_text_with_ai_config(str(exc), ai_config)}
+    elif _should_force_ai(ai_config):
+        return {'success': False, 'error': '已启用模型生成，但当前环境未配置可用的 API Key 或模型'}
+
+    selected_filenames = {item.get('filename', '') for item in matched}
+    selected_project_names = {item.get('name', '') for item in selected_projects}
+    selected_award_names = {item.get('name', '') for item in selected_awards}
+    reason_by_filename = {item.get('filename', ''): item.get('_reason', '') for item in matched}
+    bullets_by_filename = {item.get('filename', ''): item.get('selected_bullets', []) for item in matched}
+    project_reason_by_name = {item.get('name', ''): item.get('_reason', '') for item in selected_projects}
+    project_bullets_by_name = {item.get('name', ''): item.get('selected_bullets', []) for item in selected_projects}
+
+    candidate_experiences = []
+    for exp in match_experiences(experiences, jd_keywords, max_count=len(experiences)):
+        filename = exp.get('filename', '')
+        fallback_bullets = _fallback_experience_bullets(exp, 3)
+        candidate_experiences.append({
+            'filename': filename,
+            'company': exp.get('company', ''),
+            'role': exp.get('role', ''),
+            'city': exp.get('city', ''),
+            'time_start': exp.get('time_start', ''),
+            'time_end': exp.get('time_end', ''),
+            'tags': exp.get('tags', ''),
+            'classification': _classify_experience(exp),
+            'score': exp.get('_score', 0),
+            'matched_keywords': exp.get('_matched', [])[:8],
+            'selected': filename in selected_filenames,
+            'relevance_reason': reason_by_filename.get(filename, ''),
+            'rewritten_bullets': bullets_by_filename.get(filename, fallback_bullets[:3]),
+        })
+
+    candidate_projects = []
+    for project in profile.get('projects', []):
+        name = project.get('name', '')
+        if not name:
+            continue
+        candidate_projects.append({
+            'name': name,
+            'role': project.get('role', ''),
+            'time': project.get('time', ''),
+            'tags': project.get('tags', ''),
+            'score': _score_project(project, jd_keywords),
+            'selected': name in selected_project_names,
+            'relevance_reason': project_reason_by_name.get(name, ''),
+            'rewritten_bullets': project_bullets_by_name.get(name, _fallback_project_bullets(project, 2)),
+        })
+
+    preferred_order = {name: index for index, name in enumerate(selected_award_names)}
+    candidate_awards = []
+    for award in profile.get('awards', []):
+        name = award.get('name', '')
+        if not name:
+            continue
+        candidate_awards.append({
+            'name': name,
+            'org': award.get('org', ''),
+            'time': award.get('time', ''),
+            'selected': name in selected_award_names,
+            'score': _award_score(award, jd_keywords, preferred_order),
+        })
+    candidate_awards.sort(key=lambda item: (item['selected'], item['score']), reverse=True)
+
+    jd_understanding = ai_plan.get('jd_understanding') or {}
+    candidate_portrait = jd_understanding.get('candidate_portrait') or ai_plan.get('job_summary', '')
+    core_demands = jd_understanding.get('core_demands', [])
+    if not candidate_portrait:
+        domain = '、'.join(jd_keywords.get('domain', [])[:4]) or '目标业务'
+        skills = '、'.join(jd_keywords.get('tech', [])[:4] + jd_keywords.get('skill', [])[:3]) or '岗位关键能力'
+        candidate_portrait = f'这个岗位更看重能围绕{domain}交付结果的人，核心证明材料应突出{skills}和可量化产出'
+    if not core_demands:
+        core_demands = [
+            '优先展示与岗位职责直接相关、且有明确产出或量化结果的经历',
+            '经历选择需要覆盖岗位所需的业务理解、工具能力和跨团队协作能力',
+            '简历表达应减少项目内部术语，突出可迁移的方法和结果',
+        ]
+
+    return {
+        'success': True,
+        'engine': engine,
+        'ai_provider': ai_provider,
+        'ai_model': ai_model,
+        'company': company or jd_keywords.get('company', ''),
+        'role': role or jd_keywords.get('role', ''),
+        'language': language,
+        'jd_keywords': jd_keywords,
+        'jd_understanding': {
+            'candidate_portrait': candidate_portrait,
+            'core_demands': core_demands,
+        },
+        'candidate_experiences': candidate_experiences,
+        'candidate_projects': candidate_projects,
+        'candidate_awards': candidate_awards[:12],
+        'warning': ai_plan.get('_error', ''),
+    }
+
+
 # ─── 主入口 ───────────────────────────────────────────────────
 
 def generate_resume(jd_text: str, interview_text: str = '', *,
@@ -2250,7 +2548,8 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
                     prefer_ai: bool = False,
                     feedback: str = '',
                     language: str = 'zh',
-                    ai_config_override: dict | None = None) -> dict:
+                    ai_config_override: dict | None = None,
+                    selection_plan: dict | None = None) -> dict:
     """
     完整的简历生成流程。
 
@@ -2337,7 +2636,66 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
     selected_projects = _filter_projects(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched)))
     selected_awards = _filter_awards(profile, jd_keywords)
 
-    if _should_try_ai(ai_config, prefer_ai=prefer_ai):
+    if selection_plan:
+        log_lines.append('- 模式: 生成方案确认后生成')
+        direction = str(selection_plan.get('direction_feedback', '') or '').strip()
+        if direction:
+            log_lines.append(f'- 用户方向: {direction}')
+
+        plan_exp_entries = selection_plan.get('selected_experiences', [])
+        plan_project_entries = selection_plan.get('selected_projects', [])
+        plan_award_names = selection_plan.get('selected_awards', [])
+
+        if _should_try_ai(ai_config, prefer_ai=prefer_ai):
+            try:
+                ai_plan = _call_ai_resume_planner(ai_config, profile, experiences, jd_text, interview_text, person_id)
+                plan_exp_entries = _merge_plan_entries(
+                    plan_exp_entries,
+                    ai_plan.get('selected_experiences', []),
+                    'filename',
+                )
+                plan_project_entries = _merge_plan_entries(
+                    plan_project_entries,
+                    ai_plan.get('selected_projects', []),
+                    'name',
+                )
+                _jd_understanding = ai_plan.get('jd_understanding') or {}
+                _core_demands_text = ' '.join(_jd_understanding.get('core_demands', []))
+                if _core_demands_text:
+                    _extra = extract_jd_keywords(_core_demands_text)
+                    for _cat in ('tech', 'domain', 'skill'):
+                        for _kw in _extra.get(_cat, []):
+                            if _kw not in jd_keywords.get(_cat, []):
+                                jd_keywords.setdefault(_cat, []).append(_kw)
+                engine = 'ai'
+                ai_provider = ai_plan.get('_provider', ai_config.get('provider'))
+                ai_model = ai_plan.get('_model', ai_config.get('model'))
+                _portrait = _jd_understanding.get('candidate_portrait', '') or ai_plan.get('job_summary', '')
+                if _portrait:
+                    log_lines.append(f'- 候选人画像: {_portrait}')
+            except RuntimeError as exc:
+                safe_exc = _redact_text_with_ai_config(str(exc), ai_config)
+                if _should_force_ai(ai_config):
+                    return {'success': False, 'error': f'{ai_config.get("provider", "模型")} 生成失败：{safe_exc}'}
+                log_lines.append(f'- 模型二次改写失败，使用已确认方案: {safe_exc}')
+        else:
+            engine = 'plan'
+
+        matched = _select_experiences_from_plan(experiences, jd_keywords, plan_exp_entries)
+        selected_projects = _select_projects_from_plan(
+            profile,
+            plan_project_entries,
+            remaining_slots=max(0, 5 - len(matched)),
+        )
+        selected_awards = _select_awards_from_plan(profile, plan_award_names)
+
+        if not matched:
+            matched = _apply_experience_selection_rules(experiences, jd_keywords)
+            selected_projects = _filter_projects(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched)))
+            selected_awards = _filter_awards(profile, jd_keywords)
+            log_lines.append('- 已确认方案没有有效经历，回退为自动匹配')
+
+    elif _should_try_ai(ai_config, prefer_ai=prefer_ai):
         try:
             ai_plan = _call_ai_resume_planner(ai_config, profile, experiences, jd_text, interview_text, person_id)
             # Use AI company/role; supplement jd_keywords from core_demands text for LaTeX highlighting

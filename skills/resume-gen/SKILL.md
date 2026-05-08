@@ -69,7 +69,7 @@ license: Apache-2.0
 
 ### 2.4 改写 Bullet
 
-**数量**：每段 2-3 条，最多 4 条
+**数量**：实习/工作经历每段 2-3 条，最多 4 条；项目/研究经历 1-2 条
 
 **改写规则（逐条必须遵守）：**
 
@@ -175,7 +175,9 @@ mdls -name kMDItemNumberOfPages resume-en.pdf
 
 ### 5.1 超页时：按序精简（每步后重新编译确认页数）
 
-**第一轮：内容精简（优先，效果最大）**
+> **注意**：代码 `_tune_overflow()` 自动执行的顺序是：排版压缩（vspace → margins → list spacing）→ 内容删减（research → project → bullets）→ 极端压缩（font size → section spacing）。手动操作时建议先尝试内容精简。
+
+**第一轮：内容精简（手动优先，效果最大）**
 
 | 序号 | 操作 | 说明 |
 |------|------|------|
@@ -207,8 +209,8 @@ python3 tools/page_fill_check.py "$OUTPUT_DIR"
 
 | 填充率 | 状态 | 处理 |
 |--------|------|------|
-| 82% ~ 100% | 理想 | 无需调整 |
-| < 82% | 偏空 | 增加经历/bullet/间距（详见 CLAUDE.md） |
+| 95% ~ 100% | 理想 | 无需调整 |
+| < 95% | 偏空 | 增加经历/bullet/间距（详见 CLAUDE.md） |
 | > 100% | 溢出 | 回到 5.1 继续精简 |
 
 ---

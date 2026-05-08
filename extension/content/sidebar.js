@@ -328,6 +328,15 @@ ResumeFill.Sidebar = {
 // This runs when all content scripts are loaded (document_idle)
 
 (function initResumeFill() {
+  // Track last focused input for "fill into" feature
+  ResumeFill._lastFocusedInput = null;
+  document.addEventListener('focusin', (e) => {
+    const el = e.target;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+      ResumeFill._lastFocusedInput = el;
+    }
+  }, true);
+
   // Detect platform on load
   const adapter = ResumeFill.Detector.detectPlatform();
   const platform = adapter.platform;
@@ -419,6 +428,28 @@ ResumeFill.Sidebar = {
           }
         })();
         return true;
+      }
+
+      if (message.action === 'insertText') {
+        // Insert text into the last focused input/textarea on the page
+        const el = ResumeFill._lastFocusedInput || document.activeElement;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) {
+          if (el.isContentEditable) {
+            el.focus();
+            document.execCommand('insertText', false, message.text);
+          } else {
+            el.focus();
+            const start = el.selectionStart || 0;
+            el.value = el.value.substring(0, start) + message.text + el.value.substring(el.selectionEnd || start);
+            el.selectionStart = el.selectionEnd = start + message.text.length;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'no input focused' });
+        }
+        return false;
       }
 
       if (message.action === 'pageLoaded') {

@@ -2,25 +2,34 @@ const state = {
   serverUrl: 'http://localhost:8765',
   currentDir: '',
   parsed: null,
+  versions: [],
+  floatWindowId: null,
 };
 
 const $ = (id) => document.getElementById(id);
 
 function escapeHtml(s = '') {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ─── Toast feedback ─────────────────────────────────
+let _toastTimer = null;
+function showToast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.classList.remove('show'); }, 1200);
 }
 
 function setStatus(msg, isError = false) {
   const el = $('statusText');
   el.textContent = msg;
-  el.style.color = isError ? '#b24a3e' : '#8a847b';
+  el.style.color = isError ? '#b24a3e' : '#5c5b57';
 }
 
+// ─── LaTeX helpers ──────────────────────────────────
 function cleanLatex(text) {
   if (!text) return '';
   return text
@@ -29,13 +38,8 @@ function cleanLatex(text) {
     .replace(/\\quad/g, ' ')
     .replace(/\\normalsize/g, '')
     .replace(/\\textperiodcentered/g, '·')
-    .replace(/\\%/g, '%')
-    .replace(/\\&/g, '&')
-    .replace(/\\_/g, '_')
-    .replace(/\\#/g, '#')
-    .replace(/\\\\/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/\\%/g, '%').replace(/\\&/g, '&').replace(/\\_/g, '_').replace(/\\#/g, '#')
+    .replace(/\\\\/g, '').replace(/\s+/g, ' ').trim();
 }
 
 function parseDateParts(raw) {
@@ -67,27 +71,51 @@ function splitDateRange(raw) {
   return { start: m[1].trim(), end: m[2].trim() };
 }
 
+// ─── Clipboard ──────────────────────────────────────
 async function copyText(text) {
   if (!text) return;
-  if (navigator.clipboard?.writeText) {
+  try {
     await navigator.clipboard.writeText(text);
-    return;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
   }
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand('copy');
-  ta.remove();
 }
 
-async function readTextFile(file) {
-  if (!file) return '';
-  return await file.text();
+async function copyAndToast(text, msg) {
+  if (!text) return;
+  await copyText(text);
+  showToast(msg || '已复制');
 }
 
+// ─── Fill into active page input ────────────────────
+async function fillIntoPage(text) {
+  if (!text) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab) { showToast('未找到活动标签页'); return; }
+    // Skip if the active tab is this popup window itself
+    if (tab.url?.startsWith('chrome-extension://')) {
+      // In floating mode, find the previous non-extension tab
+      const tabs = await chrome.tabs.query({ lastFocusedWindow: false, active: true });
+      const target = tabs.find(t => !t.url?.startsWith('chrome-extension://'));
+      if (!target) { showToast('请先点击目标网页的输入框'); return; }
+      await chrome.tabs.sendMessage(target.id, { action: 'insertText', text });
+    } else {
+      await chrome.tabs.sendMessage(tab.id, { action: 'insertText', text });
+    }
+    showToast('已填入');
+  } catch (e) {
+    showToast('填入失败，请先点击目标输入框');
+  }
+}
+
+// ─── API ────────────────────────────────────────────
 async function fetchJSON(path, options = {}) {
   const resp = await fetch(`${state.serverUrl}${path}`, options);
   const data = await resp.json();
@@ -95,6 +123,7 @@ async function fetchJSON(path, options = {}) {
   return data;
 }
 
+// ─── LaTeX parser ───────────────────────────────────
 function parseResumeTex(tex) {
   const name = cleanLatex((tex.match(/\\name\{([^}]*)\}/) || [])[1] || '');
   const email = cleanLatex((tex.match(/\\email\{([^}]*)\}/) || [])[1] || '');
@@ -106,43 +135,34 @@ function parseResumeTex(tex) {
     const title = cleanLatex(sec[1]);
     const body = sec[2] || '';
     const lines = body.split('\n');
-    let currentEntry = '';
-    let currentDates = '';
+    let currentEntry = '', currentDates = '';
     const items = [];
     lines.forEach((lineRaw) => {
       const line = lineRaw.trim();
       const dated = line.match(/^\\datedsubsection\{(.+?)\}\{(.+?)\}$/);
-      if (dated) {
-        currentEntry = cleanLatex(dated[1]);
-        currentDates = cleanLatex(dated[2]);
-        return;
-      }
+      if (dated) { currentEntry = cleanLatex(dated[1]); currentDates = cleanLatex(dated[2]); return; }
       const item = line.match(/^\\item\s+(.*)$/);
-      if (item) {
-        items.push({ entry: currentEntry, dates: currentDates, text: cleanLatex(item[1]) });
-      }
+      if (item) items.push({ entry: currentEntry, dates: currentDates, text: cleanLatex(item[1]) });
     });
     if (items.length) sections.push({ title, items });
   }
   return { basic: { name, email, phone }, sections };
 }
 
-function metaStorageKey(dir) {
-  return `quick-resume-meta:${dir}`;
-}
-
+// ─── Local storage helpers ──────────────────────────
+function metaStorageKey(dir) { return `quick-resume-meta:${dir}`; }
 function loadLocalMeta(dir) {
   return new Promise((resolve) => {
     chrome.storage.local.get([metaStorageKey(dir)], (res) => resolve(res[metaStorageKey(dir)] || {}));
   });
 }
-
 function saveLocalMeta(dir, data) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ [metaStorageKey(dir)]: data }, () => resolve(true));
   });
 }
 
+// ─── Extra rows ─────────────────────────────────────
 function collectExtraRows() {
   return [...document.querySelectorAll('#extraList .extra-row')].map((row) => ({
     key: (row.querySelector('[data-k]')?.value || '').trim(),
@@ -162,14 +182,7 @@ function addExtraRow(item = { key: '', value: '' }) {
   $('extraList').appendChild(row);
 }
 
-function collectSectionDrafts() {
-  return [...document.querySelectorAll('#resumeSections [data-section-draft]')].reduce((acc, textarea) => {
-    const value = (textarea.value || '').trim();
-    if (value) acc[textarea.dataset.sectionDraft] = value;
-    return acc;
-  }, {});
-}
-
+// ─── Text builders ──────────────────────────────────
 function buildSectionItemText(item, includeBullet = true) {
   item = item || {};
   const lines = [];
@@ -181,28 +194,11 @@ function buildSectionItemText(item, includeBullet = true) {
 
 function buildSectionText(sec) {
   return [sec.title, ...(sec.items || []).map((item) => buildSectionItemText(item))]
-    .filter(Boolean)
-    .join('\n')
-    .trim();
+    .filter(Boolean).join('\n').trim();
 }
 
-function appendToSectionDraft(sectionIndex, text, replace = false) {
-  const textarea = document.querySelector(`[data-section-draft="${sectionIndex}"]`);
-  if (!textarea || !text) return false;
-  const current = (textarea.value || '').trim();
-  const next = replace ? text.trim() : [current, text.trim()].filter(Boolean).join('\n');
-  textarea.value = next.replace(/\n{3,}/g, '\n\n').trim();
-  textarea.dispatchEvent(new Event('input', { bubbles: true }));
-  return true;
-}
-
-async function copyWithStatus(text, status) {
-  if (!text) return;
-  await copyText(text);
-  setStatus(status || '已复制');
-}
-
-function renderSections(sections, sectionDrafts = {}) {
+// ─── Render sections (no draft textarea) ────────────
+function renderSections(sections) {
   const container = $('resumeSections');
   if (!sections.length) {
     container.innerHTML = '<div class="hint">未解析到可复制条目</div>';
@@ -213,21 +209,12 @@ function renderSections(sections, sectionDrafts = {}) {
       <div class="section-header">
         <div class="section-name copyable" data-copy-title="${idx}" title="点击复制标题">${escapeHtml(sec.title || `Section ${idx + 1}`)}</div>
         <div class="section-actions">
-          <button class="btn btn-sm" data-copy-sec="${idx}">复制本节</button>
-          <button class="btn btn-sm" data-fill-sec="${idx}">填入文本框</button>
+          <button class="btn btn-sm" data-copy-sec="${idx}" title="复制整节内容">复制</button>
+          <button class="btn btn-sm" data-fill-sec="${idx}" title="填入当前文本框">填入</button>
         </div>
-      </div>
-      <textarea class="input textarea section-draft-box" data-section-draft="${idx}" placeholder="本节对应文本框：点击“填入文本框”可把对应内容块汇总到这里">${escapeHtml(sectionDrafts[idx] || '')}</textarea>
-      <div class="section-draft-toolbar">
-        <button class="btn btn-sm" data-copy-draft="${idx}">复制文本框</button>
-        <button class="btn btn-sm" data-clear-draft="${idx}">清空文本框</button>
       </div>
       ${sec.items.map((item, itemIdx) => `
         <div class="item-row copyable-row" data-copy-row="${idx}:${itemIdx}" title="点击复制整条内容">
-          <div class="item-row-actions">
-            <button class="btn btn-sm" data-copy-item="${idx}:${itemIdx}">复制条目</button>
-            <button class="btn btn-sm" data-fill-item="${idx}:${itemIdx}">填入文本框</button>
-          </div>
           ${item.entry ? `<div class="item-entry copyable" data-copy-entry="${idx}:${itemIdx}" title="点击复制主题">${escapeHtml(item.entry)}</div>` : ''}
           ${item.dates ? `<div class="item-date copyable" data-copy-date-range="${idx}:${itemIdx}" title="点击复制日期范围">${escapeHtml(item.dates)}</div>` : ''}
           ${item.dates ? `
@@ -237,170 +224,97 @@ function renderSections(sections, sectionDrafts = {}) {
             </div>
           ` : ''}
           <div class="item-text copyable" data-copy-text="${idx}:${itemIdx}" title="点击复制内容">• ${escapeHtml(item.text)}</div>
+          <div class="item-row-actions">
+            <button class="btn btn-sm" data-copy-item="${idx}:${itemIdx}" title="复制整个经历信息">复制</button>
+            <button class="btn btn-sm" data-fill-item="${idx}:${itemIdx}" title="填入当前文本框">填入</button>
+          </div>
         </div>
       `).join('')}
     </div>
   `).join('');
 
-  [...container.querySelectorAll('[data-copy-title]')].forEach((el) => {
-    el.onclick = async () => {
-      const sec = sections[Number(el.dataset.copyTitle)];
-      await copyWithStatus(sec?.title || '', '标题已复制');
+  // ── Bind copy events ──
+  container.querySelectorAll('[data-copy-title]').forEach((el) => {
+    el.onclick = () => copyAndToast(sections[Number(el.dataset.copyTitle)]?.title || '', '标题已复制');
+  });
+  container.querySelectorAll('[data-copy-sec]').forEach((btn) => {
+    btn.onclick = () => copyAndToast(buildSectionText(sections[Number(btn.dataset.copySec)]), '本节已复制');
+  });
+  container.querySelectorAll('[data-copy-entry]').forEach((el) => {
+    el.onclick = (e) => { e.stopPropagation(); const [s,i] = el.dataset.copyEntry.split(':').map(Number); copyAndToast(sections[s]?.items?.[i]?.entry || '', '已复制'); };
+  });
+  container.querySelectorAll('[data-copy-date-range]').forEach((el) => {
+    el.onclick = (e) => { e.stopPropagation(); const [s,i] = el.dataset.copyDateRange.split(':').map(Number); copyAndToast(sections[s]?.items?.[i]?.dates || '', '日期已复制'); };
+  });
+  container.querySelectorAll('[data-copy-text]').forEach((el) => {
+    el.onclick = (e) => { e.stopPropagation(); const [s,i] = el.dataset.copyText.split(':').map(Number); copyAndToast(sections[s]?.items?.[i]?.text || '', '已复制'); };
+  });
+  container.querySelectorAll('[data-copy-item]').forEach((btn) => {
+    btn.onclick = (e) => { e.stopPropagation(); const [s,i] = btn.dataset.copyItem.split(':').map(Number); copyAndToast(buildSectionItemText(sections[s]?.items?.[i]), '已复制'); };
+  });
+  container.querySelectorAll('[data-copy-row]').forEach((row) => {
+    row.onclick = (e) => {
+      if (e.target.closest('button, .item-entry, .item-date, .item-text, .item-date-tools')) return;
+      const [s,i] = row.dataset.copyRow.split(':').map(Number);
+      copyAndToast(buildSectionItemText(sections[s]?.items?.[i]), '已复制');
     };
   });
-
-  [...container.querySelectorAll('[data-copy-sec]')].forEach((btn) => {
-    btn.onclick = async () => {
-      const sec = sections[Number(btn.dataset.copySec)];
-      await copyWithStatus(buildSectionText(sec), '本节已复制');
-    };
-  });
-
-  [...container.querySelectorAll('[data-fill-sec]')].forEach((btn) => {
-    btn.onclick = () => {
-      const sec = sections[Number(btn.dataset.fillSec)];
-      if (appendToSectionDraft(btn.dataset.fillSec, buildSectionText(sec), true)) {
-        setStatus('本节已填入对应文本框');
-      }
-    };
-  });
-
-  [...container.querySelectorAll('[data-copy-draft]')].forEach((btn) => {
-    btn.onclick = async () => {
-      const textarea = container.querySelector(`[data-section-draft="${btn.dataset.copyDraft}"]`);
-      await copyWithStatus(textarea?.value?.trim() || '', '文本框内容已复制');
-    };
-  });
-
-  [...container.querySelectorAll('[data-clear-draft]')].forEach((btn) => {
-    btn.onclick = () => {
-      const textarea = container.querySelector(`[data-section-draft="${btn.dataset.clearDraft}"]`);
-      if (!textarea) return;
-      textarea.value = '';
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      setStatus('文本框已清空');
-    };
-  });
-
-  [...container.querySelectorAll('[data-copy-entry]')].forEach((el) => {
-    el.onclick = async (event) => {
-      event.stopPropagation();
-      const [secIdx, itemIdx] = el.dataset.copyEntry.split(':').map(Number);
-      await copyWithStatus(sections[secIdx]?.items?.[itemIdx]?.entry || '', '主题已复制');
-    };
-  });
-
-  [...container.querySelectorAll('[data-copy-date-range]')].forEach((el) => {
-    el.onclick = async (event) => {
-      event.stopPropagation();
-      const [secIdx, itemIdx] = el.dataset.copyDateRange.split(':').map(Number);
-      await copyWithStatus(sections[secIdx]?.items?.[itemIdx]?.dates || '', '日期范围已复制');
-    };
-  });
-
-  [...container.querySelectorAll('[data-copy-text]')].forEach((el) => {
-    el.onclick = async (event) => {
-      event.stopPropagation();
-      const [secIdx, itemIdx] = el.dataset.copyText.split(':').map(Number);
-      await copyWithStatus(sections[secIdx]?.items?.[itemIdx]?.text || '', '内容已复制');
-    };
-  });
-
-  [...container.querySelectorAll('[data-copy-item]')].forEach((btn) => {
-    btn.onclick = async (event) => {
-      event.stopPropagation();
-      const [secIdx, itemIdx] = btn.dataset.copyItem.split(':').map(Number);
-      await copyWithStatus(buildSectionItemText(sections[secIdx]?.items?.[itemIdx]), '条目已复制');
-    };
-  });
-
-  [...container.querySelectorAll('[data-fill-item]')].forEach((btn) => {
-    btn.onclick = (event) => {
-      event.stopPropagation();
-      const [secIdx, itemIdx] = btn.dataset.fillItem.split(':').map(Number);
-      const text = buildSectionItemText(sections[secIdx]?.items?.[itemIdx]);
-      if (appendToSectionDraft(secIdx, text)) {
-        setStatus('内容块已填入对应文本框');
-      }
-    };
-  });
-
-  [...container.querySelectorAll('[data-copy-row]')].forEach((row) => {
-    row.onclick = async (event) => {
-      if (event.target.closest('button, textarea, .item-entry, .item-date, .item-text, .item-date-tools')) return;
-      const [secIdx, itemIdx] = row.dataset.copyRow.split(':').map(Number);
-      await copyWithStatus(buildSectionItemText(sections[secIdx]?.items?.[itemIdx]), '条目已复制');
-    };
-  });
-
-  [...container.querySelectorAll('.btn-date-copy')].forEach((btn) => {
+  container.querySelectorAll('.btn-date-copy').forEach((btn) => {
     btn.onclick = async () => {
       const sec = sections[Number(btn.dataset.copyDateSec)];
       const item = sec?.items?.[Number(btn.dataset.copyDateItem)];
-      if (!item || !item.dates) return;
+      if (!item?.dates) return;
       const range = splitDateRange(item.dates);
       const raw = btn.dataset.copyDatePart === 'end' ? range.end : range.start;
       const text = formatDateByMode(raw, btn.dataset.copyDateMode);
-      if (!text) {
-        setStatus('该日期为空', true);
-        return;
-      }
-      await copyText(text);
-      setStatus('日期已复制');
+      if (!text) { showToast('该日期为空'); return; }
+      copyAndToast(text, '日期已复制');
     };
   });
 
-  [...container.querySelectorAll('[data-section-draft]')].forEach((textarea) => {
-    textarea.addEventListener('input', () => {
-      if (state.currentDir) saveCurrentMeta();
-    });
+  // ── Bind fill events (fill into active page input) ──
+  container.querySelectorAll('[data-fill-sec]').forEach((btn) => {
+    btn.onclick = () => fillIntoPage(buildSectionText(sections[Number(btn.dataset.fillSec)]));
+  });
+  container.querySelectorAll('[data-fill-item]').forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const [s,i] = btn.dataset.fillItem.split(':').map(Number);
+      fillIntoPage(buildSectionItemText(sections[s]?.items?.[i]));
+    };
   });
 }
 
-async function loadDraft() {
-  try {
-    const data = await fetchJSON('/api/ext/draft');
-    $('jdText').value = data.jd || '';
-    $('interviewText').value = data.interview || '';
-  } catch {
-    // ignore
-  }
-}
-
-async function loadHistory() {
-  const list = $('historyList');
-  list.innerHTML = '<div class="hint">加载中...</div>';
+// ─── Version loader ─────────────────────────────────
+async function loadVersions() {
+  const sel = $('versionSelect');
   try {
     const data = await fetchJSON('/api/gallery');
     const items = data.resumes || [];
-    if (!items.length) {
-      list.innerHTML = '<div class="hint">暂无历史简历</div>';
-      return;
-    }
-    list.innerHTML = items.slice(0, 30).map((item) => `
-      <div class="history-item">
-        <div>
-          <div class="history-title">${escapeHtml(item.company || '')} ${escapeHtml(item.role || '')}</div>
-          <div class="history-meta">${escapeHtml(item.date || '')} · ${escapeHtml(item.dir_name)}</div>
-        </div>
-        <button class="btn btn-sm" data-open="${escapeHtml(item.dir_name)}">打开</button>
-      </div>
-    `).join('');
-
-    [...list.querySelectorAll('[data-open]')].forEach((btn) => {
-      btn.onclick = () => openResume(btn.dataset.open);
+    state.versions = items;
+    sel.innerHTML = '<option value="">选择简历版本...</option>' +
+      items.slice(0, 50).map((item) =>
+        `<option value="${escapeHtml(item.dir_name)}">${escapeHtml(item.company || '')} ${escapeHtml(item.role || '')} (${escapeHtml(item.date || '')})</option>`
+      ).join('');
+    chrome.storage.local.get(['last_version'], (res) => {
+      if (res.last_version && [...sel.options].some((o) => o.value === res.last_version)) {
+        sel.value = res.last_version;
+        openResume(res.last_version);
+      }
     });
   } catch (e) {
-    list.innerHTML = `<div class="hint">加载失败：${e.message}</div>`;
+    sel.innerHTML = '<option value="">加载失败</option>';
   }
 }
 
 async function openResume(dirName) {
-  setStatus(`打开中：${dirName}`);
+  if (!dirName) { $('editorView').classList.add('hidden'); state.currentDir = ''; return; }
+  setStatus(`加载中...`);
   try {
     const data = await fetchJSON(`/api/editor/tex?dir=${encodeURIComponent(dirName)}`);
     state.currentDir = dirName;
     state.parsed = parseResumeTex(data.content || '');
+    chrome.storage.local.set({ last_version: dirName });
 
     const local = await loadLocalMeta(dirName);
     const basic = local.basic || state.parsed.basic;
@@ -412,44 +326,31 @@ async function openResume(dirName) {
     (local.extra || []).forEach(addExtraRow);
     if (!$('extraList').children.length) addExtraRow();
 
-    renderSections(state.parsed.sections || [], local.sectionDrafts || {});
-    $('editorTitle').textContent = dirName;
-    $('mainPanels').classList.add('hidden');
+    renderSections(state.parsed.sections || []);
     $('editorView').classList.remove('hidden');
-    setStatus('已进入简历窗口');
+    setStatus('已加载');
   } catch (e) {
-    setStatus(`打开失败：${e.message}`, true);
+    setStatus(`加载失败：${e.message}`, true);
   }
 }
 
+// ─── Meta save ──────────────────────────────────────
 function collectBasicMeta() {
-  return {
-    name: $('basicName').value.trim(),
-    email: $('basicEmail').value.trim(),
-    phone: $('basicPhone').value.trim(),
-  };
+  return { name: $('basicName').value.trim(), email: $('basicEmail').value.trim(), phone: $('basicPhone').value.trim() };
 }
 
 async function saveCurrentMeta() {
   if (!state.currentDir) return;
-  const data = { basic: collectBasicMeta(), extra: collectExtraRows(), sectionDrafts: collectSectionDrafts() };
+  const data = { basic: collectBasicMeta(), extra: collectExtraRows() };
   await saveLocalMeta(state.currentDir, data);
-  setStatus('已保存快速填写信息');
 }
 
 function buildCopyAllText() {
   if (!state.parsed) return '';
   const basic = collectBasicMeta();
   const extra = collectExtraRows();
-  const lines = [];
-  lines.push(`姓名：${basic.name}`);
-  lines.push(`邮箱：${basic.email}`);
-  lines.push(`电话：${basic.phone}`);
-  if (extra.length) {
-    lines.push('');
-    lines.push('自定义信息');
-    extra.forEach((it) => lines.push(`${it.key}：${it.value}`));
-  }
+  const lines = [`姓名：${basic.name}`, `邮箱：${basic.email}`, `电话：${basic.phone}`];
+  if (extra.length) { lines.push('', '自定义信息'); extra.forEach((it) => lines.push(`${it.key}：${it.value}`)); }
   lines.push('');
   (state.parsed.sections || []).forEach((sec) => {
     lines.push(sec.title);
@@ -459,71 +360,67 @@ function buildCopyAllText() {
   return lines.join('\n').trim();
 }
 
+// ─── Floating window ────────────────────────────────
+function isFloatingWindow() {
+  return window.location.search.includes('float=1');
+}
+
+async function openAsFloat() {
+  const w = await chrome.windows.create({
+    url: chrome.runtime.getURL('popup/popup.html?float=1'),
+    type: 'popup',
+    width: 560,
+    height: 720,
+    top: 50,
+    left: screen.availWidth - 580,
+  });
+  state.floatWindowId = w.id;
+  window.close(); // close the popup
+}
+
+// ─── Init ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  // Floating window mode
+  if (isFloatingWindow()) {
+    document.body.style.minHeight = 'auto';
+    document.body.style.maxHeight = 'none';
+    document.body.style.width = '100%';
+    $('floatControls').classList.remove('hidden');
+    $('opacitySlider').oninput = (e) => {
+      const v = e.target.value;
+      document.body.style.opacity = v / 100;
+      $('opacityVal').textContent = v + '%';
+    };
+  }
+
   chrome.storage.local.get(['server_url'], async (res) => {
     state.serverUrl = res.server_url || 'http://localhost:8765';
     $('serverUrl').value = state.serverUrl;
     try {
       await fetchJSON('/api/ext/profile');
-      setStatus('已连接主程序');
+      setStatus('已连接');
     } catch {
-      setStatus('未连接主程序，请先启动 web/server.py', true);
+      setStatus('未连接，请先启动 web/server.py', true);
     }
-    await loadDraft();
-    await loadHistory();
+    await loadVersions();
   });
 
   $('saveServerBtn').onclick = () => {
     state.serverUrl = $('serverUrl').value.trim() || 'http://localhost:8765';
-    chrome.storage.local.set({ server_url: state.serverUrl }, () => setStatus('服务地址已保存'));
+    chrome.storage.local.set({ server_url: state.serverUrl }, () => showToast('地址已保存'));
   };
 
-  $('refreshBtn').onclick = async () => { await loadHistory(); setStatus('已刷新'); };
-
-  $('jdFile').addEventListener('change', async (e) => {
-    const text = await readTextFile(e.target.files?.[0]);
-    if (text) $('jdText').value = text;
-  });
-  $('interviewFile').addEventListener('change', async (e) => {
-    const text = await readTextFile(e.target.files?.[0]);
-    if (text) $('interviewText').value = text;
-  });
-
-  $('saveDraftBtn').onclick = async () => {
-    try {
-      await fetchJSON('/api/ext/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jd: $('jdText').value, interview: $('interviewText').value }),
-      });
-      setStatus('已传回主程序');
-    } catch (e) {
-      setStatus(`传回失败：${e.message}`, true);
-    }
-  };
-
-  $('openMainBtn').onclick = async () => {
-    $('saveDraftBtn').click();
-    chrome.tabs.create({ url: `${state.serverUrl}/#generate` });
-  };
-
-  $('backBtn').onclick = () => {
-    $('editorView').classList.add('hidden');
-    $('mainPanels').classList.remove('hidden');
-    state.currentDir = '';
-  };
+  $('refreshBtn').onclick = async () => { await loadVersions(); showToast('已刷新'); };
+  $('versionSelect').onchange = (e) => openResume(e.target.value);
+  $('floatBtn').onclick = openAsFloat;
 
   $('addExtraBtn').onclick = () => addExtraRow();
-  $('saveMetaBtn').onclick = saveCurrentMeta;
+  $('saveMetaBtn').onclick = async () => { await saveCurrentMeta(); showToast('已保存'); };
   $('copyExtraBtn').onclick = async () => {
     const text = collectExtraRows().map((it) => `${it.key}：${it.value}`).join('\n');
-    await copyText(text);
-    setStatus('已复制自定义信息');
+    copyAndToast(text, '已复制');
   };
-  $('copyAllBtn').onclick = async () => {
-    await copyText(buildCopyAllText());
-    setStatus('已复制当前简历内容');
-  };
+  $('copyAllBtn').onclick = () => copyAndToast(buildCopyAllText(), '已复制全部');
 
   ['basicName', 'basicEmail', 'basicPhone'].forEach((id) => {
     $(id).addEventListener('input', () => { if (state.currentDir) saveCurrentMeta(); });

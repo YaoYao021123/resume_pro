@@ -11,13 +11,18 @@ memory: project
 
 ## 数据文件路径
 
-所有用户数据存放在项目根目录的 `data/` 下：
+系统支持多人档案管理，数据按人员隔离存放在 `data/{person_id}/` 下：
 
-- **个人信息**：`data/profile.md`
-- **经历详情**：`data/experiences/` （排除 `_template.md` 和 `README.md`）
-- **原始工作材料**：`data/work_materials/{公司名}/`
+- **人员注册表**：`data/persons.json`（记录所有人员 + 活跃人员）
+- **人员管理模块**：`tools/person_manager.py`
+- **个人信息**：`data/{person_id}/profile.md`
+- **经历详情**：`data/{person_id}/experiences/`（排除 `_template.md` 和 `README.md`）
+- **原始工作材料**：`data/{person_id}/work_materials/{公司名}/`
+- **共享模板**：`data/_shared/experiences/`（`_template.md`、`README.md`）
 - **LaTeX 模板**：`latex_src/resume/`
-- **输出目录**：`output/`
+- **输出目录**：`output/{person_id}/`
+
+> Legacy 模式（无 `persons.json`）下仍兼容 `data/profile.md` + `data/experiences/` 旧结构。
 
 ---
 
@@ -25,12 +30,14 @@ memory: project
 
 ### Step 0：前置检查
 
-读取 `data/profile.md` 和 `data/experiences/` 目录：
+1. 调用 `tools/person_manager.get_active_person_id()` 获取当前活跃人员 ID（可能为 None = legacy 模式）
+2. 读取 `tools/person_manager.get_person_profile_path(person_id)` 对应的 profile.md
+3. 读取 `tools/person_manager.get_person_experiences_dir(person_id)` 对应的 experiences 目录
 
 **如果 profile.md 仍含 `[YOUR_XXX]` 占位符**，停止并提示：
 ```
 ⚠️  请先完成个人信息设置：
-   1. 打开 data/profile.md
+   1. 打开 data/{person_id}/profile.md
    2. 将所有 [YOUR_XXX] 替换为你的真实信息
    3. 完成后重新发送 JD
 
@@ -40,8 +47,8 @@ memory: project
 **如果 experiences/ 没有有效文件（只有模板/README）**，停止并提示：
 ```
 ⚠️  请先添加至少一段经历：
-   1. 复制 data/experiences/_template.md
-   2. 重命名为 01_公司名.md 并填写
+   1. 复制 data/_shared/experiences/_template.md
+   2. 重命名为 01_公司名.md 并放入 data/{person_id}/experiences/
    3. 完成后重新发送 JD
 
    详细说明：SETUP.md
@@ -61,17 +68,17 @@ memory: project
 
 ### Step 2：内容匹配
 
-读取所有 `data/experiences/*.md`（跳过空文件、模板、README），提取每段经历的标签。
+读取活跃人员的所有经历文件（跳过空文件、模板、README），提取每段经历的标签。
 
 **匹配逻辑：**
 - 将 JD 关键词与经历标签对比，计算相关度
-- 选取相关度最高的 **3-5 段**经历
+- 选取相关度最高的 **3-5 段**经历（代码自动补足至最少 3 段）
 - **严格按时间倒序排列**（最新在前）
 - 目标：内容尽量填满整页（先选多，超页再删减）
 
 **内容来源优先级：**
-1. `data/work_materials/{公司名}/` 下的非空文件（原始材料）
-2. `data/experiences/{公司名}.md`（自行整理的描述）
+1. `data/{person_id}/work_materials/{公司名}/` 下的非空文件（原始材料）
+2. `data/{person_id}/experiences/{公司名}.md`（自行整理的描述）
 
 ---
 
@@ -80,7 +87,8 @@ memory: project
 ```bash
 BASE=$(pwd)  # 项目根目录
 DATE=$(date +%Y%m%d)
-OUTPUT_DIR="$BASE/output/{公司名}_{岗位}_{DATE}"
+PERSON_ID=$(python3 -c "from tools.person_manager import get_active_person_id; print(get_active_person_id() or 'default')")
+OUTPUT_DIR="$BASE/output/${PERSON_ID}/{公司名}_{岗位}_{DATE}"
 mkdir -p "$OUTPUT_DIR"
 cp -r "$BASE/latex_src/resume/"* "$OUTPUT_DIR/"
 ```
@@ -164,7 +172,32 @@ mdls -name kMDItemNumberOfPages resume-zh_CN.pdf  # macOS 检查页数
 
 ### Step 6：输出汇报
 
-生成完成后向用户输出：
+#### 6.0 填充率检查
+
+编译通过且页数为 1 后，运行填充率检查：
+
+```bash
+python3 tools/page_fill_check.py "$OUTPUT_DIR"
+```
+
+- 填充率 95%-100%：理想，无需调整
+- 填充率 < 95%：偏空，按 CLAUDE.md 偏空策略补充
+- 填充率 > 100%：溢出，回到 Step 5 继续精简
+
+#### 6.1 获奖规则（参照 CLAUDE.md）
+
+- 最多 3 条，同类奖学金只保留最高等级 1 条
+- 优先 JD 相关、国家级/国际级高含金量奖项
+- 排除低含金量（三等奖、公益类）和无关奖项
+
+#### 6.2 Bullet 格式规则（参照 CLAUDE.md）
+
+- 结尾不加句号（`。` `.` 均禁止）
+- 禁止领域专有术语和外部过时数据
+- 中文引号使用 `"..."`（U+201C/U+201D）
+- 城市信息从经历文件读取，不猜测
+
+#### 6.3 输出到用户
 - 目标岗位 + 输出文件路径
 - 选入经历列表及选择理由（与 JD 哪些关键词对齐）
 - 调优记录（有无调优、具体操作）
@@ -178,7 +211,7 @@ mdls -name kMDItemNumberOfPages resume-zh_CN.pdf  # macOS 检查页数
 1. **严禁捏造**：只改写和筛选用户已提供的内容，不添加未提及的数据或技能
 2. 如用户不具备 JD 要求的某项技能，**不添加**，可弱化相关描述
 3. 用户没有提供 JD 时，主动询问目标岗位信息，不要直接开始生成
-4. 读取 `data/` 目录时，跳过空文件和模板文件
+4. 读取 `data/{person_id}/` 目录时，跳过空文件和模板文件
 
 ---
 

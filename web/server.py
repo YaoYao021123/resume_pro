@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """Resume Generator Pro — 本地 Web 数据管理服务器
 
 启动方式：python3 web/server.py [--port 8765]
@@ -60,13 +61,21 @@ from tools.ext_db import (
     update_field_mapping as ext_update_field_mapping,
     get_corrections_summary as ext_get_corrections_summary,
     get_fill_history as ext_get_fill_history,
+    create_application as ext_create_application,
+    get_applications as ext_get_applications,
+    update_application as ext_update_application,
+    delete_application as ext_delete_application,
 )
 from tools.model_config import (
     get_model_config,
     save_model_config,
     load_local_env,
 )
-from backend.auth_billing_service.services.byok_service import ByokService, ByokValidationError
+try:
+    from backend.auth_billing_service.services.byok_service import ByokService, ByokValidationError
+except ImportError:
+    ByokService = None
+    ByokValidationError = Exception
 from tools.language_utils import (
     normalize_language,
     resolve_resume_filenames,
@@ -267,8 +276,9 @@ def _build_byok_ai_config_override(data: dict) -> dict | None:
         return None
 
     try:
-        provider = ByokService._validate_provider(provider)
-        api_key = ByokService._validate_api_key(api_key)
+        if ByokService is not None:
+            provider = ByokService._validate_provider(provider)
+            api_key = ByokService._validate_api_key(api_key)
     except ByokValidationError:
         return None
 
@@ -314,6 +324,8 @@ def _run_generate_with_entitlement(
     company_override = data.get('company', '').strip()
     role_override = data.get('role', '').strip()
     prefer_ai = bool(data.get('prefer_ai'))
+    feedback = data.get('feedback', '').strip()
+    selection_plan = data.get('selection_plan') if isinstance(data.get('selection_plan'), dict) else None
     try:
         language = normalize_language(data.get('language'))
     except ValueError as exc:
@@ -382,8 +394,10 @@ def _run_generate_with_entitlement(
             role=role_override,
             person_id=person_id,
             prefer_ai=prefer_ai,
+            feedback=feedback,
             language=language,
             ai_config_override=ai_config_override,
+            selection_plan=selection_plan,
         )
         if isinstance(result, dict) and not result.get('success', True):
             finalize_result = 'fail'
@@ -517,12 +531,19 @@ def _text_quality_score(text: str) -> float:
 
     # 长文本通常更完整，给轻微加分避免截断提取被选中
     length_boost = min(total / 3000.0, 1.0)
+
+    # CJK 密度奖励：含正确中文字符的文本应比乱码得分更高
+    cjk_count = sum(1 for ch in text if _is_cjk_char(ch))
+    cjk_ratio = cjk_count / total if total else 0
+    cjk_bonus = min(cjk_ratio * 1.5, 1.5)
+
     return (
         printable_ratio * 2.5 +
         marker_hits * 0.35 +
         length_boost * 0.4 -
         replacement_ratio * 4.0 -
-        exotic_ratio * 3.0
+        exotic_ratio * 3.0 +
+        cjk_bonus
     )
 
 
@@ -541,46 +562,12 @@ def _extract_pdf_text(content: bytes) -> str:
     candidates: list[tuple[str, str]] = []
     errors: list[str] = []
 
+    # 1. pymupdf — 首选，CJK 提取最可靠
     try:
-        import pypdf
-        reader = pypdf.PdfReader(io.BytesIO(content))
-        text = '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
-        if text:
-            candidates.append(('pypdf', text))
-    except Exception as e:
-        errors.append(f'pypdf: {e}')
-
-    try:
-        import PyPDF2
-        reader = PyPDF2.PdfReader(io.BytesIO(content))
-        text = '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
-        if text:
-            candidates.append(('PyPDF2', text))
-    except Exception as e:
-        errors.append(f'PyPDF2: {e}')
-
-    try:
-        from pdfminer.high_level import extract_text as _pdfminer_extract_text
-        with tempfile.NamedTemporaryFile(suffix='.pdf') as tmp:
-            tmp.write(content)
-            tmp.flush()
-            text = (_pdfminer_extract_text(tmp.name) or '').strip()
-            if text:
-                candidates.append(('pdfminer', text))
-    except Exception as e:
-        errors.append(f'pdfminer: {e}')
-
-    try:
-        import pdfplumber
-        with pdfplumber.open(io.BytesIO(content)) as doc:
-            text = '\n'.join((page.extract_text() or '') for page in doc.pages).strip()
-            if text:
-                candidates.append(('pdfplumber', text))
-    except Exception as e:
-        errors.append(f'pdfplumber: {e}')
-
-    try:
-        import fitz
+        try:
+            import pymupdf as fitz   # >= 1.24.0
+        except ImportError:
+            import fitz              # < 1.24.0
         doc = fitz.open(stream=content, filetype='pdf')
         text = '\n'.join(page.get_text() or '' for page in doc).strip()
         doc.close()
@@ -589,6 +576,7 @@ def _extract_pdf_text(content: bytes) -> str:
     except Exception as e:
         errors.append(f'pymupdf: {e}')
 
+    # 2. pdftotext CLI — 黄金标准，但可能未安装
     pdftotext_bin = shutil.which('pdftotext')
     if pdftotext_bin:
         try:
@@ -606,12 +594,189 @@ def _extract_pdf_text(content: bytes) -> str:
         except Exception as e:
             errors.append(f'pdftotext: {e}')
 
+    # 3. pdfminer
+    try:
+        from pdfminer.high_level import extract_text as _pdfminer_extract_text
+        with tempfile.NamedTemporaryFile(suffix='.pdf') as tmp:
+            tmp.write(content)
+            tmp.flush()
+            text = (_pdfminer_extract_text(tmp.name) or '').strip()
+            if text:
+                candidates.append(('pdfminer', text))
+    except Exception as e:
+        errors.append(f'pdfminer: {e}')
+
+    # 4. pdfplumber
+    try:
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(content)) as doc:
+            text = '\n'.join((page.extract_text() or '') for page in doc.pages).strip()
+            if text:
+                candidates.append(('pdfplumber', text))
+    except Exception as e:
+        errors.append(f'pdfplumber: {e}')
+
+    # 5. pypdf — 最后手段
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        text = '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
+        if text:
+            candidates.append(('pypdf', text))
+    except Exception as e:
+        errors.append(f'pypdf: {e}')
+
+    # 6. PyPDF2 — 与 pypdf 等价，兜底
+    try:
+        import PyPDF2
+        reader = PyPDF2.PdfReader(io.BytesIO(content))
+        text = '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
+        if text:
+            candidates.append(('PyPDF2', text))
+    except Exception as e:
+        errors.append(f'PyPDF2: {e}')
+
     if not candidates:
+        # 文本层全部失败，尝试 OCR（扫描件 PDF）
+        ocr_text = _ocr_pdf_text(content)
+        if ocr_text.strip():
+            return ocr_text
         detail = '; '.join(errors) if errors else 'no engine available'
         raise ValueError(f'无法解析 PDF 文本: {detail}')
 
-    _, best_text = _choose_best_text_candidate(candidates)
+    best_engine, best_text = _choose_best_text_candidate(candidates)
+
+    # 低质量 CJK 输出检测：exotic_ratio 过高说明文本仍然乱码
+    total = max(len(best_text), 1)
+    exotic_letters = 0
+    for ch in best_text:
+        if not ch.isalpha():
+            continue
+        if _is_cjk_char(ch):
+            continue
+        if ch.isascii():
+            continue
+        exotic_letters += 1
+    exotic_ratio = exotic_letters / total
+    if exotic_ratio > 0.1:
+        raise ValueError(
+            'PDF 中文文本解析质量不佳（可能是 XeLaTeX 子集字体）。'
+            '建议上传 .docx 或 .txt 格式。'
+        )
+
     return best_text
+
+
+_OCR_INSTANCE = None
+
+
+def _get_paddle_ocr():
+    """懒加载 PaddleOCR 单例实例，未安装时抛 ValueError"""
+    global _OCR_INSTANCE
+    if _OCR_INSTANCE is None:
+        try:
+            from paddleocr import PaddleOCR
+        except ImportError:
+            raise ValueError('PaddleOCR 未安装，无法识别图片/扫描件。请运行 pip3 install paddleocr paddlepaddle Pillow')
+        _OCR_INSTANCE = PaddleOCR(use_angle_cls=True, lang='ch', show_log=False)
+    return _OCR_INSTANCE
+
+
+def _ocr_pdf_text(content: bytes) -> str:
+    """用 PaddleOCR 从 PDF/图片中提取文本（扫描件降级方案）"""
+    try:
+        try:
+            import pymupdf as fitz
+        except ImportError:
+            import fitz
+        ocr = _get_paddle_ocr()
+        doc = fitz.open(stream=content, filetype='pdf')
+        all_text = []
+        for page in doc:
+            pix = page.get_pixmap(dpi=200)
+            img_bytes = pix.tobytes('png')
+            result = ocr.ocr(img_bytes, cls=True)
+            page_text = '\n'.join(line[1][0] for line in result[0] if line[1][0]) if result and result[0] else ''
+            all_text.append(page_text)
+        doc.close()
+        return '\n'.join(all_text).strip()
+    except ImportError:
+        return ''
+    except Exception:
+        return ''
+
+
+def _ocr_image_text(content: bytes, ext: str) -> str:
+    """用 PaddleOCR 从图片中提取文本"""
+    try:
+        import numpy as np
+        from PIL import Image
+    except ImportError:
+        raise ValueError('Pillow/numpy 未安装，无法识别图片文件。请上传 .pdf .docx .md .txt 格式')
+    ocr = _get_paddle_ocr()
+    img = Image.open(io.BytesIO(content))
+    img_array = np.array(img)
+    result = ocr.ocr(img_array, cls=True)
+    return '\n'.join(line[1][0] for line in result[0] if line[1][0]) if result and result[0] else ''
+
+
+def _call_ai_simple_chat(prompt: str, max_tokens: int = 3000) -> str:
+    """用当前配置的 AI 模型执行简单 chat，返回 assistant content"""
+    cfg = get_model_config()
+    if not cfg.get('enabled') or not cfg.get('api_key'):
+        raise RuntimeError('AI 未启用')
+    api_url = cfg['base_url'].rstrip('/') + '/chat/completions'
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f"Bearer {cfg['api_key']}",
+    }
+    payload = {
+        'model': cfg['model'],
+        'messages': [{'role': 'user', 'content': prompt}],
+        'temperature': 0.1,
+        'max_tokens': max_tokens,
+    }
+    if cfg.get('supports_thinking_off'):
+        payload['thinking'] = {'type': 'disabled'}
+    req = urllib.request.Request(api_url, data=json.dumps(payload).encode(), headers=headers, method='POST')
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        body = json.loads(resp.read())
+    return body['choices'][0]['message'].get('content', '')
+
+
+_AI_PARSE_PROMPT = """你是一个简历解析专家。请将以下简历原文解析为结构化 JSON，格式如下：
+{
+  "basic": {"name_zh": "", "name_en": "", "email": "", "phone": ""},
+  "education": [{"school": "", "degree": "", "major": "", "time_start": "", "time_end": "", "gpa": "", "rank": "", "courses": ""}],
+  "experiences": [{"company": "", "city": "", "department": "", "role": "", "time_start": "", "time_end": "", "tags": "", "bullets": []}],
+  "awards": [{"name": "", "issuer": "", "date": ""}],
+  "skills": {"tech": "", "software": "", "languages": ""}
+}
+规则：
+- bullets 是字符串数组，每条无句号结尾
+- tags 用逗号分隔
+- 时间格式 YYYY/MM 或 YYYY
+- 只输出 JSON，不要额外解释
+
+简历原文：
+"""
+
+
+def _ai_parse_resume_text(text: str) -> dict:
+    """用 AI 模型解析简历文本为结构化数据，失败返回空 dict"""
+    prompt = _AI_PARSE_PROMPT + text
+    raw = _call_ai_simple_chat(prompt)
+    # 提取 JSON（AI 可能在前后加 markdown 标记）
+    json_match = re.search(r'\{[\s\S]*\}', raw)
+    if not json_match:
+        return {}
+    try:
+        parsed = json.loads(json_match.group())
+        if not isinstance(parsed, dict):
+            return {}
+        return parsed
+    except json.JSONDecodeError:
+        return {}
 
 
 def _extract_docx_text(content: bytes) -> str:
@@ -640,8 +805,20 @@ def extract_text_from_upload(filename: str, content: bytes) -> str:
         return _decode_text_bytes(content).strip()
     if ext == '.docx':
         return _extract_docx_text(content).strip()
+    if ext in {'.jpg', '.jpeg', '.png', '.bmp', '.webp'}:
+        text = _ocr_image_text(content, ext)
+        if not text.strip():
+            raise ValueError('图片内容为空或无法识别')
+        return text
     if ext == '.pdf':
-        return _extract_pdf_text(content).strip()
+        try:
+            return _extract_pdf_text(content).strip()
+        except ValueError:
+            # 文本引擎全部失败（扫描件 PDF），尝试 OCR
+            ocr_text = _ocr_pdf_text(content)
+            if ocr_text.strip():
+                return ocr_text
+            raise
     raise ValueError(f'不支持的文件格式: {ext or "unknown"}')
 
 
@@ -1835,8 +2012,8 @@ def list_experiences() -> dict:
 def _extract_pdf_metadata(content: bytes, filename: str) -> dict:
     """从 PDF 文件中提取论文元信息（标题、作者等）
 
-    尝试使用 PyPDF2/pypdf 提取 PDF 元数据和首页文本。
-    如果没有安装相关库，则回退为仅从文件名推断标题。
+    使用 pymupdf 优先提取首页文本（CJK 可靠），
+    pypdf 仅用于读取 PDF 对象字典中的元数据。
     """
     result = {
         'title': '',
@@ -1852,66 +2029,50 @@ def _extract_pdf_metadata(content: bytes, filename: str) -> dict:
     base_name = re.sub(r'[-_]', ' ', base_name)
     result['title'] = base_name
 
+    # --- 用 pypdf 读取元数据字典（不涉及字体，不乱码） ---
     try:
         import pypdf
         reader = pypdf.PdfReader(io.BytesIO(content))
-
-        # 尝试从 PDF 元数据获取信息
         meta = reader.metadata
         if meta:
             if meta.title:
                 result['title'] = meta.title
             if meta.author:
                 result['authors'] = meta.author
-
-        # 提取首页文本用于描述
-        if len(reader.pages) > 0:
-            first_page_text = reader.pages[0].extract_text() or ''
-            # 取前 500 字作为参考描述
-            if first_page_text.strip():
-                # 尝试提取 abstract
-                abstract_match = re.search(
-                    r'(?:Abstract|摘要)[:\s—\-]*(.*?)(?:\n\n|\n(?:Keywords|关键词|1[\.\s]|Introduction|引言))',
-                    first_page_text,
-                    re.IGNORECASE | re.DOTALL
-                )
-                if abstract_match:
-                    result['description'] = abstract_match.group(1).strip()[:500]
-                else:
-                    result['description'] = first_page_text[:300].strip()
-
-    except ImportError:
-        # pypdf not installed, try PyPDF2
-        try:
-            import PyPDF2
-            reader = PyPDF2.PdfReader(io.BytesIO(content))
-            meta = reader.metadata
-            if meta:
-                if meta.get('/Title'):
-                    result['title'] = meta['/Title']
-                if meta.get('/Author'):
-                    result['authors'] = meta['/Author']
-
-            if len(reader.pages) > 0:
-                first_page_text = reader.pages[0].extract_text() or ''
-                if first_page_text.strip():
-                    abstract_match = re.search(
-                        r'(?:Abstract|摘要)[:\s—\-]*(.*?)(?:\n\n|\n(?:Keywords|关键词|1[\.\s]|Introduction|引言))',
-                        first_page_text,
-                        re.IGNORECASE | re.DOTALL
-                    )
-                    if abstract_match:
-                        result['description'] = abstract_match.group(1).strip()[:500]
-                    else:
-                        result['description'] = first_page_text[:300].strip()
-
-        except ImportError:
-            # No PDF library available, return basic info from filename
-            pass
-        except Exception:
-            pass
     except Exception:
         pass
+
+    # --- 用 pymupdf 提取首页文本（CJK 可靠） ---
+    first_page_text = ''
+    try:
+        try:
+            import pymupdf as fitz   # >= 1.24.0
+        except ImportError:
+            import fitz              # < 1.24.0
+        doc = fitz.open(stream=content, filetype='pdf')
+        if len(doc) > 0:
+            first_page_text = doc[0].get_text() or ''
+        doc.close()
+    except Exception:
+        # pymupdf 不可用时，回退 pypdf 提取文本
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(content))
+            if len(reader.pages) > 0:
+                first_page_text = reader.pages[0].extract_text() or ''
+        except Exception:
+            pass
+
+    if first_page_text.strip():
+        abstract_match = re.search(
+            r'(?:Abstract|摘要)[:\s—\-]*(.*?)(?:\n\n|\n(?:Keywords|关键词|1[\.\s]|Introduction|引言))',
+            first_page_text,
+            re.IGNORECASE | re.DOTALL
+        )
+        if abstract_match:
+            result['description'] = abstract_match.group(1).strip()[:500]
+        else:
+            result['description'] = first_page_text[:300].strip()
 
     return result
 
@@ -2220,6 +2381,10 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._ext_get_history()
         elif path == '/api/ext/draft':
             self._ext_get_draft()
+        elif path == '/api/applications':
+            self._get_applications()
+        elif path == '/api/applications/export':
+            self._export_applications()
         elif path == '/monitor' or path == '/monitor.html':
             self._serve_monitor_html()
         elif path == '/api/monitor/logs':
@@ -2252,6 +2417,8 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._upload_experience()
         elif path == '/api/publications/upload':
             self._upload_publication_pdf()
+        elif path == '/api/generate-plan':
+            self._generate_resume_plan()
         elif path == '/api/generate':
             self._generate_resume()
         elif path == '/api/import-resume/create-empty':
@@ -2285,6 +2452,10 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._ext_update_field_map()
         elif path == '/api/ext/draft':
             self._ext_save_draft()
+        elif path == '/api/applications':
+            self._create_application()
+        elif path == '/api/applications/sync-feishu':
+            self._send_error_json('飞书同步尚未实现', 501)
         elif path == '/api/monitor/clear':
             self._clear_monitor_logs()
         else:
@@ -2302,6 +2473,21 @@ class ResumeHandler(BaseHTTPRequestHandler):
         elif path.startswith('/api/gallery/'):
             dir_name = urllib.parse.unquote(path[len('/api/gallery/'):])
             self._delete_gallery_item(dir_name)
+        elif path.startswith('/api/applications/'):
+            app_id_str = urllib.parse.unquote(path[len('/api/applications/'):])
+            self._delete_application_record(app_id_str)
+        else:
+            self.send_error(404)
+
+    def do_PUT(self):
+        path = urllib.parse.urlparse(self.path).path
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > MAX_UPLOAD_SIZE:
+            self._send_error_json('请求过大', 413)
+            return
+        if path.startswith('/api/applications/'):
+            app_id_str = urllib.parse.unquote(path[len('/api/applications/'):])
+            self._update_application(app_id_str)
         else:
             self.send_error(404)
 
@@ -2777,6 +2963,69 @@ class ResumeHandler(BaseHTTPRequestHandler):
                 'pdf_name': pdf_path.name,
                 'tex_name': tex_path.name,
             })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_error_json(str(e), 500)
+
+    def _generate_resume_plan(self):
+        """生成可确认的简历方案，不写文件、不编译 PDF"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            jd_text = data.get('jd', '').strip()
+            if not jd_text:
+                self._send_json({'error': '请输入 JD 内容'}, status=400)
+                return
+
+            try:
+                language = normalize_language(data.get('language'))
+            except ValueError as exc:
+                self._send_json({'error': str(exc), 'error_code': 'INVALID_LANGUAGE'}, status=400)
+                return
+
+            mode = str(data.get('mode', 'platform_key')).strip() or 'platform_key'
+            ai_config_override = None
+            if mode == 'byok':
+                ai_config_override = _build_byok_ai_config_override(data)
+                if ai_config_override is None:
+                    self._send_json({'error': 'BYOK_INVALID', 'error_code': 'BYOK_INVALID'}, status=400)
+                    return
+
+            import sys
+            tools_dir = str(PROJECT_ROOT / 'tools')
+            if tools_dir not in sys.path:
+                sys.path.insert(0, str(PROJECT_ROOT))
+
+            from tools.generate_resume import build_resume_plan
+
+            requested_person_id = str(data.get('person_id', '')).strip()
+            if _auth_billing_enabled():
+                user_id, auth_error = _extract_auth_context(self.headers)
+                if auth_error:
+                    self._send_json({'error': auth_error, 'error_code': auth_error}, status=401)
+                    return
+                person_id = requested_person_id or get_active_person_id()
+                if user_id != f'owner:{person_id}':
+                    self._send_json({'error': 'PERSON_NOT_AUTHORIZED', 'error_code': 'PERSON_NOT_AUTHORIZED'}, status=403)
+                    return
+            else:
+                person_id = get_active_person_id()
+
+            result = build_resume_plan(
+                jd_text,
+                data.get('interview', '').strip(),
+                company=data.get('company', '').strip(),
+                role=data.get('role', '').strip(),
+                person_id=person_id,
+                prefer_ai=bool(data.get('prefer_ai')),
+                feedback=data.get('feedback', '').strip(),
+                language=language,
+                ai_config_override=ai_config_override,
+            )
+            self._send_json(result, status=200 if result.get('success') else 400)
 
         except Exception as e:
             import traceback
@@ -3388,8 +3637,19 @@ class ResumeHandler(BaseHTTPRequestHandler):
             if not text.strip():
                 self._send_error_json('文件内容为空或无法解析', 400)
                 return
-            parsed = parse_resume_text_to_structured(text)
-            self._send_json({'success': True, 'filename': filename, 'structured': parsed})
+            # AI 优先解析，正则兜底
+            engine = 'regex'
+            try:
+                parsed = _ai_parse_resume_text(text)
+                if parsed:
+                    engine = 'ai'
+            except Exception:
+                parsed = {}
+            if not parsed:
+                parsed = parse_resume_text_to_structured(text)
+                if engine != 'ai':
+                    engine = 'regex'
+            self._send_json({'success': True, 'filename': filename, 'structured': parsed, 'engine': engine})
         except ValueError as e:
             self._send_error_json(str(e), 400)
         except Exception as e:
@@ -3647,6 +3907,79 @@ class ResumeHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 500)
 
+    # ─── 投递记录 ─────────────────────────────────────────────
+
+    def _get_applications(self):
+        """GET /api/applications — 投递记录列表"""
+        try:
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            status = params.get('status', [None])[0]
+            limit = int(params.get('limit', [200])[0])
+            apps = ext_get_applications(limit=limit, status=status)
+            self._send_json({'applications': apps})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _export_applications(self):
+        """GET /api/applications/export — 导出全部投递记录"""
+        try:
+            apps = ext_get_applications(limit=10000)
+            self._send_json({'applications': apps, 'exported_at': datetime.now().isoformat()})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _create_application(self):
+        """POST /api/applications — 新增投递记录"""
+        try:
+            data = self._ext_read_body()
+            app_id = ext_create_application(
+                company=data.get('company', ''),
+                role=data.get('role', ''),
+                url=data.get('url', ''),
+                platform=data.get('platform', ''),
+                resume_dir=data.get('resume_dir', ''),
+                status=data.get('status', '投递'),
+                notes=data.get('notes', ''),
+                fill_id=data.get('fill_id'),
+            )
+            self._send_json({'id': app_id, 'success': True})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _update_application(self, app_id_str: str):
+        """PUT /api/applications/{id} — 更新投递记录"""
+        try:
+            app_id = int(app_id_str)
+        except ValueError:
+            self._send_error_json('无效的 ID', 400)
+            return
+        try:
+            data = self._ext_read_body()
+            success = ext_update_application(app_id, **data)
+            if success:
+                self._send_json({'success': True})
+            else:
+                self._send_error_json('记录不存在', 404)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _delete_application_record(self, app_id_str: str):
+        """DELETE /api/applications/{id} — 删除投递记录"""
+        try:
+            app_id = int(app_id_str)
+        except ValueError:
+            self._send_error_json('无效的 ID', 400)
+            return
+        try:
+            success = ext_delete_application(app_id)
+            if success:
+                self._send_json({'success': True})
+            else:
+                self._send_error_json('记录不存在', 404)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
     def _delete_experience(self, filename):
         try:
             safe_name = sanitize_filename(filename)
@@ -3670,6 +4003,7 @@ class ResumeHandler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description='Resume Generator Pro Web UI')
+    parser.add_argument('--host', default='127.0.0.1', help='绑定地址 (默认 127.0.0.1，容器内用 0.0.0.0)')
     parser.add_argument('--port', type=int, default=8765, help='服务端口 (默认 8765)')
     parser.add_argument('--no-open', action='store_true', help='不自动打开浏览器')
     args = parser.parse_args()
@@ -3681,8 +4015,8 @@ def main():
     _experiences_dir().mkdir(parents=True, exist_ok=True)
     _work_materials_dir().mkdir(parents=True, exist_ok=True)
 
-    server = HTTPServer(('127.0.0.1', args.port), ResumeHandler)
-    url = f'http://localhost:{args.port}'
+    server = HTTPServer((args.host, args.port), ResumeHandler)
+    url = f'http://{"localhost" if args.host == "127.0.0.1" else args.host}:{args.port}'
     print(f'Resume Generator Pro Web UI')
     print(f'服务地址: {url}')
     print(f'数据目录: {DATA_DIR}')
