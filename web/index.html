@@ -79,7 +79,13 @@ body {
   justify-content: space-between;
   gap: 12px;
 }
-.sidebar-brand { min-width: 0; }
+.sidebar-brand { min-width: 0; flex: 1; }
+.brand-logo {
+  display: block;
+  width: 132px;
+  max-width: 100%;
+  height: auto;
+}
 .sidebar-header h1 {
   font-family: var(--font-heading);
   font-size: 17px;
@@ -91,7 +97,7 @@ body {
 .sidebar-header p {
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 6px;
   font-family: var(--font-heading);
   font-weight: 400;
 }
@@ -126,7 +132,7 @@ body {
   font-family: var(--font-heading);
   cursor: pointer;
 }
-.person-selector .btn-manage {
+.btn-manage {
   width: 28px; height: 28px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -139,7 +145,7 @@ body {
   transition: all 0.2s;
   flex-shrink: 0;
 }
-.person-selector .btn-manage:hover {
+.btn-manage:hover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
@@ -490,6 +496,13 @@ body {
   padding: 12px 0;
   overflow-y: auto;
 }
+.nav-section-label {
+  padding: 14px 24px 8px;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
 .nav-item {
   display: flex;
   align-items: center;
@@ -541,16 +554,73 @@ body {
   background: var(--border);
   margin: 8px 24px;
 }
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f1f1f1, #d8d8d8);
+  position: relative;
+  flex-shrink: 0;
+}
+.sidebar-avatar::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #b8b8b8;
+  top: 9px;
+  left: 13px;
+}
+.sidebar-avatar::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 12px;
+  border-radius: 14px 14px 0 0;
+  background: #b8b8b8;
+  left: 7px;
+  bottom: 7px;
+}
+.sidebar-user {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-heading);
+}
+.sidebar-user-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-status {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--green-light);
+  color: var(--green);
+  font-size: 10.5px;
+  font-weight: 500;
+}
 
 /* ═══ Main ═══ */
 .main {
   margin-left: 256px;
   flex: 1;
   padding: 40px 52px 80px;
-  max-width: 940px;
+  max-width: 1160px;
   /* Center within the right panel (viewport minus sidebar) */
   margin-right: auto;
-  margin-left: calc(256px + max(0px, (100vw - 256px - 940px) / 2));
+  margin-left: calc(256px + max(0px, (100vw - 256px - 1160px) / 2));
 }
 .page { display: none; }
 .page.active { display: block; animation: pageIn 0.6s var(--ease-out) both; }
@@ -1056,97 +1126,735 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 }
 .tag-input-field::placeholder { color: var(--text-muted); font-style: italic; }
 
-/* ═══ Landing ═══ */
-.landing {
+/* ═══ Home Dashboard ═══ */
+.home-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 34px;
+}
+.home-title {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: nowrap;
+}
+.home-title-copy {
   display: flex;
   flex-direction: column;
+  gap: 5px;
+}
+.home-title h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 2vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.home-title p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.home-title .home-slogan {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 500;
+}
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.save-status strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+  font-weight: 500;
+}
+.home-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 26px;
+  margin-bottom: 34px;
+}
+.home-start-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
+  gap: 22px;
+  align-items: center;
+  border-color: rgba(184,117,79,0.22);
+  background: #fffdfb;
+  margin-bottom: 18px;
+}
+.home-start-kicker {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.home-start-title {
+  font-family: var(--font-heading);
+  font-size: clamp(22px, 2.2vw, 30px);
+  line-height: 1.25;
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.home-start-copy {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 640px;
+}
+.home-start-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.home-start-actions .btn-primary {
+  padding: 12px 20px;
+  font-size: 14px;
+}
+.workbench-status-panel {
+  margin-top: 18px;
+  border-color: rgba(120,140,93,0.22);
+}
+.workbench-status-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.workbench-status-title {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.workbench-status-copy {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.workbench-status-pill {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 140px);
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.workbench-status-pill.ready,
+.workbench-status-pill.running {
+  color: var(--green);
+  border-color: rgba(120,140,93,0.35);
+  background: rgba(120,140,93,0.06);
+}
+.workbench-status-pill.in_progress,
+.workbench-status-pill.recover,
+.workbench-status-pill.empty {
+  color: var(--accent);
+  border-color: rgba(217,119,87,0.34);
+  background: rgba(217,119,87,0.06);
+}
+.workbench-status-pill.blocked {
+  color: #b94b4b;
+  border-color: rgba(196,82,82,0.3);
+  background: rgba(196,82,82,0.06);
+}
+.workbench-status-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.55fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: stretch;
+}
+.workbench-status-main,
+.workbench-status-metrics {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 13px 14px;
+}
+.workbench-resume-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.workbench-resume-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.workbench-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 13px;
+}
+.workbench-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.workbench-metric-row + .workbench-metric-row {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+.workbench-metric-row strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.completion-panel {
+  display: grid;
+  grid-template-columns: 220px minmax(390px, 1fr) minmax(340px, 380px);
+  column-gap: 28px;
+  align-items: center;
+}
+.home-section-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 22px;
+}
+.home-progress-ring {
+  --home-progress: 0%;
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--surface) 0 58%, transparent 59%),
+    conic-gradient(#59d18b var(--home-progress), rgba(89,209,139,0.16) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-progress-value {
   text-align: center;
-  padding: 40px 20px;
-  position: relative;
+  font-family: var(--font-heading);
+  color: var(--text);
 }
-
-/* ═══ Home Gallery Section ═══ */
-.home-gallery-section {
-  width: 100%;
-  max-width: 900px;
-  margin: 40px auto 0;
-  padding: 0 20px 40px;
+.home-progress-value strong {
+  display: block;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
-.home-gallery-title {
+.home-progress-value span {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.completion-list {
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0 28px;
+  min-width: 0;
+}
+.completion-row {
+  display: grid;
+  grid-template-columns: 24px minmax(112px, 1fr) minmax(78px, 120px) 58px;
+  align-items: center;
+  gap: 10px;
+  min-height: 41px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+}
+.completion-row:last-child { border-bottom: none; }
+.completion-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+}
+.completion-row.done .completion-dot {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.completion-row.partial .completion-dot {
+  border-color: var(--green);
+  color: var(--green);
+}
+.completion-dot svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 3;
+}
+.completion-name {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.completion-status {
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.completion-mini-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.completion-mini-bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: var(--green);
+}
+.next-panel {
+  min-width: 0;
+}
+.next-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.next-heading .icon-svg { color: #e0a127; }
+.next-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.next-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, rgba(217,119,87,0.1), rgba(217,119,87,0.04));
+  padding: 16px;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+.next-card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(217,119,87,0.14);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.next-card-body { flex: 1; min-width: 0; }
+.next-card-title {
   font-family: var(--font-heading);
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text);
+}
+.next-card-copy {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.home-primary-action {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  font-size: 15px;
+  background: var(--accent);
+  box-shadow: 0 8px 20px rgba(217,119,87,0.18);
+}
+.home-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.home-capabilities-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 18px 4px;
+}
+.home-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+  margin-bottom: 34px;
+}
+.home-capability-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 30px 28px;
+  min-height: 150px;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.home-capability-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 8px 22px rgba(20,20,19,0.05);
+  transform: translateY(-2px);
+}
+.home-capability-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--accent-light);
+  color: var(--accent);
   display: flex;
   align-items: center;
+  justify-content: center;
   margin-bottom: 16px;
 }
-.landing-ornament {
-  position: absolute;
-  width: 320px; height: 320px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  animation: ornamentSpin 60s linear infinite;
+.home-capability-card h3 {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
 }
-.landing-ornament::after {
-  content: '';
-  position: absolute;
-  width: 220px; height: 220px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
+.home-capability-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: 18px;
 }
-@keyframes ornamentSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-.landing-label {
+.home-capability-link {
+  font-family: var(--font-heading);
+  font-size: 12.5px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.home-advice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 20px 24px;
+  font-family: var(--font-heading);
+}
+.home-advice-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.home-advice-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--green-light);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.home-advice strong {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.home-advice span {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+.home-advice-list {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.home-guide-link {
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.agent-recovery-panel {
+  border-color: rgba(184,117,79,0.28);
+  background: #fffaf7;
+}
+.agent-recovery-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+.agent-recovery-title {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.agent-recovery-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.agent-recovery-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+.agent-recovery-meta span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fff;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.agent-recovery-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.agent-job-overview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  margin: 12px 0 0;
+}
+.agent-job-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.agent-job-headline {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.agent-job-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.agent-job-next {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(217,119,87,0.28);
+  border-radius: 999px;
+  background: rgba(217,119,87,0.06);
+  color: var(--accent);
+  padding: 5px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.agent-job-input {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.agent-job-phases {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+.agent-job-phase {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 0;
+  background: #fff;
+}
+.agent-job-phase.pass {
+  border-color: rgba(120,140,93,0.28);
+  background: rgba(120,140,93,0.05);
+}
+.agent-job-phase.active,
+.agent-job-phase.warning {
+  border-color: rgba(217,119,87,0.28);
+  background: rgba(217,119,87,0.05);
+}
+.agent-job-phase.fail {
+  border-color: rgba(196,82,82,0.28);
+  background: rgba(196,82,82,0.05);
+}
+.agent-job-phase strong {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.agent-job-phase span {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-job-artifacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+.agent-job-artifacts span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fff;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.system-check-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.system-check-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 7px;
+}
+.system-check-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.system-check-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.system-check-pill.ready { color: var(--green); border-color: rgba(120,140,93,0.35); background: rgba(120,140,93,0.06); }
+.system-check-pill.attention { color: var(--accent); border-color: rgba(217,119,87,0.35); background: rgba(217,119,87,0.06); }
+.system-check-pill.blocked { color: #b94b4b; border-color: rgba(196,82,82,0.3); background: rgba(196,82,82,0.06); }
+.system-check-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.system-check-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 11px 12px;
+  min-height: 92px;
+}
+.system-check-item.pass { border-color: rgba(120,140,93,0.28); }
+.system-check-item.warning { border-color: rgba(217,119,87,0.28); }
+.system-check-item.fail { border-color: rgba(196,82,82,0.28); }
+.system-check-item strong {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 12.5px;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.system-check-item span {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.system-check-item em {
+  display: block;
+  margin-top: 7px;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--accent);
+}
+.system-check-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+  border: 1px solid rgba(217,119,87,0.26);
+  border-radius: 7px;
+  background: rgba(217,119,87,0.06);
+  color: var(--accent);
   font-family: var(--font-heading);
   font-size: 11px;
-  font-weight: 500;
-  color: var(--accent);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 24px;
-  animation: wordReveal 0.8s var(--ease-out) 0.1s both;
-  position: relative;
-}
-.landing h2 {
-  font-family: var(--font-heading);
-  font-size: clamp(32px, 4vw, 48px);
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  margin-bottom: 18px;
-  color: var(--text);
-  animation: wordReveal 0.8s var(--ease-out) 0.2s both;
-  position: relative;
+  padding: 5px 8px;
+  cursor: pointer;
 }
-.landing h2 em {
-  font-style: normal;
-  color: var(--accent);
-}
-.landing .subtitle {
-  font-size: clamp(15px, 1.5vw, 17px);
-  color: var(--text-secondary);
-  max-width: 440px;
-  line-height: 1.7;
-  margin-bottom: 36px;
-  animation: wordReveal 0.8s var(--ease-out) 0.35s both;
-  position: relative;
+.system-check-action:hover {
+  border-color: rgba(217,119,87,0.45);
+  background: rgba(217,119,87,0.1);
 }
 @keyframes wordReveal {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
-}
-.landing-actions {
-  display: flex; gap: 14px;
-  animation: wordReveal 0.8s var(--ease-out) 0.5s both;
-  position: relative;
 }
 .btn-hero {
   padding: 14px 32px;
@@ -1170,27 +1878,22 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   border: 1px solid var(--border);
 }
 .btn-hero-secondary:hover { border-color: var(--text); transform: translateY(-2px); }
-.landing-features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-top: 56px;
-  max-width: 600px;
+
+/* ═══ Home Gallery Section ═══ */
+.home-gallery-section {
   width: 100%;
-  animation: wordReveal 0.8s var(--ease-out) 0.65s both;
-  position: relative;
+  margin: 40px auto 0;
+  padding: 0 0 40px;
 }
-.landing-feature {
-  padding: 22px 18px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  text-align: left;
-  transition: all 0.4s var(--ease-out);
+.home-gallery-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
 }
-.landing-feature:hover { border-color: var(--border-hover); transform: translateY(-3px); box-shadow: 0 4px 20px rgba(20,20,19,0.06); }
-.landing-feature .feat-icon { margin-bottom: 12px; color: var(--accent); }
-.landing-feature .feat-title { font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-.landing-feature .feat-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
 
 .import-grid-2 {
   display: grid;
@@ -1658,6 +2361,96 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
+.tarot-back .tarot-qa-badge {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 1;
+}
+.tarot-back .tarot-qa-tools {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 2;
+  display: flex;
+  gap: 5px;
+}
+.tarot-back .tarot-qa-tools .tf-qa-shot {
+  background: rgba(255,255,255,0.9);
+  border-color: var(--card-accent-mid, rgba(217,119,87,0.2));
+}
+.tarot-qa-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.9);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  appearance: none;
+  cursor: pointer;
+}
+.tarot-qa-badge:hover {
+  border-color: var(--card-color, var(--accent));
+  background: rgba(217,119,87,0.06);
+}
+.tarot-qa-badge.qa-pass {
+  border-color: rgba(120,140,93,0.35);
+  color: var(--green);
+}
+.tarot-qa-badge.qa-warning {
+  border-color: rgba(217,119,87,0.35);
+  color: var(--accent);
+}
+.tarot-qa-badge.qa-error {
+  border-color: rgba(196,82,82,0.3);
+  color: #b94b4b;
+}
+.tarot-qa-badge.qa-skipped {
+  border-color: rgba(120,118,112,0.25);
+  color: var(--text-muted);
+}
+.tf-qa-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 8px;
+  min-height: 24px;
+}
+.tf-qa-row .tarot-qa-badge {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+.tf-qa-shot {
+  width: 26px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.tf-qa-shot:hover {
+  border-color: var(--card-color, var(--accent));
+  color: var(--card-color, var(--accent));
+  background: rgba(217,119,87,0.06);
+}
+.tf-qa-shot:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
 .tarot-front .tf-preview {
   flex: 1;
   min-height: 0;
@@ -1684,10 +2477,49 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 .tarot-front .tf-footer-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 5px;
 }
 .tarot-front .tf-footer-row + .tf-footer-row {
   margin-top: 6px;
+}
+.tarot-front .tf-workflow-btn {
+  width: 100%;
+  height: 28px;
+  border: 1px solid rgba(217,119,87,0.28);
+  border-radius: 7px;
+  background: rgba(217,119,87,0.06);
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s;
+  padding: 0 8px;
+  font-size: 10.5px;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tarot-front .tf-workflow-btn:hover {
+  border-color: var(--card-color, var(--accent));
+  background: rgba(217,119,87,0.1);
+  color: var(--card-color, var(--accent));
+}
+.tarot-front .tf-workflow-btn.done {
+  border-color: rgba(120,140,93,0.32);
+  background: rgba(120,140,93,0.07);
+  color: var(--green);
+}
+.tarot-front .tf-workflow-btn.fix {
+  border-color: rgba(196,82,82,0.3);
+  background: rgba(196,82,82,0.06);
+  color: #b94b4b;
+}
+.tarot-front .tf-workflow-btn:disabled {
+  opacity: 0.62;
+  cursor: wait;
 }
 .tarot-front .tf-footer-row .tf-spacer { flex: 1; }
 .tarot-front .tf-icon-btn {
@@ -1746,7 +2578,8 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   cursor: default;
 }
 .tarot-front .tf-action-btn {
-  flex: 1;
+  flex: 1 1 54px;
+  min-width: 54px;
   height: 28px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -2008,6 +2841,245 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   overflow-y: auto;
   flex-shrink: 0;
 }
+.agent-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.agent-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.agent-guide-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: #fff;
+}
+.agent-guide-card.pass {
+  border-color: rgba(120,140,93,0.35);
+  background: var(--green-light);
+}
+.agent-guide-card.fail,
+.agent-guide-card.warning {
+  border-color: rgba(184,117,79,0.32);
+  background: #fffaf7;
+}
+.agent-guide-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.agent-guide-card-detail {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.agent-guide-steps {
+  margin: 10px 0 0 17px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.agent-guide-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.quality-report {
+  font-family: var(--font-heading);
+  color: var(--text);
+}
+.qr-hero {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-warm);
+  padding: 14px;
+}
+.qr-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.qr-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.qr-status.ready { color: var(--green); border-color: rgba(120,140,93,0.35); }
+.qr-status.review { color: var(--accent); border-color: rgba(217,119,87,0.35); }
+.qr-status.fix { color: #b94b4b; border-color: rgba(196,82,82,0.3); }
+.qr-score {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.qr-summary {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.45;
+}
+.qr-next {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.qr-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.qr-metric {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fff;
+}
+.qr-metric span {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.qr-metric strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qr-workflow {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px;
+}
+.qr-workflow-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.qr-workflow-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.qr-workflow-progress {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.qr-workflow-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-warm);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.qr-workflow-bar span {
+  display: block;
+  height: 100%;
+  width: var(--workflow-progress, 0%);
+  background: var(--green);
+  border-radius: inherit;
+}
+.qr-workflow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.qr-workflow-step {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 7px;
+  min-height: 72px;
+  background: var(--surface);
+}
+.qr-workflow-step.pass { border-color: rgba(120,140,93,0.35); background: rgba(120,140,93,0.06); }
+.qr-workflow-step.warning { border-color: rgba(217,119,87,0.35); background: rgba(217,119,87,0.05); }
+.qr-workflow-step.fail { border-color: rgba(196,82,82,0.3); background: rgba(196,82,82,0.05); }
+.qr-workflow-step.pending { color: var(--text-muted); }
+.qr-workflow-step strong {
+  display: block;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 4px;
+}
+.qr-workflow-step span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+.qr-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 34vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.qr-check {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+.qr-check-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-warm);
+  color: var(--text-muted);
+}
+.qr-check.pass .qr-check-icon { color: var(--green); background: rgba(120,140,93,0.1); }
+.qr-check.warning .qr-check-icon { color: var(--accent); background: rgba(217,119,87,0.08); }
+.qr-check.fail .qr-check-icon { color: #b94b4b; background: rgba(196,82,82,0.08); }
+.qr-check-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+.qr-check-detail {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.qr-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-heading);
+}
 .ctx-modal-notes-label {
   font-size: 12px;
   font-weight: 600;
@@ -2042,6 +3114,84 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   padding: 12px 20px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+/* ═══ Visual QA Screenshot Modal ═══ */
+.qa-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,20,19,0.52);
+  z-index: 2100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.qa-modal-overlay.open {
+  display: flex;
+}
+.qa-modal {
+  width: min(900px, 94vw);
+  max-height: 90vh;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(20,20,19,0.28);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.qa-modal-header {
+  height: 52px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.qa-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.qa-modal-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qa-modal-close:hover {
+  background: var(--bg-warm);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.qa-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #f7f5f0;
+  padding: 18px;
+}
+.qa-modal-body img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 820px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(20,20,19,0.12);
 }
 
 /* ═══ LaTeX Editor ═══ */
@@ -2881,17 +4031,115 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
 /* ═══ Responsive ═══ */
 @media (max-width: 768px) {
   .sidebar { width: 56px; }
-  .sidebar-header h1, .sidebar-header p, .progress-label, .nav-item span:nth-child(2), .nav-check { display: none; }
-  .nav-item { padding: 14px 16px; justify-content: center; }
-  .main { margin-left: 56px; padding: 24px 16px 60px; max-width: none; }
+  .sidebar-header {
+    min-height: 58px;
+    padding: 12px 0;
+    justify-content: center;
+  }
+  .sidebar-header .btn-manage,
+  .person-selector,
+  .progress-section,
+  .brand-logo,
+  .sidebar-header h1,
+  .sidebar-header p,
+  .progress-label,
+  .nav-section-label,
+  .sidebar-footer,
+  .nav-item span:nth-child(2),
+  .nav-check {
+    display: none !important;
+  }
+  .nav-list { padding: 8px 0; }
+  .nav-item {
+    width: 40px;
+    height: 42px;
+    margin: 2px auto;
+    padding: 0;
+    justify-content: center;
+    border-right: 0;
+    border-radius: 10px;
+  }
+  .nav-item.active { border-right-color: transparent; }
+  .main { margin-left: 56px; width: calc(100vw - 56px); min-width: 0; padding: 24px 16px 60px; max-width: none; overflow-x: hidden; }
   .form-row { grid-template-columns: 1fr; }
   .form-row label { text-align: left; }
   .award-row { grid-template-columns: 1fr; }
-  .landing h2 { font-size: 28px; }
-  .landing-features { grid-template-columns: 1fr; }
+  .home-header { flex-direction: column; gap: 14px; margin-bottom: 22px; }
+  .home-title { align-items: flex-start; }
+  .home-title h2 { font-size: clamp(24px, 6vw, 30px); }
+  .home-title .home-slogan { font-size: 14px; }
+  .home-title p { font-size: 13px; }
+  .save-status { width: 100%; justify-content: flex-start; white-space: normal; }
+  .save-status span { display: none; }
+  .home-panel { padding: 22px 18px; border-radius: 10px; }
+  .home-start-panel { grid-template-columns: 1fr; }
+  .home-start-actions { justify-content: flex-start; }
+  .workbench-status-head { flex-direction: column; align-items: stretch; }
+  .workbench-status-grid { grid-template-columns: 1fr; }
+  .completion-panel {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 24px;
+  }
+  .home-section-title { text-align: center; margin-bottom: 18px; }
+  .home-progress-ring { width: 138px; height: 138px; }
+  .home-progress-value strong { font-size: 32px; }
+  .completion-list { border: none; padding: 0; }
+  .completion-row { grid-template-columns: 24px minmax(0, 1fr) 76px 54px; }
+  .completion-name { overflow: hidden; text-overflow: ellipsis; }
+  .next-card { align-items: flex-start; gap: 14px; }
+  .next-card-icon { width: 44px; height: 44px; }
+  .home-action-row, .home-capability-grid { grid-template-columns: 1fr; }
+  .home-advice { align-items: flex-start; flex-direction: column; }
+  .home-advice-list { gap: 10px; }
+  .agent-job-topline { flex-direction: column; gap: 8px; }
+  .agent-job-phases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .system-check-head { flex-direction: column; }
+  .system-check-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .work-card { flex: 0 0 100%; }
   .tarot-card { width: 160px; height: 224px; }
   .gallery-deck { gap: 14px; }
+}
+@media (max-width: 480px) {
+  .main { padding: 24px 14px 56px; }
+  .home-panel { padding: 20px 16px; }
+  .completion-row { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .completion-dot { grid-column: 1; grid-row: 1; }
+  .completion-name { grid-column: 2; grid-row: 1; }
+  .completion-status { grid-column: 3; grid-row: 1; }
+  .completion-mini-bar { display: none; }
+  .home-start-actions .btn { width: 100%; justify-content: center; }
+  .agent-job-phases { grid-template-columns: 1fr; }
+  .system-check-list { grid-template-columns: 1fr; }
+}
+@media (min-width: 769px) and (max-width: 1100px) {
+  .home-header { flex-direction: column; gap: 16px; }
+  .save-status { align-self: flex-start; }
+  .home-capability-grid { grid-template-columns: 1fr; gap: 18px; }
+}
+@media (min-width: 769px) and (max-width: 1280px) {
+  .completion-panel {
+    grid-template-columns: 210px minmax(360px, 1fr);
+    row-gap: 24px;
+  }
+  .next-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+    align-items: end;
+  }
+  .next-heading,
+  .next-desc {
+    grid-column: 1 / -1;
+  }
+  .next-card {
+    margin-bottom: 0;
+  }
+  .home-primary-action,
+  .home-action-row {
+    align-self: stretch;
+  }
 }
 /* ═══ Tabulator Override (投递记录) ═══ */
 .tabulator { font-family: var(--font-body); font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
@@ -2969,6 +4217,7 @@ select.app-edit-input { cursor: pointer; }
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
   <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></symbol>
@@ -2984,7 +4233,7 @@ select.app-edit-input { cursor: pointer; }
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-brand">
-        <h1>Resume<span>Gen</span></h1>
+        <img class="brand-logo" src="assets/resumegen-logo.png" alt="ResumeGen">
         <p>简历数据管理</p>
       </div>
       <button class="btn-manage" onclick="showModelConfigDialog()" title="模型配置">
@@ -3008,36 +4257,18 @@ select.app-edit-input { cursor: pointer; }
       <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
     <nav class="nav-list" id="nav-list">
+      <div class="nav-section-label">准备资料</div>
       <div class="nav-item active" onclick="goTo('home')" data-nav="home">
-        <svg class="icon-svg"><use href="#i-home"/></svg><span>Home</span>
-        <span class="nav-check" id="check-home"><svg><use href="#i-check"/></svg></span>
+        <svg class="icon-svg"><use href="#i-home"/></svg><span>首页</span>
       </div>
-      <div class="nav-item" onclick="goTo('home');setTimeout(()=>document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'}),300)" data-nav="gallery">
-        <svg class="icon-svg"><use href="#i-cards"/></svg><span>简历画廊</span>
-        <span class="nav-check" id="check-gallery"><svg><use href="#i-check"/></svg></span>
-      </div>
-      <div class="nav-item" onclick="goTo('import')" data-nav="import">
-        <svg class="icon-svg"><use href="#i-upload"/></svg><span>导入/新建简历</span>
-      </div>
-      <div class="nav-item" onclick="goTo('applications')" data-nav="applications">
-        <svg class="icon-svg"><use href="#i-list"/></svg><span>投递记录</span>
-      </div>
-      <div class="nav-divider" data-divider="top"></div>
-      <!-- Dynamic zone: generate + review will be promoted here when data ready -->
-      <div id="nav-promoted" style="display:none"></div>
       <div class="nav-item" onclick="goTo('basic')" data-nav="basic">
         <svg class="icon-svg"><use href="#i-user"/></svg><span>基本信息</span>
         <span class="nav-check" id="check-basic"><svg><use href="#i-check"/></svg></span>
-      </div>
-      <div class="nav-item" onclick="goTo('directions')" data-nav="directions">
-        <svg class="icon-svg"><use href="#i-compass"/></svg><span>求职方向</span>
-        <span class="nav-check" id="check-directions"><svg><use href="#i-check"/></svg></span>
       </div>
       <div class="nav-item" onclick="goTo('education')" data-nav="education">
         <svg class="icon-svg"><use href="#i-school"/></svg><span>教育背景</span>
         <span class="nav-check" id="check-education"><svg><use href="#i-check"/></svg></span>
       </div>
-      <div class="nav-divider"></div>
       <div class="nav-item" onclick="goTo('experiences')" data-nav="experiences">
         <svg class="icon-svg"><use href="#i-briefcase"/></svg><span>实习/工作经历</span>
         <span class="nav-check" id="check-experiences"><svg><use href="#i-check"/></svg></span>
@@ -3046,68 +4277,267 @@ select.app-edit-input { cursor: pointer; }
         <svg class="icon-svg"><use href="#i-folder"/></svg><span>项目经历</span>
         <span class="nav-check" id="check-projects"><svg><use href="#i-check"/></svg></span>
       </div>
+      <div class="nav-item" onclick="goTo('campus')" data-nav="campus">
+        <svg class="icon-svg"><use href="#i-school"/></svg><span>校园经历</span>
+        <span class="nav-check" id="check-campus"><svg><use href="#i-check"/></svg></span>
+      </div>
       <div class="nav-item" onclick="goTo('publications')" data-nav="publications">
         <svg class="icon-svg"><use href="#i-book"/></svg><span>论文发表</span>
         <span class="nav-check" id="check-publications"><svg><use href="#i-check"/></svg></span>
       </div>
-      <div class="nav-divider"></div>
       <div class="nav-item" onclick="goTo('awards')" data-nav="awards">
         <svg class="icon-svg"><use href="#i-award"/></svg><span>获奖情况</span>
         <span class="nav-check" id="check-awards"><svg><use href="#i-check"/></svg></span>
       </div>
       <div class="nav-item" onclick="goTo('skills')" data-nav="skills">
-        <svg class="icon-svg"><use href="#i-cpu"/></svg><span>技能</span>
+        <svg class="icon-svg"><use href="#i-cpu"/></svg><span>技能清单</span>
         <span class="nav-check" id="check-skills"><svg><use href="#i-check"/></svg></span>
       </div>
-      <div class="nav-divider" id="nav-divider-bottom"></div>
       <div class="nav-item" onclick="goTo('review')" data-nav="review" id="nav-review">
-        <svg class="icon-svg"><use href="#i-layout"/></svg><span>数据总览</span>
+        <svg class="icon-svg"><use href="#i-layout"/></svg><span>资料总览</span>
         <span class="nav-check" id="check-review"><svg><use href="#i-check"/></svg></span>
       </div>
+
+      <div class="nav-section-label">生成简历</div>
+      <div id="nav-promoted" style="display:none"></div>
       <div class="nav-item" onclick="goTo('generate')" data-nav="generate" id="nav-generate">
-        <svg class="icon-svg" style="color:var(--accent)"><use href="#i-sparkle"/></svg><span>生成简历</span>
-        <span class="nav-check" id="check-generate"><svg><use href="#i-check"/></svg></span>
+        <svg class="icon-svg"><use href="#i-sparkle"/></svg><span>JD 智能匹配</span>
+      </div>
+      <div class="nav-item" onclick="goTo('generate')" data-nav="generate-output">
+        <svg class="icon-svg"><use href="#i-file"/></svg><span>生成简历</span>
+      </div>
+
+      <div class="nav-section-label">管理记录</div>
+      <div class="nav-item" onclick="goTo('home');setTimeout(()=>document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'}),300)" data-nav="gallery">
+        <svg class="icon-svg"><use href="#i-gallery"/></svg><span>简历画廊</span>
+      </div>
+      <div class="nav-item" onclick="goTo('applications')" data-nav="applications">
+        <svg class="icon-svg"><use href="#i-list"/></svg><span>投递记录</span>
+      </div>
+      <div class="nav-item" onclick="showToast('请在简历画廊中打开具体简历后管理版本')" data-nav="versions">
+        <svg class="icon-svg"><use href="#i-download"/></svg><span>版本管理</span>
       </div>
     </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-avatar"></div>
+      <div class="sidebar-user">
+        <div class="sidebar-user-name">当前：<span id="sidebar-current-person">默认用户</span></div>
+        <span class="sidebar-user-status">已激活</span>
+      </div>
+      <button class="btn-manage" onclick="showPersonDialog()" title="管理档案">
+        <svg class="icon-svg" style="width:14px;height:14px"><use href="#i-settings"/></svg>
+      </button>
+    </div>
   </aside>
 
   <main class="main">
 
     <!-- Home -->
     <div class="page active" id="page-home">
-      <div class="landing">
-        <div class="landing-ornament"></div>
-        <div class="landing-label">AI-Powered Resume Engine</div>
-        <h2>精准匹配，<em>智能生成</em><br>你的专属简历</h2>
-        <p class="subtitle">上传 JD，AI 自动筛选经历、改写描述、排版输出单页 PDF。</p>
-        <div class="landing-actions">
-          <button class="btn-hero btn-hero-primary" onclick="goTo('basic')">开始填写资料</button>
-          <button class="btn-hero btn-hero-secondary" onclick="goTo('import')">
-            <svg class="icon-svg" style="width:16px;height:16px;margin-right:4px"><use href="#i-upload"/></svg>导入/新建简历
+      <div class="home-header">
+        <div class="home-title">
+          <div class="home-title-copy">
+            <h2>More to Focused</h2>
+            <p class="home-slogan">从丰富经历到聚焦表达</p>
+            <p>资料管理、JD 匹配与单页简历生成</p>
+          </div>
+        </div>
+        <div class="save-status">
+          <strong><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-check"/></svg> 数据已保存</strong>
+          <span>最后保存：刚刚</span>
+        </div>
+      </div>
+
+      <div class="home-panel home-start-panel" id="home-start-panel">
+        <div>
+          <div class="home-start-kicker">AI 简历生成</div>
+          <div class="home-start-title">粘贴 JD，生成针对性单页简历</div>
+          <div class="home-start-copy">系统会根据目标岗位匹配经历、改写表达并生成 PDF。你可以从新岗位开始，也可以继续使用最近生成的简历。</div>
+        </div>
+        <div class="home-start-actions">
+          <button class="btn btn-primary" id="home-start-generate" onclick="goTo('generate')">
+            <svg class="icon-svg" style="width:14px;height:14px;margin-right:6px;stroke:#fff"><use href="#i-sparkle"/></svg>开始生成简历
           </button>
-          <button class="btn-hero btn-hero-secondary" onclick="goTo('generate')">直接生成简历</button>
-          <button class="btn-hero btn-hero-secondary" onclick="document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'})" style="border-color:rgba(120,140,93,0.3);color:var(--green)">
-            <svg class="icon-svg" style="width:16px;height:16px;margin-right:4px;stroke:var(--green)"><use href="#i-cards"/></svg>简历画廊
+          <button class="btn btn-secondary" onclick="goTo('import')">
+            <svg class="icon-svg" style="width:14px;height:14px;margin-right:6px"><use href="#i-upload"/></svg>导入简历
+          </button>
+          <button class="btn btn-secondary" onclick="document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'})">
+            <svg class="icon-svg" style="width:14px;height:14px;margin-right:6px"><use href="#i-gallery"/></svg>简历画廊
           </button>
         </div>
-        <div class="landing-features">
-          <div class="landing-feature">
-            <div class="feat-icon"><svg class="icon-svg" style="width:22px;height:22px"><use href="#i-zap"/></svg></div>
-            <div class="feat-title">JD 智能匹配</div>
-            <div class="feat-desc">分析岗位关键词，精准筛选最相关经历</div>
+      </div>
+
+      <div class="home-panel workbench-status-panel" id="workbench-status-panel">
+        <div class="workbench-status-head">
+          <div>
+            <div class="workbench-status-title" id="workbench-status-title">最近生成</div>
+            <div class="workbench-status-copy" id="workbench-status-copy"></div>
           </div>
-          <div class="landing-feature">
-            <div class="feat-icon"><svg class="icon-svg" style="width:22px;height:22px"><use href="#i-edit"/></svg></div>
-            <div class="feat-title">Bullet 改写</div>
-            <div class="feat-desc">STAR 格式智能改写，保留量化数据</div>
+          <span class="workbench-status-pill empty" id="workbench-status-pill">读取中</span>
+        </div>
+        <div class="workbench-status-grid">
+          <div class="workbench-status-main">
+            <div class="workbench-resume-title" id="workbench-resume-title">读取中</div>
+            <div class="workbench-resume-meta" id="workbench-resume-meta"></div>
+            <div class="workbench-status-actions">
+              <button class="btn btn-primary" id="workbench-primary-action" onclick="handleWorkbenchPrimaryAction(this)">
+                <svg class="icon-svg" style="width:13px;height:13px;margin-right:6px;stroke:#fff"><use href="#i-zap"/></svg>继续
+              </button>
+              <button class="btn btn-secondary" id="workbench-edit-action" onclick="handleWorkbenchSecondaryAction('edit')" style="display:none;">
+                <svg class="icon-svg" style="width:13px;height:13px;margin-right:6px"><use href="#i-edit"/></svg>继续编辑
+              </button>
+              <button class="btn btn-secondary" id="workbench-quality-action" onclick="handleWorkbenchSecondaryAction('quality')" style="display:none;">
+                <svg class="icon-svg" style="width:13px;height:13px;margin-right:6px"><use href="#i-check"/></svg>检查结果
+              </button>
+            </div>
           </div>
-          <div class="landing-feature">
-            <div class="feat-icon"><svg class="icon-svg" style="width:22px;height:22px"><use href="#i-layout"/></svg></div>
-            <div class="feat-title">单页 PDF</div>
-            <div class="feat-desc">LaTeX 排版自动调优，确保不超页</div>
+          <div class="workbench-status-metrics" id="workbench-status-metrics">
+            <div class="workbench-metric-row"><span>填充率</span><strong>--</strong></div>
+            <div class="workbench-metric-row"><span>页数</span><strong>--</strong></div>
+            <div class="workbench-metric-row"><span>版本</span><strong>--</strong></div>
           </div>
         </div>
       </div>
+
+      <div class="home-panel completion-panel">
+        <div>
+          <div class="home-section-title">资料完成度</div>
+          <div class="home-progress-ring" id="home-progress-ring">
+            <div class="home-progress-value">
+              <strong id="home-progress-text">0%</strong>
+              <span>已完成</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="completion-list">
+          <div class="completion-row" data-home-step="basic">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">基本信息</span>
+            <span></span>
+            <span class="completion-status" id="home-status-basic">未完成</span>
+          </div>
+          <div class="completion-row" data-home-step="education">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">教育背景</span>
+            <span></span>
+            <span class="completion-status" id="home-status-education">未完成</span>
+          </div>
+          <div class="completion-row" data-home-step="experiences">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">实习/工作经历</span>
+            <span class="completion-mini-bar"><span id="home-bar-experiences"></span></span>
+            <span class="completion-status" id="home-status-experiences">0 / 5</span>
+          </div>
+          <div class="completion-row" data-home-step="projects">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">项目经历</span>
+            <span></span>
+            <span class="completion-status" id="home-status-projects">未完成</span>
+          </div>
+          <div class="completion-row" data-home-step="campus">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">校园经历</span>
+            <span></span>
+            <span class="completion-status" id="home-status-campus">未完成</span>
+          </div>
+          <div class="completion-row" data-home-step="publications">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">论文发表</span>
+            <span class="completion-mini-bar"><span id="home-bar-publications"></span></span>
+            <span class="completion-status" id="home-status-publications">0 / 2</span>
+          </div>
+          <div class="completion-row" data-home-step="awards">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">获奖情况</span>
+            <span class="completion-mini-bar"><span id="home-bar-awards"></span></span>
+            <span class="completion-status" id="home-status-awards">0 / 3</span>
+          </div>
+          <div class="completion-row" data-home-step="skills">
+            <span class="completion-dot"><svg><use href="#i-check"/></svg></span>
+            <span class="completion-name">技能清单</span>
+            <span></span>
+            <span class="completion-status" id="home-status-skills">未完成</span>
+          </div>
+        </div>
+
+        <div class="next-panel">
+          <div class="next-heading"><svg class="icon-svg"><use href="#i-zap"/></svg> 下一步建议</div>
+          <div class="next-desc">完善以下内容，可显著提升简历竞争力</div>
+          <div class="next-card" id="home-next-card" onclick="goToHomeNextStep()">
+            <div class="next-card-icon"><svg class="icon-svg" style="width:24px;height:24px"><use href="#i-briefcase"/></svg></div>
+            <div class="next-card-body">
+              <div class="next-card-title" id="home-next-title">完善实习/工作经历</div>
+              <div class="next-card-copy" id="home-next-copy">建议补充关键成果与量化数据</div>
+            </div>
+            <svg class="icon-svg" style="width:18px;height:18px"><use href="#i-link"/></svg>
+          </div>
+          <button class="btn btn-primary home-primary-action" id="home-primary-action" onclick="goToHomeNextStep()">继续完善资料 →</button>
+          <div class="home-action-row">
+            <button class="btn btn-secondary" onclick="goTo('import')"><svg class="icon-svg" style="width:14px;height:14px;margin-right:6px"><use href="#i-upload"/></svg> 导入简历</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'})"><svg class="icon-svg" style="width:14px;height:14px;margin-right:6px"><use href="#i-gallery"/></svg> 简历画廊</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="home-panel agent-recovery-panel" id="agent-recovery-panel" style="display:none;margin-top:18px;"></div>
+
+      <div class="home-panel" style="margin-top:18px;">
+        <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,0.8fr);gap:18px;align-items:start;">
+          <div>
+            <div class="home-section-title">AI 补充资料</div>
+            <p style="font-size:13px;color:var(--text-secondary);margin:8px 0 12px;">粘贴课程、项目草稿、社团活动、获奖、JD 或零散经历，AI 会生成可确认的补充建议。</p>
+            <textarea id="ai-profile-source" rows="5" placeholder="例如：我会 Python/SQL/Excel，做过一个销售数据看板项目；学生会负责活动运营..." style="width:100%;resize:vertical;"></textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-primary" id="btn-ai-profile-suggest" onclick="requestAiProfileSuggestions()">
+              <svg class="icon-svg" style="width:14px;height:14px;margin-right:6px;stroke:#fff"><use href="#i-sparkle"/></svg> AI 自动补充
+            </button>
+            <button class="btn btn-secondary" onclick="showModelConfigDialog()">
+              <svg class="icon-svg" style="width:14px;height:14px;margin-right:6px"><use href="#i-settings"/></svg> 配置模型
+            </button>
+            <div id="ai-profile-hint" style="font-size:12px;color:var(--text-muted);line-height:1.6;">不会直接覆盖已填写内容；应用后会写入表单，可再保存。</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="home-capabilities-title">AI 简历生成能力</h3>
+      <div class="home-capability-grid">
+        <div class="home-capability-card">
+          <div class="home-capability-icon"><svg class="icon-svg" style="width:24px;height:24px"><use href="#i-compass"/></svg></div>
+          <h3>JD 智能匹配</h3>
+          <p>基于岗位需求，智能匹配你的经历与技能，突出核心优势</p>
+          <span class="home-capability-link" onclick="goTo('generate')">了解更多 →</span>
+        </div>
+        <div class="home-capability-card">
+          <div class="home-capability-icon"><svg class="icon-svg" style="width:24px;height:24px"><use href="#i-edit"/></svg></div>
+          <h3>描述改写优化</h3>
+          <p>优化经历描述，提升表达质量与专业度，增强竞争力</p>
+          <span class="home-capability-link" onclick="goTo('generate')">了解更多 →</span>
+        </div>
+        <div class="home-capability-card">
+          <div class="home-capability-icon"><svg class="icon-svg" style="width:24px;height:24px"><use href="#i-file"/></svg></div>
+          <h3>单页 PDF</h3>
+          <p>自动排版调优，确保内容饱满，生成高质量单页 PDF</p>
+          <span class="home-capability-link" onclick="goTo('generate')">了解更多 →</span>
+        </div>
+      </div>
+
+      <div class="home-advice">
+        <div class="home-advice-main">
+          <div class="home-advice-icon"><svg class="icon-svg" style="width:18px;height:18px"><use href="#i-check"/></svg></div>
+          <div>
+            <strong>使用建议</strong>
+            <div class="home-advice-list">
+              <span>完整的资料能让 AI 更好地理解你</span>
+              <span>量化成果能显著提升简历说服力</span>
+              <span>针对不同岗位生成定制化简历</span>
+            </div>
+          </div>
+        </div>
+        <span class="home-guide-link" onclick="goTo('review')">查看资料总览 →</span>
+      </div>
+
       <div class="home-gallery-section" id="home-gallery-section">
         <h3 class="home-gallery-title">
           <svg class="icon-svg" style="width:18px;height:18px;margin-right:6px"><use href="#i-cards"/></svg>
@@ -3335,7 +4765,15 @@ select.app-edit-input { cursor: pointer; }
       <div class="page-title">项目经历</div>
       <div class="page-desc">填写课题研究、个人项目等 (可选)</div>
       <div class="form-section"><div id="projects-list"></div><button class="btn btn-add" onclick="addProject()"><svg><use href="#i-plus"/></svg> 添加项目</button></div>
-      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('experiences')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('publications')">下一步 →</button></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('experiences')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('campus')">下一步 →</button></div>
+    </div>
+
+    <!-- 校园经历 -->
+    <div class="page" id="page-campus">
+      <div class="page-title">校园经历</div>
+      <div class="page-desc">填写学生会、社团、志愿活动、挑战赛组织等 (可选)</div>
+      <div class="form-section"><div id="campus-list"></div><button class="btn btn-add" onclick="addCampusExperience()"><svg><use href="#i-plus"/></svg> 添加校园经历</button></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('projects')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('publications')">下一步 →</button></div>
     </div>
 
     <!-- 论文发表 -->
@@ -3353,7 +4791,7 @@ select.app-edit-input { cursor: pointer; }
         <div id="pub-upload-status" style="font-size:12px;color:var(--text-muted);"></div>
       </div>
       <div class="form-section"><h2><svg class="icon-svg"><use href="#i-book"/></svg> 论文列表</h2><div id="publications-list"></div><button class="btn btn-add" onclick="addPublication()"><svg><use href="#i-plus"/></svg> 手动添加论文</button></div>
-      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('projects')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('awards')">下一步 →</button></div>
+      <div class="btn-group"><button class="btn btn-primary" onclick="saveProfile()">保存</button><button class="btn btn-secondary" onclick="goTo('campus')">← 上一步</button><button class="btn btn-secondary" onclick="goTo('awards')">下一步 →</button></div>
     </div>
 
     <!-- 获奖情况 -->
@@ -3373,6 +4811,12 @@ select.app-edit-input { cursor: pointer; }
       <div class="page-title">技能</div>
       <div class="page-desc">添加技能标签，按回车或逗号添加</div>
       <div class="form-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg-warm);">
+          <div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">从已保存经历、工作材料和最近生成简历里提取技能候选。只会给出本地资料中出现过的词，应用前请自行确认真实掌握。</div>
+          <button class="btn btn-secondary" id="btn-local-skill-suggest" onclick="requestLocalSkillSuggestions()" style="padding:8px 12px;font-size:12px;white-space:nowrap;">
+            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-zap"/></svg>从资料提取
+          </button>
+        </div>
         <div class="form-row form-row-wide"><label>编程与技术</label>
           <div class="tag-input-wrap" id="tags-tech" onclick="this.querySelector('.tag-input-field').focus()">
             <input class="tag-input-field" data-tag-category="tech" placeholder="输入技能后按回车添加，如 Python">
@@ -3445,6 +4889,14 @@ select.app-edit-input { cursor: pointer; }
           <select id="gen-language">
             <option value="zh" selected>中文 (zh)</option>
             <option value="en">English (en)</option>
+          </select>
+        </div>
+        <div class="form-row" style="grid-template-columns:60px 1fr;margin-bottom:12px;">
+          <label style="text-align:right;font-size:13px;color:var(--text-secondary);">Agent</label>
+          <select id="gen-agent">
+            <option value="auto" selected>自动选择可用 Agent</option>
+            <option value="codex">Codex 本地执行</option>
+            <option value="claude">Claude Code 本地执行</option>
           </select>
         </div>
         <div class="jd-tabs">
@@ -3617,6 +5069,24 @@ select.app-edit-input { cursor: pointer; }
   </div>
 </div>
 
+<!-- ═══ Visual QA Screenshot Modal ═══ -->
+<div class="qa-modal-overlay" id="qa-modal" onclick="if(event.target===this)closeVisualReviewModal()">
+  <div class="qa-modal">
+    <div class="qa-modal-header">
+      <div class="qa-modal-title">
+        <svg class="icon-svg" style="width:15px;height:15px"><use href="#i-file"/></svg>
+        <span>视觉 QA 截图</span>
+      </div>
+      <button class="qa-modal-close" onclick="closeVisualReviewModal()">
+        <svg class="icon-svg" style="width:13px;height:13px"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="qa-modal-body">
+      <img id="qa-modal-img" alt="视觉 QA 截图">
+    </div>
+  </div>
+</div>
+
 <!-- ═══ Save As Modal ═══ -->
 <div class="person-modal-overlay" id="saveas-modal" onclick="if(event.target===this)closeSaveAsDialog()">
   <div class="person-modal">
@@ -3726,7 +5196,7 @@ select.app-edit-input { cursor: pointer; }
 <div class="toast" id="toast"></div>
 
 <script>
-let selectedFiles = [], educationCounter = 0, awardCounter = 0, currentPage = 'home', projectCounter = 0, pubCounter = 0, workCardCounter = 0;
+let selectedFiles = [], educationCounter = 0, awardCounter = 0, currentPage = 'home', projectCounter = 0, campusCounter = 0, pubCounter = 0, workCardCounter = 0;
 let importSelectedFile = null, importDraftDir = '', importedStructuredData = null;
 let personsData = { persons: [], active: null };
 let modelConfigState = { enabled: false, provider: 'gemini', model: '', base_url: '', api_key: '', platform_url: '', providers: [] };
@@ -3744,14 +5214,22 @@ async function loadPersons() {
       return;
     }
     selector.style.display = '';
-    select.innerHTML = data.persons.map(p =>
-      `<option value="${esc(p.id)}" ${p.id === data.active ? 'selected' : ''}>${esc(p.display_name)}</option>`
-    ).join('');
-    updateGenPersonContext();
-  } catch(e) {
-    document.getElementById('person-selector').style.display = 'none';
-  }
-}
+	    select.innerHTML = data.persons.map(p =>
+	      `<option value="${esc(p.id)}" ${p.id === data.active ? 'selected' : ''}>${esc(p.display_name)}</option>`
+	    ).join('');
+	    updateSidebarCurrentPerson();
+	    updateGenPersonContext();
+	  } catch(e) {
+	    document.getElementById('person-selector').style.display = 'none';
+	  }
+	}
+
+	function updateSidebarCurrentPerson() {
+	  const el = document.getElementById('sidebar-current-person');
+	  if (!el) return;
+	  const person = (personsData.persons || []).find(p => p.id === personsData.active);
+	  el.textContent = person ? person.display_name : '默认用户';
+	}
 
 async function switchPerson(personId) {
   try {
@@ -3763,9 +5241,10 @@ async function switchPerson(personId) {
     const result = await res.json();
     if (result.error) { showToast(result.error, 'error'); return; }
 
-    personsData.active = personId;
-    const person = personsData.persons.find(p => p.id === personId);
-    showToast('已切换到: ' + (person ? person.display_name : personId));
+	    personsData.active = personId;
+	    const person = personsData.persons.find(p => p.id === personId);
+	    updateSidebarCurrentPerson();
+	    showToast('已切换到: ' + (person ? person.display_name : personId));
 
     // 全量刷新
     await loadProfile();
@@ -4036,65 +5515,719 @@ function goTo(page) {
 }
 
 function updateProgress() {
+  const savedSkills = !!(document.querySelectorAll('#tags-tech .tag-chip').length || document.querySelectorAll('#tags-software .tag-chip').length);
+  const derivedSkillsReady = hasDerivedSkillContext();
   const checks = {
     basic: !!(document.getElementById('name_zh').value.trim() && document.getElementById('email').value.trim() && document.getElementById('phone').value.trim()),
     education: !!document.querySelector('#education-list .entry-card [data-field="school"]')?.value?.trim(),
     awards: document.querySelectorAll('#awards-list .award-row').length > 0 && !!document.querySelector('#awards-list .award-row [data-field="name"]')?.value?.trim(),
-    skills: !!(document.querySelectorAll('#tags-tech .tag-chip').length || document.querySelectorAll('#tags-software .tag-chip').length),
+    skills: savedSkills || derivedSkillsReady,
     directions: !!document.getElementById('dir_primary').value.trim(),
     projects: document.querySelectorAll('#projects-list .entry-card').length > 0 && !!document.querySelector('#projects-list .entry-card [data-field="name"]')?.value?.trim(),
+    campus: document.querySelectorAll('#campus-list .entry-card').length > 0 && !!document.querySelector('#campus-list .entry-card [data-field="name"]')?.value?.trim(),
     publications: document.querySelectorAll('#publications-list .pub-card').length > 0 && !!document.querySelector('#publications-list .pub-card [data-field="title"]')?.value?.trim(),
     experiences: false
   };
-  fetch('/api/experiences').then(r => r.json()).then(d => { checks.experiences = (d.experiences || []).length > 0; renderProgress(checks); }).catch(() => renderProgress(checks));
+  fetch('/api/experiences').then(r => r.json()).then(d => {
+    const expCount = (d.experiences || []).length;
+    checks.experiences = expCount > 0;
+    renderProgress(checks, { expCount, savedSkills, derivedSkillsReady });
+  }).catch(() => renderProgress(checks, { expCount: 0, savedSkills, derivedSkillsReady }));
 }
 
-function renderProgress(checks) {
+function renderProgress(checks, meta={}) {
   const steps = Object.keys(checks);
-  const done = steps.filter(k => checks[k]).length;
-  const pct = Math.round((done / steps.length) * 100);
+  const pct = renderHomeDashboard(checks, meta);
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('progress-text').textContent = pct + '%';
   steps.forEach(k => { const el = document.getElementById('check-' + k); if (el) el.classList.toggle('done', !!checks[k]); });
-  // Promote generate + review to top when data is mostly complete
-  promoteNavIfReady(pct);
 }
 
-let navPromoted = false;
-function promoteNavIfReady(pct) {
-  const promoted = document.getElementById('nav-promoted');
-  const navGen = document.getElementById('nav-generate');
-  const navReview = document.getElementById('nav-review');
-  const dividerBottom = document.getElementById('nav-divider-bottom');
-  if (!promoted || !navGen || !navReview) return;
-  if (pct >= 75 && !navPromoted) {
-    navPromoted = true;
-    promoted.style.display = '';
-    promoted.innerHTML = '';
-    const genClone = navGen.cloneNode(true);
-    const revClone = navReview.cloneNode(true);
-    genClone.id = 'nav-generate-top';
-    revClone.id = 'nav-review-top';
-    genClone.onclick = () => goTo('generate');
-    revClone.onclick = () => goTo('review');
-    promoted.appendChild(genClone);
-    promoted.appendChild(revClone);
-    const div = document.createElement('div');
-    div.className = 'nav-divider';
-    promoted.appendChild(div);
-    navGen.style.display = 'none';
-    navReview.style.display = 'none';
-    if (dividerBottom) dividerBottom.style.display = 'none';
-    // Sync active state
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav === currentPage));
-  } else if (pct < 75 && navPromoted) {
-    navPromoted = false;
-    promoted.style.display = 'none';
-    promoted.innerHTML = '';
-    navGen.style.display = '';
-    navReview.style.display = '';
-    if (dividerBottom) dividerBottom.style.display = '';
+let homeNextTarget = 'basic';
+function hasDerivedSkillContext() {
+  const checks = Array.isArray(lastSystemCheck?.checks) ? lastSystemCheck.checks : [];
+  return checks.some(check => check.key === 'profile_skills' && check.status === 'pass' && check.derived);
+}
+
+function renderHomeDashboard(checks, meta={}) {
+  const expCount = Number(meta.expCount || 0);
+  const projectCount = document.querySelectorAll('#projects-list .entry-card').length;
+  const campusCount = document.querySelectorAll('#campus-list .entry-card').length;
+  const pubCount = document.querySelectorAll('#publications-list .pub-card').length;
+  const awardCount = document.querySelectorAll('#awards-list .award-row').length;
+  const derivedSkillsReady = !!meta.derivedSkillsReady && !meta.savedSkills;
+  const scores = {
+    basic: checks.basic ? 1 : 0,
+    education: checks.education ? 1 : 0,
+    experiences: Math.min(expCount / 5, 1),
+    projects: checks.projects ? 1 : 0,
+    campus: checks.campus ? 1 : 0,
+    publications: Math.min(pubCount / 2, 1),
+    awards: Math.min(awardCount / 3, 1),
+    skills: checks.skills ? 1 : 0,
+  };
+  const scoreValues = Object.values(scores);
+  const homePct = Math.round((scoreValues.reduce((sum, n) => sum + n, 0) / scoreValues.length) * 100);
+  const ring = document.getElementById('home-progress-ring');
+  const text = document.getElementById('home-progress-text');
+  if (ring) ring.style.setProperty('--home-progress', homePct + '%');
+  if (text) text.textContent = homePct + '%';
+
+  setHomeCompletion('basic', checks.basic ? 'done' : 'todo', checks.basic ? '已完成' : '未完成');
+  setHomeCompletion('education', checks.education ? 'done' : 'todo', checks.education ? '已完成' : '未完成');
+  setHomeCompletion('experiences', expCount >= 5 ? 'done' : (expCount > 0 ? 'partial' : 'todo'), `${Math.min(expCount, 5)} / 5`, Math.min(expCount / 5, 1));
+  setHomeCompletion('projects', checks.projects ? 'done' : 'todo', checks.projects ? '已完成' : '未完成');
+  setHomeCompletion('campus', checks.campus ? 'done' : 'todo', checks.campus ? '已完成' : '未完成');
+  setHomeCompletion('publications', pubCount >= 2 ? 'done' : (pubCount > 0 ? 'partial' : 'todo'), `${Math.min(pubCount, 2)} / 2`, Math.min(pubCount / 2, 1));
+  setHomeCompletion('awards', awardCount >= 3 ? 'done' : (awardCount > 0 ? 'partial' : 'todo'), `${Math.min(awardCount, 3)} / 3`, Math.min(awardCount / 3, 1));
+  setHomeCompletion(
+    'skills',
+    checks.skills ? (derivedSkillsReady ? 'partial' : 'done') : 'todo',
+    checks.skills ? (derivedSkillsReady ? '已推导' : '已完成') : '未完成'
+  );
+
+  const next = getHomeNextStep(checks, { expCount, projectCount, campusCount, pubCount, awardCount });
+  homeNextTarget = next.target;
+  const title = document.getElementById('home-next-title');
+  const copy = document.getElementById('home-next-copy');
+  const btn = document.getElementById('home-primary-action');
+  if (title) title.textContent = next.title;
+  if (copy) copy.textContent = next.copy;
+  if (btn) btn.textContent = next.button;
+  return homePct;
+}
+
+function setHomeCompletion(key, state, status, ratio=null) {
+  const row = document.querySelector(`[data-home-step="${key}"]`);
+  if (row) {
+    row.classList.toggle('done', state === 'done');
+    row.classList.toggle('partial', state === 'partial');
   }
+  const statusEl = document.getElementById('home-status-' + key);
+  if (statusEl) statusEl.textContent = status;
+  const bar = document.getElementById('home-bar-' + key);
+  if (bar && ratio !== null) bar.style.width = Math.round(Math.max(0, Math.min(1, ratio)) * 100) + '%';
+}
+
+function getHomeNextStep(checks, counts) {
+  if (!checks.basic) return { target: 'basic', title: '完善基本信息', copy: '补充姓名、邮箱和电话，确保简历可投递', button: '继续完善资料 →' };
+  if (!checks.education) return { target: 'education', title: '完善教育背景', copy: '填写学校、专业和时间，建立基础可信度', button: '继续完善资料 →' };
+  if (!checks.skills) return { target: 'skills', title: '完善技能清单', copy: '补充技术、工具和语言能力，帮助 AI 更准确匹配', button: '继续完善资料 →' };
+  if (counts.expCount < 5) {
+    const missing = Math.max(1, 5 - counts.expCount);
+    return { target: 'experiences', title: `完善 ${missing} 段实习/工作经历`, copy: '建议补充关键成果与量化数据', button: '继续完善资料 →' };
+  }
+  if (!checks.projects) return { target: 'projects', title: '补充项目经历', copy: '加入可迁移的项目成果，让经历更完整', button: '继续完善资料 →' };
+  if (!checks.campus) return { target: 'campus', title: '补充校园经历', copy: '填写社团、学生会、志愿或挑战赛经历，补足组织协作证明', button: '继续完善资料 →' };
+  if (counts.pubCount < 2) return { target: 'publications', title: '补充论文发表', copy: '如有论文或研究产出，可进一步增强可信度', button: '继续完善资料 →' };
+  if (counts.awardCount < 3) return { target: 'awards', title: '补充获奖情况', copy: '保留含金量最高、与岗位最相关的奖项', button: '继续完善资料 →' };
+  return { target: 'generate', title: '资料已完整，可以生成简历', copy: '上传 JD 或面经，开始智能匹配并生成单页 PDF', button: '开始生成简历 →' };
+}
+
+function goToHomeNextStep() {
+  goTo(homeNextTarget || 'basic');
+}
+
+let lastWorkbenchStatus = null;
+
+function _formatResumeTitle(latest) {
+  if (!latest) return '';
+  return `${latest.company || '未命名公司'} · ${latest.role || '未命名岗位'}`;
+}
+
+function _workbenchAction(type, label, extra = {}) {
+  return { type, label, ...extra };
+}
+
+function _buildWorkbenchUserState(data) {
+  const status = data?.status || 'empty';
+  const latest = data?.gallery?.latest_resume || null;
+  const runningJob = data?.agent?.running_job || null;
+  const unfinishedJob = data?.agent?.latest_unfinished_job || null;
+  const galleryCount = Number(data?.gallery?.count || 0);
+
+  if (status === 'running' && runningJob) {
+    const summary = runningJob.task_summary || {};
+    const progress = Number(runningJob.progress || 0);
+    return {
+      statusClass: 'running',
+      title: '正在生成简历',
+      copy: '生成任务仍在后台运行',
+      pill: '生成中',
+      resumeTitle: `${summary.company || runningJob.company || '未命名公司'} · ${summary.role || runningJob.role || '未命名岗位'}`,
+      resumeMeta: `进度 ${progress}%`,
+      metrics: [
+        ['进度', `${progress}%`],
+        ['状态', _agentJobStatusLabel(runningJob.status)],
+        ['历史简历', `${galleryCount} 份`],
+      ],
+      primaryAction: _workbenchAction('resume_agent_job', '恢复查看', { job_id: runningJob.job_id || '' }),
+      secondaryActions: {},
+    };
+  }
+
+  if (status === 'recover' && unfinishedJob) {
+    const summary = unfinishedJob.task_summary || {};
+    return {
+      statusClass: 'recover',
+      title: '上次生成未完成',
+      copy: '可以查看详情或重新开始',
+      pill: '可恢复',
+      resumeTitle: `${summary.company || unfinishedJob.company || '未命名公司'} · ${summary.role || unfinishedJob.role || '未命名岗位'}`,
+      resumeMeta: _agentJobStatusLabel(unfinishedJob.status),
+      metrics: [
+        ['状态', _agentJobStatusLabel(unfinishedJob.status)],
+        ['进度', `${Number(unfinishedJob.progress || 0)}%`],
+        ['历史简历', `${galleryCount} 份`],
+      ],
+      primaryAction: _workbenchAction('agent_recovery', '查看详情', { job_id: unfinishedJob.job_id || '' }),
+      secondaryActions: {},
+    };
+  }
+
+  if (status === 'blocked') {
+    const blockers = Array.isArray(data?.system?.blockers) ? data.system.blockers : [];
+    const first = blockers[0] || {};
+    return {
+      statusClass: 'blocked',
+      title: '生成前需要处理',
+      copy: '有一项资料或本地能力需要处理',
+      pill: '需处理',
+      resumeTitle: first.label || '请先处理生成前问题',
+      resumeMeta: first.action || '查看需要处理的内容',
+      metrics: [
+        ['状态', '需处理'],
+        ['历史简历', `${galleryCount} 份`],
+        ['后台任务', '空闲'],
+      ],
+      primaryAction: _workbenchAction('system_check', first.action || '查看需要处理的内容', {
+        check_key: first.key || '',
+        target_page: first.target_page || 'review',
+      }),
+      secondaryActions: {},
+    };
+  }
+
+  if (latest) {
+    const title = _formatResumeTitle(latest);
+    const version = Number(latest.version_count || 0);
+    const meta = [
+      latest.fill_label ? `填充率 ${latest.fill_label}` : '',
+      latest.page_count ? `${latest.page_count} 页` : '',
+      version ? `${version} 个版本` : '未保存版本',
+    ].filter(Boolean).join(' · ');
+    const baseAction = {
+      target_dir: latest.dir_name || '',
+      pdf_path: latest.pdf_path || '',
+      company: latest.company || '',
+      role: latest.role || '',
+    };
+    return {
+      statusClass: 'ready',
+      title: '最近生成',
+      copy: '最近一次生成结果',
+      pill: '可查看',
+      resumeTitle: title,
+      resumeMeta: meta || '可以继续编辑或生成新简历',
+      metrics: [
+        ['填充率', latest.fill_label || '--'],
+        ['页数', latest.page_count ? `${latest.page_count} 页` : '--'],
+        ['版本', version ? `${version} 个` : '--'],
+      ],
+      primaryAction: latest.pdf_path
+        ? _workbenchAction('pdf', '查看 PDF', baseAction)
+        : _workbenchAction('edit', '继续编辑', baseAction),
+      secondaryActions: {
+        edit: latest.dir_name ? _workbenchAction('edit', '继续编辑', baseAction) : null,
+        quality: latest.dir_name ? _workbenchAction('quality_report', '检查结果', baseAction) : null,
+      },
+    };
+  }
+
+  return {
+    statusClass: 'empty',
+    title: '还没有生成记录',
+    copy: '从第一份目标岗位开始',
+    pill: '未开始',
+    resumeTitle: '生成第一份简历',
+    resumeMeta: '粘贴 JD 后即可开始',
+    metrics: [
+      ['历史简历', '0 份'],
+      ['后台任务', '空闲'],
+      ['资料', '可继续完善'],
+    ],
+    primaryAction: _workbenchAction('generate', '开始生成简历', { target_page: 'generate' }),
+    secondaryActions: {},
+  };
+}
+
+function _workbenchButtonHtml(action, primary = false) {
+  const icon = action?.icon || (action?.type === 'pdf' ? 'i-file' : action?.type === 'edit' ? 'i-edit' : 'i-zap');
+  const stroke = primary ? 'stroke:#fff;' : '';
+  return `<svg class="icon-svg" style="width:13px;height:13px;margin-right:6px;${stroke}"><use href="#${esc(icon)}"/></svg>${esc(action?.label || '继续')}`;
+}
+
+function _setWorkbenchButton(button, action, primary = false) {
+  if (!button) return;
+  if (!action) {
+    button.style.display = 'none';
+    button.disabled = true;
+    return;
+  }
+  button.style.display = '';
+  button.disabled = false;
+  button.innerHTML = _workbenchButtonHtml(action, primary);
+}
+
+async function loadWorkbenchStatus() {
+  const panel = document.getElementById('workbench-status-panel');
+  if (!panel) return;
+  try {
+    const data = await fetchJsonOrThrow('/api/workbench-status', {}, '工作台状态');
+    renderWorkbenchStatus(data);
+  } catch (e) {
+    renderWorkbenchStatus({
+      status: 'empty',
+      gallery: { count: 0, latest_resume: null },
+      agent: {},
+    });
+    showToast('最近生成读取失败: ' + (e.message || '请稍后重试'), 'error');
+  }
+}
+
+function renderWorkbenchStatus(data) {
+  const title = document.getElementById('workbench-status-title');
+  const copy = document.getElementById('workbench-status-copy');
+  const pill = document.getElementById('workbench-status-pill');
+  const resumeTitle = document.getElementById('workbench-resume-title');
+  const resumeMeta = document.getElementById('workbench-resume-meta');
+  const metrics = document.getElementById('workbench-status-metrics');
+  const actionBtn = document.getElementById('workbench-primary-action');
+  const editBtn = document.getElementById('workbench-edit-action');
+  const qualityBtn = document.getElementById('workbench-quality-action');
+  if (!title || !copy || !pill || !resumeTitle || !resumeMeta || !metrics || !actionBtn) return;
+
+  const state = _buildWorkbenchUserState(data);
+  lastWorkbenchStatus = {
+    ...(data || {}),
+    action: state.primaryAction,
+    user_actions: state.secondaryActions || {},
+  };
+
+  title.textContent = state.title;
+  copy.textContent = state.copy;
+  pill.className = `workbench-status-pill ${esc(state.statusClass)}`;
+  pill.textContent = state.pill;
+  resumeTitle.textContent = state.resumeTitle;
+  resumeMeta.textContent = state.resumeMeta;
+  metrics.innerHTML = (state.metrics || []).map(([label, value]) => `
+    <div class="workbench-metric-row"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>
+  `).join('');
+  _setWorkbenchButton(actionBtn, state.primaryAction, true);
+  _setWorkbenchButton(editBtn, state.secondaryActions?.edit || null, false);
+  _setWorkbenchButton(qualityBtn, state.secondaryActions?.quality || null, false);
+}
+
+async function executeWorkbenchAction(action, btn) {
+  const type = action.type || '';
+  const targetDir = action.target_dir || '';
+  if (!type) {
+    await loadWorkbenchStatus();
+    return;
+  }
+  if (type === 'pdf') {
+    if (action.pdf_path) {
+      const title = `${action.company || '未命名公司'} — ${action.role || '未命名岗位'}`;
+      openPdfModal(action.pdf_path, title, targetDir);
+    } else if (targetDir) {
+      openEditor(targetDir);
+    }
+    return;
+  }
+  if (type === 'edit') {
+    if (targetDir) openEditor(targetDir);
+    return;
+  }
+  if (type === 'system_check') {
+    if (action.check_key || action.target_page) {
+      handleSystemCheckAction(action.check_key || '', action.label || '', action.target_page || '');
+    } else {
+      goTo('review');
+    }
+    return;
+  }
+  if (type === 'resume_agent_job' || type === 'agent_recovery') {
+    if (action.job_id) {
+      resumeAgentJobStatus(action.job_id);
+    } else {
+      await loadAgentJobs();
+      scrollPageElementIntoView('agent-recovery-panel');
+    }
+    return;
+  }
+  if (type === 'visual_review') {
+    if (targetDir) {
+      await rerunVisualReview(targetDir, btn);
+      await loadWorkbenchStatus();
+    }
+    return;
+  }
+  if (type === 'save_version') {
+    if (targetDir) {
+      await saveVersionSnapshot(targetDir, btn);
+      await loadWorkbenchStatus();
+    }
+    return;
+  }
+  if (type === 'regen') {
+    if (targetDir) openQaFeedbackRegen(targetDir);
+    return;
+  }
+  if (type === 'quality_report') {
+    if (targetDir) openQualityReport(targetDir);
+    return;
+  }
+  if (type === 'generate') {
+    goTo(action.target_page || 'generate');
+    return;
+  }
+  goTo('home');
+  window.setTimeout(() => scrollPageElementIntoView('home-gallery-section'), 80);
+}
+
+async function handleWorkbenchPrimaryAction(btn) {
+  await executeWorkbenchAction(lastWorkbenchStatus?.action || {}, btn);
+}
+
+async function handleWorkbenchSecondaryAction(kind) {
+  const action = lastWorkbenchStatus?.user_actions?.[kind] || null;
+  if (action) await executeWorkbenchAction(action, null);
+}
+
+function scrollPageElementIntoView(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const top = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 18);
+  window.scrollTo(0, top);
+}
+
+let lastSystemCheck = null;
+
+async function loadSystemCheck() {
+  const statusEl = document.getElementById('system-check-status');
+  const summaryEl = document.getElementById('system-check-summary');
+  const listEl = document.getElementById('system-check-list');
+  const nextBtn = document.getElementById('system-check-next-action');
+  if (!statusEl || !summaryEl || !listEl) return;
+  statusEl.className = 'system-check-pill attention';
+  statusEl.textContent = '检查中';
+  summaryEl.textContent = '正在检查本地生成、编译、视觉 QA 与 Agent 能力...';
+  listEl.innerHTML = '<div class="system-check-item warning"><strong>等待结果</strong><span>自检会读取本地依赖和资料状态，不会启动生成任务</span></div>';
+  if (nextBtn) nextBtn.style.display = 'none';
+  try {
+    const data = await fetchJsonOrThrow('/api/system-check', {}, '系统自检');
+    renderSystemCheck(data);
+  } catch (e) {
+    lastSystemCheck = null;
+    statusEl.className = 'system-check-pill blocked';
+    statusEl.textContent = '自检失败';
+    summaryEl.textContent = e.message || '系统自检失败';
+    listEl.innerHTML = `<div class="system-check-item fail"><strong>请求失败</strong><span>${esc(e.message || '无法完成系统自检')}</span><em>确认本地服务后重试</em></div>`;
+  }
+}
+
+function _agentJobLabel(agent) {
+  const clean = String(agent || '').toLowerCase();
+  if (clean === 'auto') return '自动选择';
+  return clean === 'claude' ? 'Claude Code' : 'Codex';
+}
+
+function _agentJobStatusLabel(status) {
+  const map = {
+    queued: '排队中',
+    running: '运行中',
+    completed: '已完成',
+    failed: '失败',
+    cancelled: '已取消',
+  };
+  return map[status] || status || '未知';
+}
+
+function renderAgentRecoveryPanel(jobs = []) {
+  const panel = document.getElementById('agent-recovery-panel');
+  if (!panel) return;
+  const list = Array.isArray(jobs) ? jobs : [];
+  const job = list.find(item => item.recoverable)
+    || list.find(item => ['failed', 'cancelled'].includes(item.status));
+  if (!job) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+  const running = !!job.recoverable;
+  const summary = job.task_summary || {};
+  const agentLabel = _agentJobLabel(job.agent || summary.agent);
+  const company = job.company || summary.company || '未命名公司';
+  const role = job.role || summary.role || '未命名岗位';
+  const progress = Number(job.progress || 0);
+  const canRetry = !!(loadLastAgentPayload() && String(loadLastAgentPayload().jd || '').trim());
+  const title = running ? '后台 Agent 任务正在运行' : '最近 Agent 任务未完成';
+  const copy = running
+    ? '可以恢复查看状态和日志。刷新页面或临时离开不会丢失任务记录。'
+    : (job.error || '可以查看失败详情，修复后按上次输入重试。');
+  const meta = [
+    `${agentLabel}`,
+    `${company} · ${role}`,
+    `状态：${_agentJobStatusLabel(job.status)}`,
+    running ? `进度：${progress}%` : '',
+    `任务：${job.job_id}`,
+  ].filter(Boolean).map(item => `<span>${esc(item)}</span>`).join('');
+  panel.style.display = '';
+  panel.innerHTML = `<div class="agent-recovery-head">
+    <div>
+      <div class="agent-recovery-title">${esc(title)}</div>
+      <div class="agent-recovery-summary">${esc(copy)}</div>
+      <div class="agent-recovery-meta">${meta}</div>
+    </div>
+    <div class="agent-recovery-actions">
+      <button class="btn btn-primary" data-job="${esc(job.job_id || '')}" onclick="resumeAgentJobStatus(this.dataset.job)">${running ? '恢复查看' : '查看详情'}</button>
+      ${running ? `<button class="btn btn-secondary" data-job="${esc(job.job_id || '')}" onclick="currentAgentJobId=this.dataset.job;cancelCurrentAgentJob()">取消任务</button>` : (canRetry ? `<button class="btn btn-secondary" onclick="retryLastAgentJob()">按上次输入重试</button>` : `<button class="btn btn-secondary" onclick="focusGenerateForm()">重新填写</button>`)}
+      <button class="btn btn-secondary" onclick="loadAgentJobs()">刷新</button>
+    </div>
+  </div>`;
+}
+
+async function loadAgentJobs() {
+  const panel = document.getElementById('agent-recovery-panel');
+  if (!panel) return;
+  try {
+    const data = await fetchJsonOrThrow('/api/agent/jobs?limit=6', {}, '后台任务列表');
+    renderAgentRecoveryPanel(data.jobs || []);
+  } catch (e) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+  }
+}
+
+function systemCheckPrimaryItem(data) {
+  const checks = Array.isArray(data?.checks) ? data.checks : [];
+  return checks.find(c => c.required && c.status === 'fail')
+    || checks.find(c => c.status === 'fail')
+    || checks.find(c => c.status === 'warning')
+    || null;
+}
+
+function systemCheckActionConfig(key, action, targetPage = '') {
+  const normalizedAction = String(action || '').trim();
+  const normalizedTargetPage = String(targetPage || '').trim();
+  if (normalizedTargetPage) {
+    if ((key === 'profile' || key === 'profile_skills') && normalizedTargetPage === 'skills') {
+      return { page: 'skills', label: '提取技能建议', after: 'local_skill_suggestions' };
+    }
+    return { page: normalizedTargetPage, label: normalizedAction || '前往处理' };
+  }
+  const map = {
+    profile: { page: 'basic', label: '完善资料' },
+    content_library: { page: 'experiences', label: '补充经历' },
+    gallery: { page: 'generate', label: '生成第一份简历' },
+    output_writable: {
+      helpTitle: '输出目录权限',
+      helpText: [
+        '输出目录不可写时，生成结果无法保存。',
+        '',
+        '处理方式：',
+        '1. 确认当前项目目录位于可写位置',
+        '2. 检查 output 目录权限',
+        '3. 修复后点击“重新自检”',
+      ].join('\n'),
+    },
+    xelatex: {
+      helpTitle: '安装 XeLaTeX',
+      helpText: [
+        '中文简历需要 XeLaTeX 编译。',
+        '',
+        'macOS 推荐路径：',
+        '1. 安装 TinyTeX',
+        '2. 确认 xelatex 在 PATH 中',
+        '3. 重新启动本地服务后点击“重新自检”',
+        '',
+        '可参考命令：',
+        'brew install --cask mactex-no-gui',
+      ].join('\n'),
+    },
+    pdftoppm: {
+      helpTitle: '安装 pdftoppm',
+      helpText: [
+        'pdftoppm 用于把 PDF 渲染成截图，支撑视觉 QA。',
+        '',
+        'macOS 可安装 poppler：',
+        'brew install poppler',
+        '',
+        '安装后点击“重新自检”。',
+      ].join('\n'),
+    },
+    local_agent: {
+      helpTitle: '配置本地 Agent',
+      agentGuide: true,
+      helpText: [
+        '后台 Agent 需要本机可用的 Codex 或 Claude Code CLI。',
+        '',
+        '处理方式：',
+        '1. 确认 CLI 已安装并能在终端运行',
+        '2. 确认已登录对应账号',
+        '3. 如果 Codex 配置提示 service_tier 异常，打开 ~/.codex/config.toml',
+        '4. 将 service_tier 改为 "fast" 或 "flex"',
+        '5. 重新启动本地服务后点击“重新自检”',
+      ].join('\n'),
+    },
+    selected_agent: {
+      helpTitle: '修复所选 Agent',
+      agentGuide: true,
+      helpText: [
+        '当前选择的后台 Agent 无法稳定启动。',
+        '',
+        '处理方式：',
+        '1. 如果继续使用 Codex，打开 ~/.codex/config.toml',
+        '2. 将 service_tier 改为 "fast" 或 "flex"',
+        '3. 如果临时需要绕过 Codex 配置问题，可在生成页切换到可用的 Claude Code',
+        '4. 修复后点击“重新自检”，再重新启动 Agent',
+      ].join('\n'),
+    },
+  };
+  if (map[key]) return map[key];
+  if (normalizedAction.includes('生成')) return { page: 'generate', label: normalizedAction };
+  if (normalizedAction.includes('经历')) return { page: 'experiences', label: normalizedAction };
+  if (normalizedAction.includes('资料')) return { page: 'basic', label: normalizedAction };
+  return {
+    helpTitle: normalizedAction || '自检建议',
+    helpText: normalizedAction ? `建议处理：${normalizedAction}\n\n处理完成后点击“重新自检”。` : '处理完成后点击“重新自检”。',
+  };
+}
+
+function _agentStatusBadge(agent) {
+  if (agent.ok) return '<span class="tarot-qa-badge qa-pass">可用</span>';
+  if (agent.error_code === 'AGENT_NOT_AVAILABLE') return '<span class="tarot-qa-badge qa-warning">未安装</span>';
+  return '<span class="tarot-qa-badge qa-error">需修复</span>';
+}
+
+function _agentSwitchButton(agent) {
+  const name = String(agent.name || '').toLowerCase();
+  if (!agent.ok || !['codex', 'claude'].includes(name)) return '';
+  return `<button class="btn btn-primary" style="padding:7px 11px;font-size:12px;" onclick="closeCtxModal();switchAgentFromPreflight('${esc(name)}','${esc(agent.label || name)}')">使用 ${esc(agent.label || name)}</button>`;
+}
+
+function renderAgentSetupGuide(config) {
+  const system = lastSystemCheck || {};
+  const agents = Array.isArray(system.agent_health) ? system.agent_health : [];
+  const checks = Array.isArray(system.checks) ? system.checks : [];
+  const localAgentCheck = checks.find(c => c.key === 'local_agent') || {};
+  const selectedAgentCheck = checks.find(c => c.key === 'selected_agent') || {};
+  const activeDetail = selectedAgentCheck.detail || localAgentCheck.detail || config.helpText || '后台 Agent 需要本机可用的 Codex 或 Claude Code CLI。';
+  const healthy = agents.filter(agent => agent.ok);
+  const cards = agents.map(agent => {
+    const steps = Array.isArray(agent.recovery_steps) ? agent.recovery_steps : [];
+    const stepList = steps.length ? `<ol class="agent-guide-steps">${steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol>` : '';
+    const meta = [
+      agent.path ? `CLI: ${agent.path}` : '',
+      agent.config_path ? `配置: ${agent.config_path}` : '',
+    ].filter(Boolean).join('\n');
+    return `<div class="agent-guide-card ${agent.ok ? 'pass' : 'fail'}">
+      <div class="agent-guide-card-title">
+        <span>${esc(agent.label || agent.name || 'Agent')}</span>
+        ${_agentStatusBadge(agent)}
+      </div>
+      <div class="agent-guide-card-detail">${esc(agent.detail || '暂无详情')}</div>
+      ${meta ? `<div class="agent-guide-card-detail" style="white-space:pre-wrap;margin-top:7px;color:var(--text-muted);">${esc(meta)}</div>` : ''}
+      ${stepList}
+    </div>`;
+  }).join('');
+  const quickActions = [
+    ...healthy.map(agent => _agentSwitchButton(agent)),
+    '<button class="btn btn-secondary" style="padding:7px 11px;font-size:12px;" onclick="closeCtxModal();loadSystemCheck()">重新自检</button>',
+    '<button class="btn btn-secondary" style="padding:7px 11px;font-size:12px;" onclick="closeCtxModal();focusGenerateForm()">查看生成设置</button>',
+  ].filter(Boolean).join('');
+  return `<div class="agent-guide">
+    <div class="ctx-modal-text">${esc(activeDetail)}</div>
+    ${quickActions ? `<div class="agent-guide-actions">${quickActions}</div>` : ''}
+    ${cards ? `<div class="agent-guide-grid">${cards}</div>` : `<div class="ctx-modal-text">${esc(config.helpText || '未返回本地 Agent 诊断结果。')}</div>`}
+  </div>`;
+}
+
+function openSystemCheckHelp(config) {
+  const titleEl = document.getElementById('ctx-modal-title');
+  const body = document.getElementById('ctx-modal-body');
+  const footer = document.getElementById('ctx-modal-footer');
+  const copyBtn = document.getElementById('ctx-modal-copy-btn');
+  if (!titleEl || !body || !footer || !copyBtn) return;
+  titleEl.textContent = config.helpTitle || '自检建议';
+  body.innerHTML = config.agentGuide
+    ? renderAgentSetupGuide(config)
+    : `<div class="ctx-modal-text">${esc(config.helpText || '处理完成后点击“重新自检”。')}</div>`;
+  footer.style.display = 'none';
+  copyBtn.style.display = '';
+  _ctxModalState = { type: 'system_check', dir: null, notesEl: null };
+  document.getElementById('ctx-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function handleSystemCheckAction(key, action, targetPage = '') {
+  const config = systemCheckActionConfig(key, action, targetPage);
+  if (config.page) {
+    const sourcePage = document.querySelector('.page.active')?.id || '';
+    const lastPayload = loadLastAgentPayload();
+    goTo(config.page);
+    showToast(config.label || action || '已跳转');
+    if (config.after === 'local_skill_suggestions') {
+      localSkillSuggestionContext = {
+        sourcePage,
+        action: action || '',
+        targetPage: targetPage || '',
+        hasLastAgentPayload: !!(lastPayload && String(lastPayload.jd || '').trim()),
+        openedAt: Date.now(),
+      };
+      window.setTimeout(() => requestLocalSkillSuggestions(), 120);
+    }
+    return;
+  }
+  openSystemCheckHelp(config);
+}
+
+function handleSystemCheckNextAction() {
+  const item = systemCheckPrimaryItem(lastSystemCheck);
+  if (!item) {
+    goTo('generate');
+    return;
+  }
+  handleSystemCheckAction(item.key, item.action, item.target_page);
+}
+
+function renderSystemCheck(data) {
+  const statusEl = document.getElementById('system-check-status');
+  const summaryEl = document.getElementById('system-check-summary');
+  const listEl = document.getElementById('system-check-list');
+  const nextBtn = document.getElementById('system-check-next-action');
+  if (!statusEl || !summaryEl || !listEl) return;
+  lastSystemCheck = data || null;
+  const status = data.status || 'attention';
+  const label = data.label || '需要检查';
+  statusEl.className = `system-check-pill ${esc(status)}`;
+  statusEl.textContent = `${label}${Number.isFinite(Number(data.readiness)) ? ' · ' + Number(data.readiness) + '%' : ''}`;
+  summaryEl.textContent = `${data.summary || ''}${data.next_action ? ' 下一步：' + data.next_action : ''}`;
+  const checks = Array.isArray(data.checks) ? data.checks : [];
+  const primary = systemCheckPrimaryItem(data);
+  if (nextBtn) {
+    nextBtn.style.display = primary ? '' : '';
+    nextBtn.innerHTML = `<svg class="icon-svg" style="width:12px;height:12px;margin-right:5px;stroke:#fff"><use href="#i-zap"/></svg>${esc(primary?.action || data.next_action || '开始生成')}`;
+  }
+  const statusText = { pass: '已就绪', warning: '建议完善', fail: '需修复' };
+  listEl.innerHTML = checks.map(check => `
+    <div class="system-check-item ${esc(check.status || 'warning')}">
+      <strong>${esc(check.label || '')} · ${esc(statusText[check.status] || check.status || '未知')}</strong>
+      <span>${esc(check.detail || '')}</span>
+      ${check.action ? `<button class="system-check-action" type="button" data-key="${esc(check.key || '')}" data-action="${esc(check.action || '')}" data-target-page="${esc(check.target_page || '')}" onclick="handleSystemCheckAction(this.dataset.key, this.dataset.action, this.dataset.targetPage)"><svg class="icon-svg" style="width:11px;height:11px"><use href="#i-link"/></svg>${esc(check.action)}</button>` : ''}
+    </div>
+  `).join('') || '<div class="system-check-item warning"><strong>暂无检查项</strong><span>未返回系统自检结果</span></div>';
+  updateProgress();
 }
 
 function showToast(msg, type='success') { const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast ${type} show`; setTimeout(()=>t.classList.remove('show'),3000); }
@@ -4126,6 +6259,7 @@ async function loadProfile() {
     document.getElementById('education-list').innerHTML=''; educationCounter=0; (data.education||[]).forEach(e=>addEducation(e)); if(!data.education||data.education.length===0) addEducation();
     document.getElementById('awards-list').innerHTML=''; awardCounter=0; (data.awards||[]).forEach(a=>addAward(a)); if(!data.awards||data.awards.length===0) addAward();
     document.getElementById('projects-list').innerHTML=''; projectCounter=0; (data.projects||[]).forEach(p=>addProject(p));
+    document.getElementById('campus-list').innerHTML=''; campusCounter=0; (data.campus_experiences||[]).forEach(c=>addCampusExperience(c));
     document.getElementById('publications-list').innerHTML=''; pubCounter=0; (data.publications||[]).forEach(p=>addPublication(p));
     const s=data.skills||{}; loadSkillTags('tech',s.tech||''); loadSkillTags('software',s.software||''); loadSkillTags('languages',s.languages||'');
     const d=data.directions||{}; document.getElementById('dir_primary').value=d.primary||''; document.getElementById('dir_secondary').value=d.secondary||'';
@@ -4134,20 +6268,324 @@ async function loadProfile() {
   } catch(e) { showToast('加载失败: '+e.message,'error'); }
 }
 
+function collectProfilePayload() {
+  return {
+    basic: {
+      name_zh: val('name_zh'),
+      name_en: val('name_en'),
+      email: val('email'),
+      phone: val('phone'),
+      linkedin: val('linkedin'),
+      github: val('github'),
+      website: val('website')
+    },
+    education: collectEducation(),
+    awards: collectAwards(),
+    projects: collectProjects(),
+    campus_experiences: collectCampusExperiences(),
+    publications: collectPublications(),
+    skills: {
+      tech: collectTagsStr('tech'),
+      software: collectTagsStr('software'),
+      languages: collectTagsStr('languages')
+    },
+    directions: {
+      primary: val('dir_primary'),
+      secondary: val('dir_secondary')
+    }
+  };
+}
+
 async function saveProfile() {
-  const data = { basic:{name_zh:val('name_zh'),name_en:val('name_en'),email:val('email'),phone:val('phone'),linkedin:val('linkedin'),github:val('github'),website:val('website')}, education:collectEducation(), awards:collectAwards(), projects:collectProjects(), publications:collectPublications(), skills:{tech:collectTagsStr('tech'),software:collectTagsStr('software'),languages:collectTagsStr('languages')}, directions:{primary:val('dir_primary'),secondary:val('dir_secondary')} };
-  if(!data.basic.name_zh){showToast('请填写中文姓名','error');goTo('basic');return;}
-  if(!data.basic.email){showToast('请填写邮箱','error');goTo('basic');return;}
-  if(!data.basic.phone){showToast('请填写电话','error');goTo('basic');return;}
+  const data = collectProfilePayload();
+  if(!data.basic.name_zh){showToast('请填写中文姓名','error');goTo('basic');return false;}
+  if(!data.basic.email){showToast('请填写邮箱','error');goTo('basic');return false;}
+  if(!data.basic.phone){showToast('请填写电话','error');goTo('basic');return false;}
   try {
     const res=await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     const r=await res.json();
-    if(r.error) { showToast(r.error,'error'); return; }
+    if(r.error) { showToast(r.error,'error'); return false; }
     const extOk = await saveBasicExtraInfo(false);
-    if (!extOk) return;
+    if (!extOk) return false;
     showToast('个人信息已保存');
     updateProgress();
-  } catch(e){showToast('保存失败','error');}
+    return true;
+  } catch(e){showToast('保存失败','error'); return false;}
+}
+
+let profileAiSuggestion = null;
+let localSkillSuggestion = null;
+let localSkillSuggestionContext = null;
+
+function _splitSuggestionTags(str) {
+  return String(str || '').split(/[,，;；\n]/).map(s => s.trim()).filter(Boolean);
+}
+
+function _renderSkillSuggestionGroup(title, category, items) {
+  const values = Array.isArray(items) ? items : [];
+  if (!values.length) return '';
+  return `<div style="margin-bottom:12px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:7px;">${esc(title)}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${values.map(item => `<label style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:5px 9px;background:#fff;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+        <input type="checkbox" class="local-skill-check" data-category="${esc(category)}" value="${esc(item)}" checked style="margin:0;">
+        <span>${esc(item)}</span>
+      </label>`).join('')}
+    </div>
+  </div>`;
+}
+
+function showLocalSkillSuggestionDialog(data) {
+  localSkillSuggestion = data || {};
+  const old = document.getElementById('local-skill-suggestion-modal');
+  if (old) old.remove();
+  const suggestions = localSkillSuggestion.suggestions || {};
+  const body = [
+    _renderSkillSuggestionGroup('编程与技术', 'tech', suggestions.tech),
+    _renderSkillSuggestionGroup('软件工具', 'software', suggestions.software),
+    _renderSkillSuggestionGroup('外语水平', 'languages', suggestions.languages),
+  ].filter(Boolean).join('');
+  const overlay = document.createElement('div');
+  overlay.className = 'person-modal-overlay open';
+  overlay.id = 'local-skill-suggestion-modal';
+  overlay.innerHTML = `<div class="person-modal" style="width:640px;max-width:94vw;">
+    <h3>本地技能建议 <button onclick="closeLocalSkillSuggestionDialog()"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button></h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:14px;">
+      ${esc(localSkillSuggestion.summary || '从本地资料中提取了技能候选。')}
+    </div>
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;max-height:320px;overflow:auto;background:var(--bg-warm);">
+      ${body || '<div style="font-size:13px;color:var(--text-muted);">没有找到新的技能候选。可以继续手动添加，或先补充经历材料。</div>'}
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+      <button class="btn btn-secondary" onclick="closeLocalSkillSuggestionDialog()">取消</button>
+      <button class="btn btn-secondary" onclick="applyLocalSkillSuggestion(false)" ${body ? '' : 'disabled'}>应用到表单</button>
+      <button class="btn btn-primary" onclick="applyLocalSkillSuggestion(true)" ${body ? '' : 'disabled'}>应用并保存</button>
+    </div>
+  </div>`;
+  overlay.onclick = e => { if (e.target === overlay) closeLocalSkillSuggestionDialog(); };
+  document.body.appendChild(overlay);
+}
+
+function closeLocalSkillSuggestionDialog(clearContext = true) {
+  const modal = document.getElementById('local-skill-suggestion-modal');
+  if (modal) modal.remove();
+  if (clearContext) localSkillSuggestionContext = null;
+}
+
+async function requestLocalSkillSuggestions() {
+  const btn = document.getElementById('btn-local-skill-suggest');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="font-size:10px">...</span>';
+  }
+  try {
+    const data = await fetchJsonOrThrow('/api/profile/skill-suggestions', {}, '本地技能建议');
+    showLocalSkillSuggestionDialog(data);
+  } catch (e) {
+    showToast(e.message || '技能建议生成失败', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-zap"/></svg>从资料提取';
+    }
+  }
+}
+
+function renderSkillFixContinuePanel(appliedCount = 0) {
+  const payload = loadLastAgentPayload();
+  const hasResumePayload = !!(payload && String(payload.jd || '').trim());
+  const panel = document.getElementById('ai-result');
+  if (!panel || !hasResumePayload) return;
+  panel.style.display = '';
+  panel.innerHTML = `<div class="form-section" style="border-color:rgba(120,140,93,0.32);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+      <div>
+        <h2 style="color:var(--green);font-size:16px;margin-bottom:8px;">技能已补充</h2>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+          已应用并保存 ${Number(appliedCount || 0)} 个技能标签，系统自检已刷新。可以继续使用上次保留的 JD 和生成参数启动 Agent。
+        </p>
+      </div>
+      <span class="tarot-qa-badge qa-pass" style="flex-shrink:0;">已修复</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="retryLastAgentJob()">继续生成</button>
+      <button class="btn btn-secondary" onclick="loadSystemCheck()">重新自检</button>
+      <button class="btn btn-secondary" onclick="focusGenerateForm()">查看输入</button>
+    </div>
+  </div>`;
+}
+
+async function finishLocalSkillSuggestionApply(saveAfterApply, appliedCount) {
+  if (!saveAfterApply) return;
+  await loadSystemCheck();
+  const context = localSkillSuggestionContext || {};
+  localSkillSuggestionContext = null;
+  const cameFromGenerate = context.sourcePage === 'page-generate';
+  if (cameFromGenerate) {
+    focusGenerateForm();
+    window.setTimeout(() => renderSkillFixContinuePanel(appliedCount), 120);
+  }
+}
+
+async function applyLocalSkillSuggestion(saveAfterApply = false) {
+  const checks = Array.from(document.querySelectorAll('#local-skill-suggestion-modal .local-skill-check:checked'));
+  checks.forEach(input => addTag(input.dataset.category, input.value));
+  closeLocalSkillSuggestionDialog(!saveAfterApply);
+  updateProgress();
+  showToast(`已应用 ${checks.length} 个技能标签`);
+  if (saveAfterApply) {
+    const saved = await saveProfile();
+    if (saved) await finishLocalSkillSuggestionApply(true, checks.length);
+    else localSkillSuggestionContext = null;
+  }
+}
+
+function _setEmptyInputValue(id, value) {
+  const el = document.getElementById(id);
+  const text = String(value || '').trim();
+  if (el && text && !el.value.trim()) el.value = text;
+}
+
+function _fillCardEmptyFields(card, item, fields) {
+  if (!card || !item) return;
+  fields.forEach(field => {
+    const el = card.querySelector(`[data-field="${field}"]`);
+    const value = String(item[field] || '').trim();
+    if (el && value && !el.value.trim()) el.value = value;
+  });
+}
+
+function _findCardByField(selector, field, value) {
+  const needle = String(value || '').trim();
+  if (!needle) return null;
+  return Array.from(document.querySelectorAll(selector)).find(card => {
+    const el = card.querySelector(`[data-field="${field}"]`);
+    return el && el.value.trim() === needle;
+  }) || null;
+}
+
+function _findBlankCard(selector, field) {
+  return Array.from(document.querySelectorAll(selector)).find(card => {
+    const el = card.querySelector(`[data-field="${field}"]`);
+    return el && !el.value.trim();
+  }) || null;
+}
+
+function _renderAiPatchPreview(patch) {
+  const rows = [];
+  const skills = patch.skills || {};
+  if (skills.tech || skills.software || skills.languages) rows.push(`<div><strong>技能：</strong>${esc([skills.tech, skills.software, skills.languages].filter(Boolean).join('；'))}</div>`);
+  if ((patch.education || []).length) rows.push(`<div><strong>教育：</strong>${patch.education.map(e => esc(e.school || e.major || '')).filter(Boolean).join('；')}</div>`);
+  if ((patch.projects || []).length) rows.push(`<div><strong>项目：</strong>${patch.projects.map(p => esc(p.name)).filter(Boolean).join('；')}</div>`);
+  if ((patch.campus_experiences || []).length) rows.push(`<div><strong>校园经历：</strong>${patch.campus_experiences.map(c => esc(c.name)).filter(Boolean).join('；')}</div>`);
+  if ((patch.awards || []).length) rows.push(`<div><strong>获奖：</strong>${patch.awards.map(a => esc(a.name)).filter(Boolean).join('；')}</div>`);
+  if ((patch.publications || []).length) rows.push(`<div><strong>论文：</strong>${patch.publications.map(p => esc(p.title)).filter(Boolean).join('；')}</div>`);
+  const basic = patch.basic || {};
+  if (Object.values(basic).some(Boolean)) rows.unshift(`<div><strong>基本信息：</strong>${esc(Object.entries(basic).filter(([,v]) => v).map(([k,v]) => `${k}: ${v}`).join('；'))}</div>`);
+  return rows.length ? rows.join('') : '<div style="color:var(--text-muted)">AI 没有生成可应用的结构化补充。</div>';
+}
+
+function showAiProfileSuggestionDialog(data) {
+  profileAiSuggestion = data;
+  const old = document.getElementById('profile-ai-suggestion-modal');
+  if (old) old.remove();
+  const patch = data.profile_patch || {};
+  const overlay = document.createElement('div');
+  overlay.className = 'person-modal-overlay open';
+  overlay.id = 'profile-ai-suggestion-modal';
+  overlay.innerHTML = `<div class="person-modal" style="width:640px;max-width:94vw;">
+    <h3>AI 补充建议 <button onclick="closeAiProfileSuggestionDialog()"><svg class="icon-svg" style="width:14px;height:14px"><use href="#i-x"/></svg></button></h3>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:14px;">
+      ${(data.summary || []).map(s => `<div>${esc(s)}</div>`).join('') || '<div>已生成资料补充建议。</div>'}
+    </div>
+    <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;max-height:300px;overflow:auto;font-size:13px;line-height:1.8;background:var(--bg-warm);">${_renderAiPatchPreview(patch)}</div>
+    ${(data.warnings || []).length ? `<div style="margin-top:12px;font-size:12px;color:var(--accent);line-height:1.6;">${data.warnings.map(w => `<div>需确认：${esc(w)}</div>`).join('')}</div>` : ''}
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+      <button class="btn btn-secondary" onclick="closeAiProfileSuggestionDialog()">取消</button>
+      <button class="btn btn-secondary" onclick="applyAiProfileSuggestion(false)">应用到表单</button>
+      <button class="btn btn-primary" onclick="applyAiProfileSuggestion(true)">应用并保存</button>
+    </div>
+  </div>`;
+  overlay.onclick = e => { if (e.target === overlay) closeAiProfileSuggestionDialog(); };
+  document.body.appendChild(overlay);
+}
+
+function closeAiProfileSuggestionDialog() {
+  const modal = document.getElementById('profile-ai-suggestion-modal');
+  if (modal) modal.remove();
+}
+
+async function requestAiProfileSuggestions() {
+  const btn = document.getElementById('btn-ai-profile-suggest');
+  const sourceText = (document.getElementById('ai-profile-source')?.value || '').trim();
+  const jdText = (document.getElementById('jd-text')?.value || '').trim();
+  if (!sourceText && !jdText && !val('dir_primary')) {
+    showToast('请先粘贴补充材料、JD，或填写求职方向', 'error');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'AI 分析中...'; }
+  try {
+    const data = await fetchJsonOrThrow('/api/profile/ai-suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile: collectProfilePayload(),
+        source_text: sourceText,
+        jd_text: jdText,
+      }),
+    }, 'AI 补充资料');
+    showAiProfileSuggestionDialog(data);
+  } catch (e) {
+    showToast(e.message || 'AI 补充失败', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon-svg" style="width:14px;height:14px;margin-right:6px;stroke:#fff"><use href="#i-sparkle"/></svg> AI 自动补充';
+    }
+  }
+}
+
+async function applyAiProfileSuggestion(saveAfter = false) {
+  const patch = profileAiSuggestion?.profile_patch || {};
+  const basic = patch.basic || {};
+  Object.entries({name_zh:'name_zh',name_en:'name_en',email:'email',phone:'phone',linkedin:'linkedin',github:'github',website:'website'}).forEach(([field, id]) => _setEmptyInputValue(id, basic[field]));
+  const directions = patch.directions || {};
+  _setEmptyInputValue('dir_primary', directions.primary);
+  _setEmptyInputValue('dir_secondary', directions.secondary);
+
+  const skills = patch.skills || {};
+  _splitSuggestionTags(skills.tech).forEach(tag => addTag('tech', tag));
+  _splitSuggestionTags(skills.software).forEach(tag => addTag('software', tag));
+  _splitSuggestionTags(skills.languages).forEach(tag => addTag('languages', tag));
+
+  (patch.education || []).forEach(item => {
+    const card = _findCardByField('#education-list .entry-card', 'school', item.school) || _findBlankCard('#education-list .entry-card', 'school');
+    if (card) _fillCardEmptyFields(card, item, ['school','degree','major','department','time_start','time_end','gpa','rank','courses']);
+    else addEducation(item);
+  });
+  (patch.projects || []).forEach(item => {
+    const card = _findCardByField('#projects-list .entry-card', 'name', item.name);
+    if (card) _fillCardEmptyFields(card, item, ['name','role','time_start','time_end','desc','tags']);
+    else addProject(item);
+  });
+  (patch.campus_experiences || []).forEach(item => {
+    const card = _findCardByField('#campus-list .entry-card', 'name', item.name);
+    if (card) _fillCardEmptyFields(card, item, ['name','role','time_start','time_end','highlights','tags']);
+    else addCampusExperience(item);
+  });
+  (patch.awards || []).forEach(item => {
+    const exists = collectAwards().some(a => a.name === item.name);
+    if (!exists) addAward(item);
+  });
+  (patch.publications || []).forEach(item => {
+    const exists = collectPublications().some(p => p.title === item.title);
+    if (!exists) addPublication(item);
+  });
+
+  updateProgress();
+  closeAiProfileSuggestionDialog();
+  showToast('AI 补充已应用到表单');
+  if (saveAfter) await saveProfile();
 }
 
 function addBasicExtraInfoRow(item = { key: '', value: '' }) {
@@ -4261,6 +6699,9 @@ function collectAwards() { return Array.from(document.querySelectorAll('#awards-
 
 function addProject(data=null) { projectCounter++; const idx=projectCounter,d=data||{},card=document.createElement('div'); card.className='entry-card'; card.id=`proj-${idx}`; card.innerHTML=`<div class="card-header"><span class="card-title">项目 ${idx}</span><button class="btn btn-danger" onclick="removeEntry('proj-${idx}')">删除</button></div><div class="form-row"><label>项目名称</label><input type="text" data-field="name" value="${esc(d.name)}" oninput="updateProgress()"></div><div class="form-row"><label>角色</label><input type="text" data-field="role" value="${esc(d.role)}" placeholder="负责人 / 核心成员"></div><div class="form-row"><label>时间</label><div><div class="input-half"><input type="text" data-field="time_start" value="${esc(_normalizeDateInputValue(d.time_start))}" placeholder="YYYY/MM/DD"><span>—</span><input type="text" data-field="time_end" value="${esc(_normalizeDateInputValue(d.time_end))}" placeholder="YYYY/MM/DD"></div><div class="date-copy-groups"><div class="date-copy-group"><span class="date-copy-label">开始</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_dash')">年-月-日</button></div></div><div class="date-copy-group"><span class="date-copy-label">结束</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_dash')">年-月-日</button></div></div></div></div></div><div class="form-row form-row-wide"><label>描述</label><textarea data-field="desc" rows="3" placeholder="项目背景、贡献、成果">${esc(d.desc)}</textarea></div><div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔</span></label><input type="text" data-field="tags" value="${esc(d.tags)}" placeholder="NLP, Python, 深度学习"></div>`; document.getElementById('projects-list').appendChild(card); }
 function collectProjects() { return Array.from(document.querySelectorAll('#projects-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),role:g('role').trim(),time_start:_normalizeDateInputValue(g('time_start')),time_end:_normalizeDateInputValue(g('time_end')),desc:g('desc').trim(),tags:g('tags').trim()};}).filter(p=>p.name); }
+
+function addCampusExperience(data=null) { campusCounter++; const idx=campusCounter,d=data||{},card=document.createElement('div'); card.className='entry-card'; card.id=`campus-${idx}`; const highlights=Array.isArray(d.highlights)?d.highlights.join('\n'):(d.highlights||''); card.innerHTML=`<div class="card-header"><span class="card-title">校园经历 ${idx}</span><button class="btn btn-danger" onclick="removeEntry('campus-${idx}')">删除</button></div><div class="form-row"><label>组织/活动名称</label><input type="text" data-field="name" value="${esc(d.name)}" placeholder="学生会 / 社团 / 志愿活动 / 挑战赛" oninput="updateProgress()"></div><div class="form-row"><label>角色</label><input type="text" data-field="role" value="${esc(d.role)}" placeholder="负责人 / 核心成员 / 志愿者"></div><div class="form-row"><label>时间</label><div><div class="input-half"><input type="text" data-field="time_start" value="${esc(_normalizeDateInputValue(d.time_start))}" placeholder="YYYY/MM/DD"><span>—</span><input type="text" data-field="time_end" value="${esc(_normalizeDateInputValue(d.time_end))}" placeholder="YYYY/MM/DD"></div><div class="date-copy-groups"><div class="date-copy-group"><span class="date-copy-label">开始</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_start','ymd_dash')">年-月-日</button></div></div><div class="date-copy-group"><span class="date-copy-label">结束</span><div class="date-copy-row"><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_slash')">复制年/月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ym_dash')">年-月</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_slash')">年/月/日</button><button class="btn btn-secondary date-copy-btn" type="button" onclick="copyDateFromCardField(this.closest('.entry-card'),'time_end','ymd_dash')">年-月-日</button></div></div></div></div></div><div class="form-row form-row-wide"><label>成果要点 <span class="optional">每行一条</span></label><textarea data-field="highlights" rows="3" placeholder="组织活动、协调人数、影响范围、竞赛成果等">${esc(highlights)}</textarea></div><div class="form-row form-row-wide"><label>标签 <span class="optional">逗号分隔</span></label><input type="text" data-field="tags" value="${esc(d.tags)}" placeholder="组织协调, 活动运营, 竞赛, 志愿服务"></div>`; document.getElementById('campus-list').appendChild(card); }
+function collectCampusExperiences() { return Array.from(document.querySelectorAll('#campus-list .entry-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{name:g('name').trim(),role:g('role').trim(),time_start:_normalizeDateInputValue(g('time_start')),time_end:_normalizeDateInputValue(g('time_end')),highlights:g('highlights').trim().split(/\n+/).map(s=>s.trim()).filter(Boolean).join('；'),tags:g('tags').trim()};}).filter(c=>c.name); }
 
 function addPublication(data=null) { pubCounter++; const d=data||{},card=document.createElement('div'); card.className='pub-card'; card.id=`pub-${pubCounter}`; card.innerHTML=`<div class="pub-header"><span class="pub-title-label">论文 ${pubCounter}</span><button class="btn btn-danger" onclick="removeEntry('pub-${pubCounter}')">删除</button></div><div class="pub-row"><div><label>论文标题</label><input type="text" data-field="title" value="${esc(d.title)}" placeholder="论文标题" oninput="updateProgress()"></div><div><label>期刊/会议</label><input type="text" data-field="venue" value="${esc(d.venue)}" placeholder="ACL 2025"></div></div><div class="pub-row"><div><label>作者</label><input type="text" data-field="authors" value="${esc(d.authors)}" placeholder="Li M., et al."></div><div><label>年份</label><input type="text" data-field="year" value="${esc(d.year)}" placeholder="2025"></div></div><div class="pub-row-full"><label>论文内容描述</label><textarea data-field="description" rows="3" placeholder="简述研究问题、方法与贡献...">${esc(d.description)}</textarea></div>`; document.getElementById('publications-list').appendChild(card); }
 function collectPublications() { return Array.from(document.querySelectorAll('#publications-list .pub-card')).map(c=>{const g=f=>(c.querySelector(`[data-field="${f}"]`)||{}).value||'';return{title:g('title').trim(),authors:g('authors').trim(),venue:g('venue').trim(),year:g('year').trim(),description:g('description').trim()};}).filter(p=>p.title); }
@@ -4675,6 +7116,451 @@ const TAROT_PALETTES = [
 ];
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
 
+function galleryAssetUrl(path) {
+  let rel = String(path || '').trim();
+  if (!rel) return '';
+  const outputMarker = '/output/';
+  const markerIndex = rel.indexOf(outputMarker);
+  if (markerIndex >= 0) rel = rel.slice(markerIndex + outputMarker.length);
+  rel = rel.replace(/^output\//, '').replace(/^\/+/, '');
+  if (!rel || rel.includes('..')) return '';
+  return `/gallery/asset/${encodeURIComponent(rel)}`;
+}
+
+function visualReviewMeta(data) {
+  const review = data?.visual_review || {};
+  if (!review.status) return null;
+  const statusMap = {
+    pass: { label: 'QA 通过', cls: 'qa-pass' },
+    warning: { label: 'QA 需复核', cls: 'qa-warning' },
+    error: { label: 'QA 失败', cls: 'qa-error' },
+    skipped: { label: 'QA 跳过', cls: 'qa-skipped' },
+  };
+  const mapped = statusMap[review.status] || { label: 'QA 未知', cls: 'qa-skipped' };
+  const fill = Number(review.fill_ratio || 0) > 0 ? `${(Number(review.fill_ratio) * 100).toFixed(1)}%` : '';
+  let screenshotPath = review.screenshot_path || '';
+  if (!screenshotPath && Array.isArray(review.screenshots) && review.screenshots.length && data.output_dir) {
+    screenshotPath = `${data.output_dir}/${review.screenshots[0]}`;
+  }
+  return {
+    status: review.status,
+    label: mapped.label,
+    cls: mapped.cls,
+    fill,
+    message: review.message || '',
+    issues: Array.isArray(review.issues) ? review.issues : [],
+    agentFeedback: review.agent_feedback || null,
+    screenshotUrl: galleryAssetUrl(screenshotPath),
+  };
+}
+
+function visualReviewFeedbackPrompt(data) {
+  const meta = visualReviewMeta(data);
+  if (!meta) {
+    return [
+      '根据视觉 QA 结果进行下一轮简历优化：',
+      '- 当前简历尚未完成视觉 QA，请先检查 PDF 是否单页、页面是否过空或过满',
+      '- 不要编造经历或数据；只基于已有资料筛选、改写和调优',
+    ].join('\n');
+  }
+  if (meta.agentFeedback && meta.agentFeedback.prompt) return meta.agentFeedback.prompt;
+  const lines = ['根据视觉 QA 结果进行下一轮简历优化：'];
+  if (meta.status === 'pass' && !meta.issues.length) {
+    lines.push('- 当前视觉 QA 已通过，请保持单页、填充率和整体结构稳定，只做必要的轻微措辞或排版优化');
+  } else if (meta.issues.includes('underfilled')) {
+    lines.push('- 当前页面偏空，请补充与 JD 相关的项目/实习要点，适度展开高价值 bullet');
+  } else if (meta.issues.includes('overflow') || meta.issues.includes('page_count_not_one')) {
+    lines.push('- 当前内容溢出或页数异常，请压缩低相关 bullet，确保最终只有 1 页');
+  } else {
+    lines.push('- 请查看视觉 QA 截图，围绕可读性、拥挤度和留白进行针对性优化');
+  }
+  if (meta.fill) lines.push(`- 当前填充率约为 ${meta.fill}`);
+  lines.push('- 不要编造经历或数据；只基于已有资料筛选、改写和调优');
+  return lines.join('\n');
+}
+
+function qualityReportMeta(data) {
+  const report = data?.quality_report || null;
+  if (!report) return null;
+  const statusMap = {
+    ready: { label: report.label || '可投递', cls: 'qa-pass' },
+    review: { label: report.label || '需复核', cls: 'qa-warning' },
+    fix: { label: report.label || '需修复', cls: 'qa-error' },
+  };
+  const mapped = statusMap[report.status] || { label: report.label || '质量未知', cls: 'qa-skipped' };
+  return {
+    status: report.status || '',
+    label: mapped.label,
+    cls: mapped.cls,
+    summary: report.summary || '',
+    nextAction: report.next_action || '',
+    fill: report.fill_label || '',
+    pageCount: Number(report.page_count || 0),
+    versionCount: Number(report.version_count || 0),
+    checks: Array.isArray(report.checks) ? report.checks : [],
+  };
+}
+
+function workflowStatusMeta(data) {
+  const workflow = data?.workflow_status || null;
+  if (!workflow) return null;
+  return {
+    status: workflow.status || '',
+    label: workflow.label || '进行中',
+    progress: Math.max(0, Math.min(100, Number(workflow.progress || 0))),
+    nextAction: workflow.next_action || '',
+    activeStep: workflow.active_step || null,
+    steps: Array.isArray(workflow.steps) ? workflow.steps : [],
+  };
+}
+
+function renderWorkflowBlock(data, options = {}) {
+  const workflowMeta = workflowStatusMeta(data);
+  if (!workflowMeta) return '';
+  const title = options.title || `生成-视觉检查-反馈迭代 Loop：${workflowMeta.label}`;
+  return `<div class="qr-workflow">
+    <div class="qr-workflow-head">
+      <div class="qr-workflow-title">${esc(title)}</div>
+      <div class="qr-workflow-progress">${workflowMeta.progress}%</div>
+    </div>
+    <div class="qr-workflow-bar" style="--workflow-progress:${workflowMeta.progress}%"><span></span></div>
+    <div class="qr-workflow-steps">
+      ${workflowMeta.steps.map(step => `<div class="qr-workflow-step ${esc(step.status || 'pending')}" title="${esc(step.detail || '')}">
+        <strong>${esc(step.label || '')}</strong>
+        <span>${esc(step.action || step.detail || '')}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function openQualityReport(dirName) {
+  const dir = String(dirName || '').trim();
+  const item = (window._galleryData || []).find(x => x.dir_name === dir)
+    || ((window._lastGeneratedResult?.output_dir === dir || window._lastGeneratedResult?.dir_name === dir) ? window._lastGeneratedResult : null);
+  if (!item) {
+    showToast('未找到这份简历的质量报告', 'error');
+    return;
+  }
+  const meta = qualityReportMeta(item);
+  if (!meta) {
+    showToast('暂无质量报告，请先运行视觉 QA', 'error');
+    return;
+  }
+  const titleEl = document.getElementById('ctx-modal-title');
+  const body = document.getElementById('ctx-modal-body');
+  const footer = document.getElementById('ctx-modal-footer');
+  const copyBtn = document.getElementById('ctx-modal-copy-btn');
+  const statusText = {
+    pass: '通过',
+    warning: '需复核',
+    fail: '需修复',
+    pending: '待检测',
+  };
+  const checkRows = meta.checks.map(check => {
+    const cls = check.status === 'pass' ? 'qa-pass' : (check.status === 'fail' ? 'qa-error' : (check.status === 'warning' ? 'qa-warning' : 'qa-skipped'));
+    return `<div style="display:grid;grid-template-columns:92px 68px 1fr;gap:10px;align-items:start;padding:9px 0;border-bottom:1px solid var(--border);">
+      <div style="font-weight:600;color:var(--text);font-size:12px;">${esc(check.label || '')}</div>
+      <span class="tarot-qa-badge ${esc(cls)}" style="justify-content:center;width:max-content;">${esc(statusText[check.status] || check.status || '未知')}</span>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;">${esc(check.detail || '')}</div>
+    </div>`;
+  }).join('');
+  const visualMeta = visualReviewMeta(item);
+  const encodedDir = encodeURIComponent(dir);
+  const workflowBlock = renderWorkflowBlock(item);
+  const actionBar = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">
+    ${visualMeta?.screenshotUrl ? `<button class="btn btn-secondary" type="button" data-screenshot-url="${esc(visualMeta.screenshotUrl)}" onclick="openVisualReviewScreenshot(this.dataset.screenshotUrl)" style="padding:6px 10px;font-size:12px;">查看截图</button>` : ''}
+    <button class="btn btn-secondary" type="button" data-dir="${esc(encodedDir)}" onclick="rerunVisualReviewFromReport(decodeURIComponent(this.dataset.dir), this)" style="padding:6px 10px;font-size:12px;">重新复检</button>
+    <button class="btn btn-secondary" type="button" data-dir="${esc(encodedDir)}" onclick="saveVersionSnapshotFromReport(decodeURIComponent(this.dataset.dir), this)" style="padding:6px 10px;font-size:12px;">保存版本</button>
+    <button class="btn btn-secondary" type="button" data-dir="${esc(encodedDir)}" onclick="downloadDeliveryPackage(decodeURIComponent(this.dataset.dir))" style="padding:6px 10px;font-size:12px;">导出交付包</button>
+    <button class="btn btn-primary" type="button" data-dir="${esc(encodedDir)}" onclick="closeCtxModal();openQaFeedbackRegen(decodeURIComponent(this.dataset.dir))" style="padding:6px 10px;font-size:12px;">按 QA 重生成</button>
+  </div>`;
+
+  titleEl.textContent = '质量报告';
+  _ctxModalState = { type: 'quality', dir, notesEl: null };
+  body.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--bg-warm);">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+          <span class="tarot-qa-badge ${esc(meta.cls)}">${esc(meta.label)}</span>
+          <span style="font-size:12px;color:var(--text-muted);">${esc(item.company || '')} · ${esc(item.role || '')}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;">${esc(meta.summary)}</div>
+        <div style="font-size:12px;color:var(--accent);margin-top:5px;">下一步：${esc(meta.nextAction || '人工复核')}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;text-align:right;white-space:nowrap;">
+        ${meta.fill ? `<div>填充率 ${esc(meta.fill)}</div>` : ''}
+        ${meta.pageCount ? `<div>${meta.pageCount} 页</div>` : ''}
+        <div>v${meta.versionCount}</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);">
+      ${checkRows || '<div style="font-size:13px;color:var(--text-muted);padding:14px 0;">暂无检查项</div>'}
+    </div>
+    ${workflowBlock}
+    ${actionBar}
+  `;
+  footer.style.display = 'none';
+  copyBtn.style.display = 'none';
+  document.getElementById('ctx-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function downloadDeliveryPackage(dirName) {
+  const dir = String(dirName || '').trim();
+  if (!dir) {
+    showToast('缺少简历目录，无法导出交付包', 'error');
+    return;
+  }
+  window.location.href = `/api/gallery/${encodeURIComponent(dir)}/delivery-package`;
+  showToast('正在导出交付包');
+}
+
+function downloadDiagnosticsPackage() {
+  window.location.href = '/api/diagnostics-package';
+  showToast('正在导出支持材料');
+}
+
+async function rerunVisualReviewFromReport(dirName, btn) {
+  const data = await rerunVisualReview(dirName, btn);
+  if (data) openQualityReport(dirName);
+}
+
+async function saveVersionSnapshotFromReport(dirName, btn) {
+  const data = await saveVersionSnapshot(dirName, btn);
+  if (data) openQualityReport(dirName);
+  return data;
+}
+
+async function saveVersionSnapshot(dirName, btn) {
+  const dir = String(dirName || '').trim();
+  if (!dir) {
+    showToast('缺少简历目录，无法保存版本', 'error');
+    return null;
+  }
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="font-size:10px">...</span>';
+  }
+  try {
+    const res = await fetch(`/api/gallery/${encodeURIComponent(dir)}/version-snapshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: '质量报告确认版' }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error || data.success === false) {
+      throw new Error(data.error || '保存版本失败');
+    }
+    const apply = item => {
+      if (!item) return;
+      item.version_count = data.version_count ?? item.version_count;
+      item.visual_review = data.visual_review || item.visual_review;
+      item.quality_report = data.quality_report || item.quality_report;
+      item.workflow_status = data.workflow_status || item.workflow_status;
+    };
+    if (window._galleryData) {
+      apply(window._galleryData.find(x => x.dir_name === dir));
+    }
+    if (window._lastGeneratedResult?.output_dir === dir || window._lastGeneratedResult?.dir_name === dir) {
+      apply(window._lastGeneratedResult);
+    }
+    if (dir === currentEditorDir && data.version_count !== undefined) {
+      _updateVersionBadge(data.version_count);
+      loadVersions();
+    }
+    showToast(`已保存 v${data.version}`);
+    await loadGallery('home-gallery-content');
+    await loadWorkbenchStatus();
+    return data;
+  } catch (e) {
+    showToast(e.message || '保存版本失败', 'error');
+    return null;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml || '保存版本';
+    }
+  }
+}
+
+function openVisualReviewScreenshot(pathOrUrl) {
+  const url = String(pathOrUrl || '').startsWith('/gallery/asset/')
+    ? pathOrUrl
+    : galleryAssetUrl(pathOrUrl);
+  if (!url) {
+    showToast('暂无视觉 QA 截图', 'error');
+    return;
+  }
+  const modal = document.getElementById('qa-modal');
+  const img = document.getElementById('qa-modal-img');
+  if (!modal || !img) return;
+  img.src = url;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeVisualReviewModal() {
+  const modal = document.getElementById('qa-modal');
+  const img = document.getElementById('qa-modal-img');
+  if (modal) modal.classList.remove('open');
+  if (img) img.removeAttribute('src');
+  document.body.style.overflow = '';
+}
+
+async function rerunVisualReview(dirName, btn) {
+  const dir = String(dirName || '').trim();
+  if (!dir) {
+    showToast('缺少简历目录，无法复检', 'error');
+    return null;
+  }
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span style="font-size:10px">...</span>';
+  }
+  try {
+    const res = await fetch(`/api/gallery/${encodeURIComponent(dir)}/visual-review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error || data.success === false) {
+      throw new Error(data.error || data.errors || '视觉 QA 复检失败');
+    }
+    if (window._galleryData) {
+      const item = window._galleryData.find(x => x.dir_name === dir);
+      if (item) {
+        item.visual_review = data.visual_review || {};
+        item.quality_report = data.quality_report || item.quality_report;
+        item.workflow_status = data.workflow_status || item.workflow_status;
+        item.pdf_path = data.pdf_path || item.pdf_path;
+        item.version_count = data.version_count ?? item.version_count;
+      }
+    }
+    showToast(`视觉 QA 已复检：${data.visual_review?.status || '完成'}`);
+    await loadGallery('home-gallery-content');
+    await loadWorkbenchStatus();
+    return data;
+  } catch (e) {
+    showToast(e.message || '视觉 QA 复检失败', 'error');
+    return null;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+function openQaFeedbackRegen(dirName) {
+  const dir = String(dirName || '').trim();
+  const item = (window._galleryData || []).find(x => x.dir_name === dir) || { output_dir: dir };
+  const feedback = visualReviewFeedbackPrompt(item);
+  openRegenModal(feedback, dir);
+}
+
+function renderGalleryQaBadge(item) {
+  const meta = visualReviewMeta(item);
+  const quality = qualityReportMeta(item);
+  if (!meta && !quality) return '';
+  const label = meta ? meta.label : quality.label;
+  const cls = meta ? meta.cls : quality.cls;
+  const title = quality ? `质量报告：${quality.label}，${quality.nextAction || quality.summary}` : (meta.message || '视觉 QA');
+  const encodedDir = encodeURIComponent(item.dir_name || '');
+  return `<button class="tarot-qa-badge ${esc(cls)}" type="button" data-dir="${esc(encodedDir)}" onclick="event.stopPropagation();openQualityReport(decodeURIComponent(this.dataset.dir))" title="${esc(title)}">${esc(label)}</button>`;
+}
+
+function renderGalleryQualityButton(item) {
+  const meta = qualityReportMeta(item);
+  const encodedDir = encodeURIComponent(item.dir_name || '');
+  const title = meta ? `质量报告：${meta.label}` : '查看质量报告';
+  return `<button class="tf-qa-shot" type="button" data-dir="${esc(encodedDir)}" onclick="event.stopPropagation();openQualityReport(decodeURIComponent(this.dataset.dir))" title="${esc(title)}"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-check"/></svg></button>`;
+}
+
+function renderGalleryQaRow(item) {
+  const meta = visualReviewMeta(item);
+  const quality = qualityReportMeta(item);
+  const encodedDir = encodeURIComponent(item.dir_name || '');
+  if (!meta) {
+    return `<div class="tf-qa-row">
+      <button class="tarot-qa-badge ${esc(quality?.cls || 'qa-skipped')}" type="button" data-dir="${esc(encodedDir)}" onclick="event.stopPropagation();openQualityReport(decodeURIComponent(this.dataset.dir))" title="${esc(quality?.nextAction || '尚未运行视觉 QA')}">QA 未复检</button>
+      <button class="tf-qa-shot" type="button" onclick="event.stopPropagation();rerunVisualReview('${esc(item.dir_name || '')}', this)" title="重新运行视觉 QA"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-refresh"/></svg></button>
+      <button class="tf-qa-shot" type="button" onclick="event.stopPropagation();openQaFeedbackRegen('${esc(item.dir_name || '')}')" title="按 QA 反馈重生成"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-zap"/></svg></button>
+    </div>`;
+  }
+  const fillText = meta.fill ? ` · ${meta.fill}` : '';
+  const title = quality ? `质量报告：${quality.label}，${quality.nextAction || quality.summary}` : (meta.message || '视觉 QA');
+  return `<div class="tf-qa-row">
+    <button class="tarot-qa-badge ${esc(meta.cls)}" type="button" data-dir="${esc(encodedDir)}" onclick="event.stopPropagation();openQualityReport(decodeURIComponent(this.dataset.dir))" title="${esc(title)}">${esc(meta.label + fillText)}</button>
+    ${meta.screenshotUrl ? `<button class="tf-qa-shot" type="button" data-screenshot-url="${esc(meta.screenshotUrl)}" onclick="event.stopPropagation();openVisualReviewScreenshot(this.dataset.screenshotUrl)" title="查看视觉 QA 截图"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-file"/></svg></button>` : ''}
+    <button class="tf-qa-shot" type="button" onclick="event.stopPropagation();rerunVisualReview('${esc(item.dir_name || '')}', this)" title="重新运行视觉 QA"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-refresh"/></svg></button>
+    <button class="tf-qa-shot" type="button" onclick="event.stopPropagation();openQaFeedbackRegen('${esc(item.dir_name || '')}')" title="按 QA 反馈重生成"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-zap"/></svg></button>
+  </div>`;
+}
+
+function renderGalleryQaBackTools(item) {
+  const meta = visualReviewMeta(item);
+  const screenshotButton = meta?.screenshotUrl
+    ? `<button class="tf-qa-shot" type="button" data-screenshot-url="${esc(meta.screenshotUrl)}" onclick="event.stopPropagation();openVisualReviewScreenshot(this.dataset.screenshotUrl)" title="查看视觉 QA 截图"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-file"/></svg></button>`
+    : '';
+  return `<div class="tarot-qa-tools">
+    ${renderGalleryQualityButton(item)}
+    ${screenshotButton}
+    <button class="tf-qa-shot" type="button" onclick="event.stopPropagation();rerunVisualReview('${esc(item.dir_name || '')}', this)" title="重新运行视觉 QA"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-refresh"/></svg></button>
+    <button class="tf-qa-shot" type="button" onclick="event.stopPropagation();openQaFeedbackRegen('${esc(item.dir_name || '')}')" title="按 QA 反馈重生成"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-zap"/></svg></button>
+  </div>`;
+}
+
+function galleryWorkflowActionMeta(item) {
+  const workflow = workflowStatusMeta(item);
+  const quality = qualityReportMeta(item);
+  const visual = visualReviewMeta(item);
+  if (!workflow && !quality && !visual) return null;
+
+  const nextAction = String(workflow?.nextAction || quality?.nextAction || '').trim();
+  const status = workflow?.status || quality?.status || '';
+  if (status === 'complete') {
+    return { action: 'quality', label: '已完成', icon: 'i-check', cls: 'done' };
+  }
+  if (nextAction.includes('保存版本')) {
+    return { action: 'save_version', label: '保存版本', icon: 'i-check', cls: 'primary' };
+  }
+  if (nextAction.includes('运行视觉') || nextAction.includes('视觉 QA') || nextAction.includes('复检') || !visual) {
+    return { action: 'visual_review', label: '运行视觉 QA', icon: 'i-refresh', cls: 'primary' };
+  }
+  if (nextAction.includes('重生成') || status === 'blocked' || quality?.status === 'fix') {
+    return { action: 'regen', label: '按 QA 重生成', icon: 'i-zap', cls: 'fix' };
+  }
+  if (nextAction.includes('投递') || quality?.status === 'ready') {
+    return { action: 'quality', label: '投递前复核', icon: 'i-check', cls: 'done' };
+  }
+  return { action: 'quality', label: nextAction || '质量报告', icon: 'i-check', cls: 'primary' };
+}
+
+function renderGalleryWorkflowAction(item) {
+  const meta = galleryWorkflowActionMeta(item);
+  const encodedDir = encodeURIComponent(item.dir_name || '');
+  if (!meta || !encodedDir) return '';
+  return `<button class="tf-workflow-btn ${esc(meta.cls || '')}" type="button" data-dir="${esc(encodedDir)}" data-workflow-action="${esc(meta.action)}" onclick="event.stopPropagation();runGalleryWorkflowAction(this)" title="${esc(meta.label)}"><svg class="icon-svg" style="width:11px;height:11px"><use href="#${esc(meta.icon || 'i-check')}"/></svg>${esc(meta.label)}</button>`;
+}
+
+async function runGalleryWorkflowAction(btn) {
+  const dir = decodeURIComponent(btn?.dataset?.dir || '');
+  const action = btn?.dataset?.workflowAction || 'quality';
+  if (!dir) return;
+  if (action === 'visual_review') {
+    await rerunVisualReview(dir, btn);
+  } else if (action === 'save_version') {
+    await saveVersionSnapshot(dir, btn);
+  } else if (action === 'regen') {
+    openQaFeedbackRegen(dir);
+  } else {
+    openQualityReport(dir);
+  }
+}
+
 async function loadGallery(containerId) {
   containerId = containerId || 'home-gallery-content';
   const container = document.getElementById(containerId);
@@ -4689,16 +7575,22 @@ async function loadGallery(containerId) {
       container.innerHTML = `<div class="gallery-empty"><div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div><div class="ge-title">尚无简历</div><div class="ge-desc">生成简历后，它们会以卡牌形式出现在这里</div></div>`;
       return;
     }
+    window._galleryData = items;
     const widths = [90, 75, 85, 60, 95, 70, 80, 65, 88, 72, 82, 68, 78, 92, 55];
     container.innerHTML = `<div class="gallery-deck">${items.map((item, i) => {
       const p = TAROT_PALETTES[i % TAROT_PALETTES.length];
       const a = p.accent;
       const style = `--card-color:${p.color};--card-color-bright:${a}0.85);--card-accent:${a}0.3);--card-accent-dim:${a}0.15);--card-accent-mid:${a}0.2);--card-accent-half:${a}0.45);--card-glow-dim:${a}0.1);--card-glow:${a}0.3);--card-front-border:${a}0.2);`;
       const numeral = ROMAN[i] || (i + 1);
+      const qaBadge = renderGalleryQaBadge(item);
+      const qaRow = renderGalleryQaRow(item);
+      const workflowAction = renderGalleryWorkflowAction(item);
       return `
       <div class="tarot-card" onclick="flipTarot(this)" data-pdf="${esc(item.pdf_path)}" data-dir="${esc(item.dir_name)}" style="animation-delay:${i * 0.1}s;${style}">
         <div class="tarot-face tarot-back">
           ${item.version_count > 0 ? `<span class="tarot-version-badge">v${item.version_count}</span>` : ''}
+          ${qaBadge}
+          ${renderGalleryQaBackTools(item)}
           <div class="tarot-numeral">${numeral}</div>
           <div class="tarot-circle"><div class="tarot-symbol"><svg class="icon-svg" style="width:36px;height:36px"><use href="#i-sparkle"/></svg></div></div>
           <div class="tarot-label editable-meta" data-field="company" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑公司名">${esc(item.company)}</div>
@@ -4711,11 +7603,13 @@ async function loadGallery(containerId) {
           <div class="tf-company editable-meta" data-field="company" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑公司名">${esc(item.company)}</div>
           <div class="tf-role editable-meta" data-field="role" data-dir="${esc(item.dir_name)}" onclick="event.stopPropagation();startInlineEdit(this)" title="点击编辑岗位">${esc(item.role)}</div>
           <div class="tf-date">${esc(item.date)}</div>
+          ${qaRow}
           <div class="tf-preview" onclick="event.stopPropagation();openPdfModal('${esc(item.pdf_path)}','${esc(item.company)} — ${esc(item.role)}','${esc(item.dir_name)}')">${renderTarotPreview(item, widths)}</div>
           <div class="tf-footer">
             <div class="tf-footer-row">
               ${renderTarotContextButtons(item)}
             </div>
+            ${workflowAction ? `<div class="tf-footer-row">${workflowAction}</div>` : ''}
             <div class="tf-footer-row">
               <button class="tf-action-btn" onclick="event.stopPropagation();openPdfModal('${esc(item.pdf_path)}','${esc(item.company)} — ${esc(item.role)}','${esc(item.dir_name)}')" title="查看">
                 <svg class="icon-svg" style="width:11px;height:11px"><use href="#i-file"/></svg>查看
@@ -4726,13 +7620,16 @@ async function loadGallery(containerId) {
               <button class="tf-action-btn primary" onclick="event.stopPropagation();downloadPdf('${esc(item.pdf_path)}')" title="下载">
                 <svg class="icon-svg" style="width:11px;height:11px;stroke:#fff"><use href="#i-download"/></svg>下载
               </button>
+              <button class="tf-action-btn" onclick="event.stopPropagation();downloadDeliveryPackage('${esc(item.dir_name)}')" title="导出交付包">
+                <svg class="icon-svg" style="width:11px;height:11px"><use href="#i-download"/></svg>交付包
+              </button>
             </div>
           </div>
         </div>
       </div>`;
     }).join('')}</div>`;
   } catch(e) {
-    container.innerHTML = `<div class="gallery-empty"><div class="ge-icon"><svg class="icon-svg" style="width:48px;height:48px;opacity:0.3"><use href="#i-cards"/></svg></div><div class="ge-title">加载失败</div><div class="ge-desc">${esc(e.message)}</div></div>`;
+    container.innerHTML = `<div class="gallery-empty" style="padding:34px 20px"><div class="ge-title">暂时无法加载最近简历</div><div class="ge-desc">请确认本地服务仍在运行后刷新，或稍后再试</div></div>`;
   }
 }
 
@@ -4966,6 +7863,63 @@ function closePdfModal() {
 }
 
 let currentResumePlan = null;
+let currentAgentJobId = null;
+let currentAgentPollTimer = null;
+let currentAgentLogSeq = 0;
+const CURRENT_AGENT_JOB_KEY = 'resume_current_agent_job';
+const LAST_AGENT_PAYLOAD_KEY = 'resume_last_agent_payload';
+
+function saveLastAgentPayload(payload) {
+  try {
+    localStorage.setItem(LAST_AGENT_PAYLOAD_KEY, JSON.stringify(payload || {}));
+  } catch (e) {
+    console.warn('Failed to persist agent payload:', e);
+  }
+}
+
+function loadLastAgentPayload() {
+  try {
+    const raw = localStorage.getItem(LAST_AGENT_PAYLOAD_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    return payload && typeof payload === 'object' ? payload : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function focusGenerateForm() {
+  goTo('generate');
+  setTimeout(() => {
+    const target = document.getElementById('jd-text') || document.getElementById('gen-company');
+    if (target) target.focus();
+  }, 80);
+}
+
+async function retryLastAgentJob() {
+  const payload = loadLastAgentPayload();
+  if (!payload || !String(payload.jd || '').trim()) {
+    showToast('未找到上次任务输入，请重新填写 JD', 'error');
+    focusGenerateForm();
+    return;
+  }
+  await startGenerate(null, '', payload);
+}
+
+function resumeAgentJobStatus(jobId) {
+  const cleanJobId = String(jobId || '').trim();
+  if (!cleanJobId) return;
+  goTo('generate');
+  currentAgentJobId = cleanJobId;
+  currentAgentLogSeq = 0;
+  localStorage.setItem(CURRENT_AGENT_JOB_KEY, cleanJobId);
+  const btn = document.getElementById('btn-generate');
+  if (btn) { btn.disabled = true; btn.textContent = 'Agent 执行中...'; }
+  document.getElementById('ai-progress').style.display = '';
+  document.getElementById('ai-result').style.display = '';
+  window.setTimeout(() => scrollPageElementIntoView('ai-progress'), 120);
+  startAgentPolling(cleanJobId);
+}
 
 async function buildGeneratePayload(extra = {}) {
   const jdText = document.getElementById('jd-text').value.trim();
@@ -4973,9 +7927,10 @@ async function buildGeneratePayload(extra = {}) {
   const genCompany = (document.getElementById('gen-company')?.value || '').trim();
   const genRole = (document.getElementById('gen-role')?.value || '').trim();
   const genLanguage = (document.getElementById('gen-language')?.value || 'zh').trim();
+  const genAgent = (document.getElementById('gen-agent')?.value || 'auto').trim();
   await loadModelConfig();
   const preferAi = isModelConfigReadyForGeneration(modelConfigState);
-  return { jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi, language: genLanguage, ...extra };
+  return { jd: jdText, interview: mjText, company: genCompany, role: genRole, prefer_ai: preferAi, language: genLanguage, agent: genAgent, ...extra };
 }
 
 async function startPlanMode() {
@@ -5040,6 +7995,10 @@ function renderResumePlan(plan) {
     <input type="checkbox" class="plan-project-check" data-index="${idx}" ${item.selected ? 'checked' : ''}>
     <span>${esc(item.name)}${item.role ? ' · ' + esc(item.role) : ''}</span>
   </label>`).join('');
+  const campusItems = (plan.candidate_campus_experiences || []).map((item, idx) => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:8px;">
+    <input type="checkbox" class="plan-campus-check" data-index="${idx}" ${item.selected ? 'checked' : ''}>
+    <span>${esc(item.name)}${item.role ? ' · ' + esc(item.role) : ''}</span>
+  </label>`).join('');
   const awardItems = (plan.candidate_awards || []).map((item, idx) => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:8px;">
     <input type="checkbox" class="plan-award-check" data-index="${idx}" ${item.selected ? 'checked' : ''}>
     <span>${esc(item.name)}${item.time ? ' · ' + esc(item.time) : ''}</span>
@@ -5065,6 +8024,10 @@ function renderResumePlan(plan) {
           <div style="font-size:13px;font-weight:600;margin-bottom:8px;">项目经历</div>
           ${projectItems || '<div style="font-size:12px;color:var(--text-muted);">暂无项目</div>'}
         </div>
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fff;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">校园经历</div>
+          ${campusItems || '<div style="font-size:12px;color:var(--text-muted);">暂无校园经历</div>'}
+        </div>
         <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fff;">
           <div style="font-size:13px;font-weight:600;margin-bottom:8px;">获奖情况（最多 3 条）</div>
           ${awardItems || '<div style="font-size:12px;color:var(--text-muted);">暂无奖项</div>'}
@@ -5083,11 +8046,15 @@ async function generateFromPlan() {
     .map(el => currentResumePlan.candidate_experiences[Number(el.dataset.index)])
     .filter(Boolean)
     .slice(0, 5);
-  if (selectedExperiences.length === 0) { showToast('请至少选择一段经历', 'error'); return; }
   const selectedProjects = Array.from(document.querySelectorAll('.plan-project-check:checked'))
     .map(el => currentResumePlan.candidate_projects[Number(el.dataset.index)])
     .filter(Boolean)
     .slice(0, Math.max(0, 5 - selectedExperiences.length));
+  const selectedCampus = Array.from(document.querySelectorAll('.plan-campus-check:checked'))
+    .map(el => currentResumePlan.candidate_campus_experiences[Number(el.dataset.index)])
+    .filter(Boolean)
+    .slice(0, Math.max(0, 5 - selectedExperiences.length - selectedProjects.length));
+  if (selectedExperiences.length + selectedProjects.length + selectedCampus.length === 0) { showToast('请至少选择一段实习、项目或校园经历', 'error'); return; }
   const selectedAwards = Array.from(document.querySelectorAll('.plan-award-check:checked'))
     .map(el => currentResumePlan.candidate_awards[Number(el.dataset.index)]?.name)
     .filter(Boolean)
@@ -5105,14 +8072,20 @@ async function generateFromPlan() {
       relevance_reason: item.relevance_reason || '',
       rewritten_bullets: item.rewritten_bullets || [],
     })),
+    selected_campus_experiences: selectedCampus.map(item => ({
+      name: item.name,
+      relevance_reason: item.relevance_reason || '',
+      rewritten_bullets: item.rewritten_bullets || [],
+    })),
     selected_awards: selectedAwards,
   };
   await startGenerate(selectionPlan, direction);
 }
 
-async function startGenerate(selectionPlan = null, planFeedback = '') {
-  const payload = await buildGeneratePayload(selectionPlan ? { selection_plan: selectionPlan, feedback: planFeedback } : {});
+async function startGenerate(selectionPlan = null, planFeedback = '', explicitPayload = null) {
+  const payload = explicitPayload || await buildGeneratePayload(selectionPlan ? { selection_plan: selectionPlan, feedback: planFeedback } : {});
   if (!payload.jd) { showToast('请先输入 JD 内容', 'error'); return; }
+  saveLastAgentPayload(payload);
 
   const btn = document.getElementById('btn-generate');
   const progress = document.getElementById('ai-progress');
@@ -5121,93 +8094,488 @@ async function startGenerate(selectionPlan = null, planFeedback = '') {
   const resultEl = document.getElementById('ai-result');
 
   btn.disabled = true;
-  btn.textContent = '生成中...';
+  btn.textContent = 'Agent 执行中...';
   progress.style.display = '';
   resultEl.style.display = 'none';
   steps.forEach(s => { s.classList.remove('active', 'done'); s.querySelector('.ai-step-bar-fill').style.width = '0%'; });
-
-  // 动画：逐步推进前 4 步（前端动画，后台并行请求）
-  let animStep = 0;
-  const stepLabels = ['分析 JD 关键词', '匹配最佳经历', '生成 LaTeX 排版', '编译 PDF'];
-  function advanceAnim() {
-    if (animStep > 0 && animStep <= steps.length) {
-      steps[animStep - 1].classList.remove('active');
-      steps[animStep - 1].classList.add('done');
-    }
-    if (animStep < 4 && animStep < steps.length) {
-      steps[animStep].classList.add('active');
-      const bar = steps[animStep].querySelector('.ai-step-bar-fill');
-      bar.style.width = '0%';
-      setTimeout(() => bar.style.width = '100%', 50);
-      statusText.textContent = stepLabels[animStep] + '...';
-      animStep++;
-    }
-  }
-  advanceAnim();
-  const animTimer = setInterval(advanceAnim, 2000);
+  statusText.textContent = '正在创建本地 Agent 任务...';
 
   try {
-    const res = await fetch('/api/generate', {
+    const res = await fetch('/api/agent/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-
-    clearInterval(animTimer);
-
-    // 完成所有步骤动画
-    steps.forEach(s => { s.classList.remove('active'); s.classList.add('done'); s.querySelector('.ai-step-bar-fill').style.width = '100%'; });
-
-    if (data.error && !data.success) {
-      statusText.textContent = '生成失败';
-      showToast(data.error, 'error');
-      resultEl.style.display = '';
-      resultEl.innerHTML = `<div class="form-section" style="border-color:var(--accent);">
-        <h2 style="color:var(--accent);font-size:16px;margin-bottom:8px;">生成失败</h2>
-        <p style="font-size:13px;color:var(--text-secondary);">${esc(data.error)}</p></div>`;
-    } else {
-      statusText.textContent = '生成完成';
-      showToast('简历生成成功！');
-      const fillPct = data.fill_ratio > 0 ? (data.fill_ratio * 100).toFixed(1) + '%' : '未检测';
-      const engineLabel = data.engine === 'ai' ? (data.ai_provider || '外部模型') : (data.engine === 'plan' ? '已确认方案' : '本地规则引擎');
-      resultEl.style.display = '';
-      resultEl.innerHTML = `<div class="form-section" style="border-color:rgba(120,140,93,0.3);">
-        <h2 style="color:var(--green);font-size:16px;margin-bottom:12px;">
-          <svg class="icon-svg" style="width:16px;height:16px;color:var(--green)"><use href="#i-check"/></svg> 生成完成
-        </h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-secondary);line-height:1.8;">
-          <div><strong>公司：</strong>${esc(data.company || '')}</div>
-          <div><strong>岗位：</strong>${esc(data.role || '')}</div>
-          <div><strong>引擎：</strong>${esc(engineLabel)}</div>
-          <div><strong>模型：</strong>${esc(data.ai_model || '未使用')}</div>
-          <div><strong>填充率：</strong>${fillPct}</div>
-          <div><strong>目录：</strong>${esc(data.output_dir || '')}</div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:16px;">
-          <button class="btn btn-secondary" onclick="openEditor('${esc(data.output_dir || '')}')" ${data.output_dir ? '' : 'disabled'}>
-            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-edit"/></svg>编辑
-          </button>
-          <button class="btn btn-primary" onclick="openPdfModal('${esc(data.pdf_path)}','${esc(data.company || "")} — ${esc(data.role || "")}')">
-            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px;stroke:#fff"><use href="#i-file"/></svg>查看 PDF
-          </button>
-          <button class="btn btn-secondary" onclick="downloadPdf('${esc(data.pdf_path)}')">
-            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-download"/></svg>下载
-          </button>
-          <button class="btn btn-secondary" onclick="goTo('home');setTimeout(()=>document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'}),300)">
-            <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-cards"/></svg>画廊
-          </button>
-        </div>
-      </div>`;
+    if (!res.ok || data.error) {
+      if (['SYSTEM_CHECK_BLOCKED', 'SELECTED_AGENT_UNHEALTHY'].includes(data.error_code)) {
+        renderAgentPreflightBlocked(data, payload);
+        return;
+      }
+      throw new Error(data.error || 'Agent 任务创建失败');
     }
+    currentAgentJobId = data.job_id;
+    currentAgentLogSeq = 0;
+    localStorage.setItem(CURRENT_AGENT_JOB_KEY, currentAgentJobId);
+    showToast(`${_agentJobLabel(data.agent || payload.agent)} 已开始在本地处理`);
+    loadAgentJobs();
+    loadWorkbenchStatus();
+    renderAgentJob(data, []);
+    startAgentPolling(currentAgentJobId);
   } catch (e) {
-    clearInterval(animTimer);
     statusText.textContent = '请求失败';
-    showToast('生成请求失败: ' + e.message, 'error');
+    renderAgentFailed({ status: 'failed', error: 'Agent 启动失败: ' + e.message, recovery_payload: payload }, [], {});
   }
+}
 
+function renderAgentPreflightBlocked(data, payload) {
+  const btn = document.getElementById('btn-generate');
+  const resultEl = document.getElementById('ai-result');
+  const statusText = document.getElementById('ai-status-text');
+  localStorage.removeItem(CURRENT_AGENT_JOB_KEY);
+  currentAgentJobId = null;
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = '开始生成';
+  }
+  updateAgentStepProgress(0, '启动前检查未通过');
+  if (statusText) statusText.textContent = '启动前检查未通过';
+  const systemCheck = data?.system_check || {};
+  lastSystemCheck = systemCheck;
+  const checks = Array.isArray(systemCheck.checks) ? systemCheck.checks : [];
+  const blocking = data?.blocking_check || systemCheckPrimaryItem(systemCheck) || {};
+  const visibleChecks = checks.filter(c => c.status === 'fail' || c.status === 'warning').slice(0, 5);
+  const checkRows = visibleChecks.map(check => {
+    const statusLabel = check.status === 'fail' ? '需修复' : '建议完善';
+    const action = check.action || (check.status === 'fail' ? '修复' : '查看');
+    const fallbackAction = check.fallback_action || (check.fallback_agent ? `切换到 ${check.fallback_label || check.fallback_agent}` : '');
+    const actionButtons = [
+      check.action ? `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" data-key="${esc(check.key || '')}" data-action="${esc(action)}" data-target-page="${esc(check.target_page || '')}" onclick="handleSystemCheckAction(this.dataset.key, this.dataset.action, this.dataset.targetPage)">${esc(action)}</button>` : '',
+      check.fallback_agent ? `<button class="btn btn-primary" style="padding:6px 10px;font-size:12px;" data-agent="${esc(check.fallback_agent || '')}" data-label="${esc(check.fallback_label || check.fallback_agent || '')}" onclick="switchAgentFromPreflight(this.dataset.agent, this.dataset.label)">${esc(fallbackAction)}</button>` : '',
+    ].filter(Boolean).join('');
+    return `<div style="display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
+      <span class="tarot-qa-badge ${check.status === 'fail' ? 'qa-error' : 'qa-warning'}" style="justify-content:center;">${esc(statusLabel)}</span>
+      <div style="min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${esc(check.label || '')}</div>
+        <div style="font-size:12px;color:var(--text-secondary);line-height:1.45;margin-top:2px;">${esc(check.detail || '')}${check.fallback_detail ? `；可切换：${esc(check.fallback_detail)}` : ''}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">${actionButtons}</div>
+    </div>`;
+  }).join('');
+  saveLastAgentPayload(payload);
+  resultEl.style.display = '';
+  resultEl.innerHTML = `<div class="form-section" style="border-color:rgba(196,82,82,0.3);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+      <div>
+        <h2 style="color:#b94b4b;font-size:16px;margin-bottom:8px;">启动前检查未通过</h2>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">${esc(data?.error || '存在会阻断后台 Agent 的本地问题')}</p>
+        <p style="font-size:12px;color:var(--text-muted);line-height:1.55;margin-top:8px;">先修复阻断项，再重新启动 Agent。系统已保留本次 JD 和生成参数。</p>
+      </div>
+      <span class="tarot-qa-badge qa-error" style="flex-shrink:0;">未启动</span>
+    </div>
+    <div style="margin-top:12px;border-top:1px solid var(--border);">
+      ${checkRows || '<div style="font-size:13px;color:var(--text-muted);padding:12px 0;">暂无自检详情</div>'}
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      ${blocking?.fallback_agent ? `<button class="btn btn-primary" onclick="switchAgentFromPreflight('${esc(blocking.fallback_agent || '')}','${esc(blocking.fallback_label || blocking.fallback_agent || '')}')">${esc(blocking.fallback_action || ('切换到 ' + (blocking.fallback_label || blocking.fallback_agent)))}</button>` : (blocking?.action ? `<button class="btn btn-primary" onclick="handleSystemCheckAction('${esc(blocking.key || '')}','${esc(blocking.action || '')}','${esc(blocking.target_page || '')}')">${esc(blocking.action || '修复阻断项')}</button>` : '')}
+      <button class="btn btn-secondary" onclick="loadSystemCheck()">重新自检</button>
+      <button class="btn btn-secondary" onclick="focusGenerateForm()">查看输入</button>
+    </div>
+  </div>`;
+}
+
+function switchAgentFromPreflight(agent, label = '') {
+  const cleanAgent = String(agent || '').trim();
+  if (!cleanAgent) return;
+  const select = document.getElementById('gen-agent');
+  if (select) {
+    select.value = cleanAgent;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  const payload = loadLastAgentPayload();
+  if (payload) {
+    payload.agent = cleanAgent;
+    saveLastAgentPayload(payload);
+  }
+  const displayLabel = label || (cleanAgent === 'claude' ? 'Claude Code' : cleanAgent);
+  const statusText = document.getElementById('ai-status-text');
+  if (statusText) statusText.textContent = `已切换到 ${displayLabel}`;
+  showToast(`已切换到 ${displayLabel}`);
+  focusGenerateForm();
+}
+
+function updateAgentStepProgress(progressValue, statusLabel) {
+  const steps = document.querySelectorAll('.ai-step');
+  const statusText = document.getElementById('ai-status-text');
+  const progress = Math.max(0, Math.min(100, Number(progressValue) || 0));
+  const activeIdx = Math.min(steps.length - 1, Math.floor(progress / 17));
+  steps.forEach((step, idx) => {
+    const fill = step.querySelector('.ai-step-bar-fill');
+    step.classList.remove('active', 'done');
+    if (idx < activeIdx || progress >= 100) {
+      step.classList.add('done');
+      if (fill) fill.style.width = '100%';
+    } else if (idx === activeIdx) {
+      step.classList.add('active');
+      if (fill) fill.style.width = Math.max(20, progress % 17 * 6).toFixed(0) + '%';
+    } else if (fill) {
+      fill.style.width = '0%';
+    }
+  });
+  if (statusText) statusText.textContent = statusLabel || 'Agent 正在执行...';
+}
+
+function renderAgentLogPanel(events = [], logMeta = {}) {
+  const eventItems = (events || []).slice(-10).map(e => {
+    const time = e.time ? new Date(e.time).toLocaleTimeString('zh-CN', { hour12: false }) : '';
+    const level = e.level || 'info';
+    const color = level === 'error' ? 'var(--accent)' : (level === 'done' ? 'var(--green)' : 'var(--text-muted)');
+    return `<div style="display:flex;gap:10px;line-height:1.55;">
+      <span style="color:var(--text-muted);min-width:72px;">${esc(time)}</span>
+      <span style="color:${color};min-width:44px;">${esc(level)}</span>
+      <span>${esc(e.message || '')}</span>
+    </div>`;
+  }).join('');
+  const stderr = String(logMeta?.stderr_tail || '').trim();
+  const stdout = String(logMeta?.stdout_tail || '').trim();
+  const rawLogs = [
+    stderr ? `<details style="margin-top:10px;"><summary style="cursor:pointer;color:var(--accent);font-size:12px;">stderr 摘要</summary><pre style="white-space:pre-wrap;margin-top:8px;font-size:11px;line-height:1.45;color:var(--text-secondary);">${esc(stderr.slice(-1800))}</pre></details>` : '',
+    stdout ? `<details style="margin-top:10px;"><summary style="cursor:pointer;color:var(--text-muted);font-size:12px;">stdout 摘要</summary><pre style="white-space:pre-wrap;margin-top:8px;font-size:11px;line-height:1.45;color:var(--text-secondary);">${esc(stdout.slice(-1800))}</pre></details>` : '',
+  ].join('');
+  return `<div style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:12px;color:var(--text-secondary);max-height:230px;overflow:auto;">
+    ${eventItems || '<div style="color:var(--text-muted);">等待 Agent 日志...</div>'}
+    ${rawLogs}
+  </div>`;
+}
+
+function agentJobUserStatus(job) {
+  if (job?.user_status && typeof job.user_status === 'object') return job.user_status;
+  const result = job?.result || {};
+  const task = job?.task_summary || {};
+  const status = job?.status || '';
+  const inputSummary = [
+    task.company || job?.company || result.company || '',
+    task.role || job?.role || result.role || '',
+    task.has_interview ? '含面经' : '',
+    task.has_selection_plan ? '含确认方案' : '',
+  ].filter(Boolean).join(' · ') || '未命名任务';
+  const completed = status === 'completed';
+  const failed = status === 'failed';
+  const cancelled = status === 'cancelled';
+  const hasPdf = !!result.pdf_path;
+  const hasQuality = !!result.quality_report;
+  return {
+    headline: completed ? 'Agent 已生成结果' : (failed ? 'Agent 任务失败' : (cancelled ? '任务已取消' : '本地 Agent 正在处理')),
+    detail: completed ? '结果已生成，可继续质量检查、编辑或查看 PDF' : (job?.error || '正在读取本地任务状态'),
+    next_action: completed ? (hasPdf ? '查看 PDF' : '查看质量报告') : (failed || cancelled ? '重试或修改输入' : '等待完成，或在需要时取消任务'),
+    input_summary: inputSummary,
+    agent_label: _agentJobLabel(job?.agent),
+    language: task.language || job?.language || result.language || '',
+    progress: Number(job?.progress || 0),
+    artifacts: {
+      has_output_dir: !!result.output_dir,
+      output_dir: result.output_dir || '',
+      has_pdf: hasPdf,
+      pdf_path: result.pdf_path || '',
+      has_quality_report: hasQuality,
+      has_visual_review: !!result.visual_review,
+      version_count: Number(result.version_count || 0),
+    },
+    phases: [
+      { key: 'input', label: '输入已保存', status: 'pass', detail: inputSummary },
+      { key: 'agent', label: 'Agent 执行', status: failed ? 'fail' : (completed ? 'pass' : 'active'), detail: job?.step || status },
+      { key: 'pdf', label: 'PDF 生成', status: hasPdf ? 'pass' : (completed || failed ? 'fail' : 'pending'), detail: hasPdf ? '可查看 PDF' : '等待 PDF 输出' },
+      { key: 'quality', label: '视觉与质量检查', status: hasQuality ? 'warning' : 'pending', detail: '' },
+      { key: 'delivery', label: '交付准备', status: 'pending', detail: '' },
+    ],
+  };
+}
+
+function renderAgentUserOverview(job, options = {}) {
+  const status = agentJobUserStatus(job || {});
+  const phases = Array.isArray(status.phases) ? status.phases : [];
+  const artifacts = status.artifacts || {};
+  const artifactChips = [
+    artifacts.has_output_dir ? `输出目录：${artifacts.output_dir}` : '',
+    artifacts.has_pdf ? 'PDF 已生成' : 'PDF 待生成',
+    artifacts.has_quality_report ? '质量报告已生成' : '质量报告待生成',
+    artifacts.has_visual_review ? '视觉 QA 已运行' : '视觉 QA 待运行',
+    artifacts.version_count ? `版本 ${artifacts.version_count}` : '尚未留版',
+  ].filter(Boolean).map(item => `<span>${esc(item)}</span>`).join('');
+  const phaseHtml = phases.map(phase => `
+    <div class="agent-job-phase ${esc(phase.status || 'pending')}">
+      <strong>${esc(phase.label || '')}</strong>
+      <span title="${esc(phase.detail || '')}">${esc(phase.detail || phase.status || '')}</span>
+    </div>
+  `).join('');
+  return `<div class="agent-job-overview">
+    <div class="agent-job-topline">
+      <div>
+        <div class="agent-job-headline">${esc(status.headline || options.title || 'Agent 任务状态')}</div>
+        <div class="agent-job-detail">${esc(status.detail || '')}</div>
+      </div>
+      <div class="agent-job-next">${esc(status.next_action || options.nextAction || '查看状态')}</div>
+    </div>
+    <div class="agent-job-input">
+      <strong>任务输入：</strong>${esc(status.input_summary || '未命名任务')}
+      ${status.agent_label ? ` · <strong>Agent：</strong>${esc(status.agent_label)}` : ''}
+      ${status.language ? ` · <strong>语言：</strong>${esc(status.language)}` : ''}
+    </div>
+    ${phaseHtml ? `<div class="agent-job-phases">${phaseHtml}</div>` : ''}
+    ${artifactChips ? `<div class="agent-job-artifacts">${artifactChips}</div>` : ''}
+  </div>`;
+}
+
+function renderAgentJob(job, events) {
+  const resultEl = document.getElementById('ai-result');
+  const agentLabel = _agentJobLabel(job.agent);
+  updateAgentStepProgress(job.progress || 10, `${agentLabel}：${job.step || job.status || 'running'}`);
+  resultEl.style.display = '';
+  resultEl.innerHTML = `<div class="form-section">
+    <h2 style="font-family:var(--font-heading);font-size:16px;margin-bottom:10px;">本地 Agent 执行中</h2>
+    ${renderAgentUserOverview(job)}
+    <div style="font-size:12px;color:var(--text-muted);margin-top:8px;">任务 ID：${esc(job.job_id || '')} · 进度 ${Number(job.progress || 0)}%</div>
+    ${renderAgentLogPanel(events)}
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn btn-secondary" onclick="cancelCurrentAgentJob()">取消任务</button>
+    </div>
+  </div>`;
+}
+
+function renderVisualReviewBlock(data) {
+  const meta = visualReviewMeta(data);
+  if (!meta) return '';
+  const statusLabel = meta.label.replace('QA ', '');
+  const statusColor = meta.status === 'pass' ? 'var(--green)' : (meta.status === 'warning' ? 'var(--accent)' : 'var(--text-muted)');
+  const issues = meta.issues.length
+    ? `<div style="margin-top:6px;color:var(--accent);font-size:12px;">待复核：${meta.issues.map(esc).join(' / ')}</div>`
+    : '';
+  return `<div style="margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:#fff;">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">视觉 QA：<span style="color:${statusColor}">${esc(statusLabel)}</span></div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${esc(meta.message || '')}${meta.fill ? ` · 填充率 ${esc(meta.fill)}` : ''}</div>
+        ${issues}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+        ${meta.screenshotUrl ? `<button class="btn btn-secondary" onclick="openVisualReviewScreenshot('${esc(meta.screenshotUrl)}')" style="padding:6px 10px;font-size:12px;">查看截图</button>` : ''}
+        ${data.output_dir ? `<button class="btn btn-secondary" onclick="rerunVisualReview('${esc(data.output_dir)}', this)" style="padding:6px 10px;font-size:12px;">重新复检</button>` : ''}
+        ${data.output_dir ? `<button class="btn btn-primary" onclick="openRegenModal(visualReviewFeedbackPrompt(window._lastGeneratedResult || { output_dir: '${esc(data.output_dir)}' }), '${esc(data.output_dir)}')" style="padding:6px 10px;font-size:12px;">按 QA 重生成</button>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAgentCompleted(job) {
+  const btn = document.getElementById('btn-generate');
+  const resultEl = document.getElementById('ai-result');
+  const statusText = document.getElementById('ai-status-text');
+  const data = job.result || job;
+  updateAgentStepProgress(100, '生成完成');
+  if (statusText) statusText.textContent = '生成完成';
+  showToast('简历生成成功！');
+  localStorage.removeItem('resume_current_agent_job');
+  currentAgentJobId = null;
   btn.disabled = false;
   btn.textContent = '开始生成';
+  const fillPct = data.fill_ratio > 0 ? (data.fill_ratio * 100).toFixed(1) + '%' : '未检测';
+  const engineLabel = data.engine === 'ai' ? (data.ai_provider || '外部模型') : (data.engine === 'plan' ? '已确认方案' : '本地规则引擎');
+  const suggestions = job.memory_suggestions?.suggestions || [];
+  window._lastGeneratedResult = data;
+  const visualReviewBlock = renderVisualReviewBlock(data);
+  const workflowBlock = renderWorkflowBlock(data, { title: '生成-视觉检查-反馈迭代 Loop' });
+  resultEl.style.display = '';
+  resultEl.innerHTML = `<div class="form-section" style="border-color:rgba(120,140,93,0.3);">
+    <h2 style="color:var(--green);font-size:16px;margin-bottom:12px;">
+      <svg class="icon-svg" style="width:16px;height:16px;color:var(--green)"><use href="#i-check"/></svg> 生成完成
+    </h2>
+    ${renderAgentUserOverview(job)}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px;color:var(--text-secondary);line-height:1.8;">
+      <div><strong>公司：</strong>${esc(data.company || '')}</div>
+      <div><strong>岗位：</strong>${esc(data.role || '')}</div>
+      <div><strong>引擎：</strong>${esc(engineLabel)}</div>
+      <div><strong>模型：</strong>${esc(data.ai_model || '未使用')}</div>
+      <div><strong>填充率：</strong>${fillPct}</div>
+      <div><strong>目录：</strong>${esc(data.output_dir || '')}</div>
+    </div>
+    ${workflowBlock ? `<div style="margin-top:12px;">${workflowBlock}</div>` : ''}
+    ${visualReviewBlock}
+    ${suggestions.length ? `<div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">Agent 生成了 ${suggestions.length} 条长期记忆建议，可确认写入。</div>` : ''}
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="openQualityReport('${esc(data.output_dir || '')}')" ${data.output_dir ? '' : 'disabled'}>
+        <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-check"/></svg>质量报告
+      </button>
+      <button class="btn btn-secondary" onclick="openEditor('${esc(data.output_dir || '')}')" ${data.output_dir ? '' : 'disabled'}>
+        <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-edit"/></svg>编辑
+      </button>
+      <button class="btn btn-primary" onclick="openPdfModal('${esc(data.pdf_path || '')}','${esc(data.company || "")} — ${esc(data.role || "")}','${esc(data.output_dir || "")}')" ${data.pdf_path ? '' : 'disabled'}>
+        <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px;stroke:#fff"><use href="#i-file"/></svg>查看 PDF
+      </button>
+      <button class="btn btn-secondary" onclick="downloadPdf('${esc(data.pdf_path || '')}')" ${data.pdf_path ? '' : 'disabled'}>
+        <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-download"/></svg>下载
+      </button>
+      ${suggestions.length ? `<button class="btn btn-secondary" onclick="applyMemorySuggestions('${esc(job.job_id || '')}')">确认写入记忆</button>` : ''}
+      <button class="btn btn-secondary" onclick="goTo('home');setTimeout(()=>document.getElementById('home-gallery-section').scrollIntoView({behavior:'smooth'}),300)">
+        <svg class="icon-svg" style="width:13px;height:13px;margin-right:4px"><use href="#i-cards"/></svg>画廊
+      </button>
+    </div>
+  </div>`;
+  loadGallery('home-gallery-content');
+  loadAgentJobs();
+  loadWorkbenchStatus();
+}
+
+function renderAgentFailed(job, events = [], logMeta = {}) {
+  const btn = document.getElementById('btn-generate');
+  const resultEl = document.getElementById('ai-result');
+  const statusText = document.getElementById('ai-status-text');
+  const message = job.error || job.result?.error || 'Agent 任务失败';
+  const cancelled = job.status === 'cancelled';
+  updateAgentStepProgress(100, cancelled ? '任务已取消' : '生成失败');
+  if (statusText) statusText.textContent = job.status === 'cancelled' ? '任务已取消' : '生成失败';
+  localStorage.removeItem(CURRENT_AGENT_JOB_KEY);
+  currentAgentJobId = null;
+  btn.disabled = false;
+  btn.textContent = '开始生成';
+  showToast(cancelled ? '任务已取消' : message, cancelled ? 'success' : 'error');
+  const lastPayload = job.recovery_payload || loadLastAgentPayload();
+  const displayPayload = lastPayload || job.task_summary || {};
+  const canRetry = !!(lastPayload && String(lastPayload.jd || '').trim());
+  const payloadSummary = displayPayload ? [
+    displayPayload.company ? `公司：${displayPayload.company}` : '',
+    displayPayload.role ? `岗位：${displayPayload.role}` : '',
+    displayPayload.language ? `语言：${displayPayload.language}` : '',
+    displayPayload.agent ? `Agent：${displayPayload.agent}` : '',
+    displayPayload.has_interview ? '含面经' : '',
+    displayPayload.has_selection_plan ? '含确认方案' : '',
+  ].filter(Boolean).join(' · ') : '';
+  const guidance = cancelled
+    ? '任务已取消。可以按上次输入重新启动，也可以先修改 JD、面经或生成方向'
+    : '建议先查看最近日志；如果是 CLI、模型 Key 或 LaTeX 环境问题，修复后可按上次输入重试'
+  resultEl.style.display = '';
+  resultEl.innerHTML = `<div class="form-section" style="border-color:var(--accent);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+      <div>
+        <h2 style="color:var(--accent);font-size:16px;margin-bottom:8px;">${cancelled ? '任务已取消' : '生成失败'}</h2>
+        <p style="font-size:13px;color:var(--text-secondary);white-space:pre-wrap;line-height:1.6;">${esc(message)}</p>
+        <p style="font-size:12px;color:var(--text-muted);line-height:1.55;margin-top:8px;">${esc(guidance)}</p>
+        ${payloadSummary ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">上次输入：${esc(payloadSummary)}</div>` : ''}
+      </div>
+      <span class="tarot-qa-badge qa-error" style="flex-shrink:0;">${cancelled ? '已取消' : '失败'}</span>
+    </div>
+    ${renderAgentUserOverview(job)}
+    ${renderAgentLogPanel(events, logMeta)}
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      <button class="btn btn-primary" data-testid="agent-retry-last" onclick="retryLastAgentJob()" ${canRetry ? '' : 'disabled title="未找到完整上次输入，请先修改输入"'}>按上次输入重试</button>
+      <button class="btn btn-secondary" data-testid="agent-edit-input" onclick="focusGenerateForm()">修改输入</button>
+      ${job.job_id ? `<button class="btn btn-secondary" onclick="resumeAgentJobStatus('${esc(job.job_id)}')">重新查看状态</button>` : ''}
+    </div>
+  </div>`;
+  loadAgentJobs();
+  loadWorkbenchStatus();
+}
+
+function renderAgentConnectionInterrupted(jobId, error) {
+  const cleanJobId = String(jobId || currentAgentJobId || '').trim();
+  const btn = document.getElementById('btn-generate');
+  const resultEl = document.getElementById('ai-result');
+  const statusText = document.getElementById('ai-status-text');
+  if (cleanJobId) {
+    currentAgentJobId = cleanJobId;
+    localStorage.setItem(CURRENT_AGENT_JOB_KEY, cleanJobId);
+  }
+  updateAgentStepProgress(35, '状态连接中断');
+  if (statusText) statusText.textContent = '状态连接中断';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '等待 Agent 状态...';
+  }
+  const message = error?.message || String(error || '暂时无法读取本地 Agent 状态');
+  resultEl.style.display = '';
+  resultEl.innerHTML = `<div class="form-section" style="border-color:rgba(217,119,87,0.35);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+      <div>
+        <h2 style="color:var(--accent);font-size:16px;margin-bottom:8px;">状态连接中断</h2>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">本地 Agent 任务可能仍在后台运行，只是界面暂时无法读取状态。建议先重新连接，不要重复启动同一份简历生成。</p>
+        <p style="font-size:12px;color:var(--text-muted);line-height:1.55;margin-top:8px;">${esc(message)}</p>
+        ${cleanJobId ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">任务：${esc(cleanJobId)}</div>` : ''}
+      </div>
+      <span class="tarot-qa-badge qa-warning" style="flex-shrink:0;">可恢复</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+      ${cleanJobId ? `<button class="btn btn-primary" onclick="resumeAgentJobStatus('${esc(cleanJobId)}')">重新连接</button>` : ''}
+      ${cleanJobId ? `<button class="btn btn-secondary" onclick="cancelCurrentAgentJob()">取消任务</button>` : ''}
+      <button class="btn btn-secondary" onclick="focusGenerateForm()">查看输入</button>
+    </div>
+  </div>`;
+}
+
+async function pollAgentJob(jobId) {
+  const [jobRes, logRes] = await Promise.all([
+    fetch('/api/agent/jobs/' + encodeURIComponent(jobId)),
+    fetch('/api/agent/jobs/' + encodeURIComponent(jobId) + '/log?since_seq=' + encodeURIComponent(currentAgentLogSeq || 0)),
+  ]);
+  const job = await jobRes.json();
+  const log = await logRes.json();
+  if (!jobRes.ok) throw new Error(job.error || '任务不存在');
+  if (Array.isArray(log.events) && log.events.length) currentAgentLogSeq = log.next_seq || currentAgentLogSeq;
+  if (job.status === 'completed') {
+    clearInterval(currentAgentPollTimer);
+    currentAgentPollTimer = null;
+    renderAgentCompleted(job);
+  } else if (job.status === 'failed' || job.status === 'cancelled') {
+    clearInterval(currentAgentPollTimer);
+    currentAgentPollTimer = null;
+    renderAgentFailed(job, log.events || [], log);
+  } else {
+    renderAgentJob(job, log.events || []);
+  }
+}
+
+function startAgentPolling(jobId) {
+  if (currentAgentPollTimer) clearInterval(currentAgentPollTimer);
+  currentAgentPollTimer = setInterval(() => {
+    pollAgentJob(jobId).catch(e => {
+      clearInterval(currentAgentPollTimer);
+      currentAgentPollTimer = null;
+      renderAgentConnectionInterrupted(jobId, e);
+    });
+  }, 1000);
+  pollAgentJob(jobId).catch(e => renderAgentConnectionInterrupted(jobId, e));
+}
+
+async function cancelCurrentAgentJob() {
+  if (!currentAgentJobId) return;
+  try {
+    await fetch('/api/agent/jobs/' + encodeURIComponent(currentAgentJobId) + '/cancel', { method: 'POST' });
+    loadAgentJobs();
+  } catch (e) {
+    showToast('取消失败: ' + e.message, 'error');
+  }
+}
+
+async function applyMemorySuggestions(jobId) {
+  if (!jobId) return;
+  try {
+    const res = await fetch('/api/memory/suggestions/' + encodeURIComponent(jobId) + '/apply', { method: 'POST' });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    showToast(`已写入 ${data.count || 0} 条记忆建议`);
+  } catch (e) {
+    showToast('写入记忆失败: ' + e.message, 'error');
+  }
+}
+
+function restoreAgentJobFromStorage() {
+  const jobId = localStorage.getItem(CURRENT_AGENT_JOB_KEY);
+  if (!jobId) return;
+  currentAgentJobId = jobId;
+  currentAgentLogSeq = 0;
+  document.getElementById('ai-progress').style.display = '';
+  document.getElementById('ai-result').style.display = '';
+  const btn = document.getElementById('btn-generate');
+  if (btn) { btn.disabled = true; btn.textContent = 'Agent 执行中...'; }
+  startAgentPolling(jobId);
 }
 
 function val(id){return(document.getElementById(id)?.value||'').trim();}
@@ -5502,6 +8870,7 @@ async function loadReviewPage() {
     const skills = profile.skills || {};
     const dirs = profile.directions || {};
     const projects = profile.projects || [];
+    const campus = profile.campus_experiences || [];
     const pubs = profile.publications || [];
     const exps = expData.experiences || [];
 
@@ -5582,6 +8951,16 @@ async function loadReviewPage() {
       html += `</div>`;
     }
 
+    // Campus Experiences
+    if (campus.length > 0) {
+      html += `<div class="review-section" data-section="campus">
+        <div class="review-section-header"><h3><svg class="icon-svg"><use href="#i-school"/></svg> 校园经历</h3><button class="btn btn-secondary" onclick="goTo('campus')" style="padding:5px 12px;font-size:12px"><svg class="icon-svg" style="width:12px;height:12px"><use href="#i-edit"/></svg> 编辑</button></div>`;
+      campus.forEach(c => {
+        html += `<div class="review-card"><div class="review-card-title">${esc(c.name)}${c.role ? ' · ' + esc(c.role) : ''}</div><div class="review-card-meta">${esc(c.time_start)} — ${esc(c.time_end)}</div>${c.highlights ? `<div class="review-card-detail">${esc(c.highlights)}</div>` : ''}${c.tags ? `<div class="review-card-tags">${c.tags.split(/[,，]/).map(t => `<span class="review-tag">${esc(t.trim())}</span>`).join('')}</div>` : ''}</div>`;
+      });
+      html += `</div>`;
+    }
+
     // Publications
     if (pubs.length > 0) {
       html += `<div class="review-section" data-section="publications">
@@ -5623,6 +9002,7 @@ let currentEditorDir = null;
 let currentEditorLanguage = 'zh';
 let currentEditorPdfName = 'resume-zh_CN.pdf';
 let currentEditorTexName = 'resume-zh_CN.tex';
+let currentRegenDir = null;
 
 function _syncEditorMetaInputs(company, role) {
   const ci = document.getElementById('editor-company-input');
@@ -7188,9 +10568,19 @@ function _collectBulletText(contentEl) {
 
 async function _copyTextToClipboard(text, successMsg = '已复制') {
   try {
+    let copied = false;
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-    } else {
+      try {
+        await Promise.race([
+          navigator.clipboard.writeText(text),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('clipboard-timeout')), 1200)),
+        ]);
+        copied = true;
+      } catch (e) {
+        copied = false;
+      }
+    }
+    if (!copied) {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.position = 'fixed';
@@ -7199,6 +10589,7 @@ async function _copyTextToClipboard(text, successMsg = '已复制') {
       ta.select();
       document.execCommand('copy');
       ta.remove();
+      copied = true;
     }
     showToast(successMsg);
     return true;
@@ -7546,23 +10937,30 @@ async function saveTexAs(company, position) {
 }
 
 /* ═══ Regenerate from Editor ═══ */
-function openRegenModal() {
-  if (!currentEditorDir) { showToast('请先打开一份简历', 'error'); return; }
+function openRegenModal(initialFeedback = '', dirName = '') {
+  const targetDir = String(dirName || currentEditorDir || '').trim();
+  if (!targetDir) { showToast('请先选择一份简历', 'error'); return; }
+  currentRegenDir = targetDir;
   const modal = document.getElementById('regen-modal');
-  document.getElementById('regen-feedback').value = '';
+  const feedbackEl = document.getElementById('regen-feedback');
+  feedbackEl.value = initialFeedback || '';
   modal.classList.add('open');
-  setTimeout(() => document.getElementById('regen-feedback').focus(), 0);
+  setTimeout(() => feedbackEl.focus(), 0);
 }
 
 function closeRegenModal() {
   const modal = document.getElementById('regen-modal');
   if (modal) modal.classList.remove('open');
+  currentRegenDir = null;
 }
 
 async function submitRegen() {
-  if (!currentEditorDir) return;
+  const targetDir = currentRegenDir || currentEditorDir;
+  if (!targetDir) return;
   const feedback = document.getElementById('regen-feedback').value.trim();
+  const wasEditorOpen = !!document.getElementById('page-editor')?.classList.contains('active');
   closeRegenModal();
+  currentEditorDir = targetDir;
 
   const submitBtn = document.getElementById('regen-submit-btn');
   const regenBtn = document.getElementById('btn-regen');
@@ -7575,12 +10973,20 @@ async function submitRegen() {
     const res = await fetch('/api/editor/regenerate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dir: currentEditorDir, feedback }),
+      body: JSON.stringify({ dir: targetDir, feedback }),
     });
     const data = await res.json();
     if (data.error) {
       showToast('重新生成失败: ' + data.error, 'error');
       setEditorStatus('error', '重新生成失败');
+      return;
+    }
+    if (!wasEditorOpen) {
+      await loadGallery('home-gallery-content');
+      await openEditor(targetDir);
+      const fillStr = data.fill_ratio ? (data.fill_ratio * 100).toFixed(1) + '%' : '';
+      setEditorStatus('saved', `重新生成完成${fillStr ? '，填充率 ' + fillStr : ''}`);
+      showToast(`重新生成成功${feedback ? '（已采纳 QA 反馈）' : ''}`);
       return;
     }
     // Reload tex into editor
@@ -7611,11 +11017,13 @@ async function submitRegen() {
   } finally {
     if (regenBtn) { regenBtn.disabled = false; regenBtn.textContent = '⟳ 重新生成'; }
     if (compileBtn) compileBtn.disabled = false;
+    currentRegenDir = null;
   }
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  loadPersons(); loadProfile(); loadGallery('home-gallery-content'); loadExtensionDraft(); setupDropZone(); setupPubUpload(); setupTagInputs(); loadModelConfig(); setupImportUpload();
+  loadPersons(); loadProfile(); loadGallery('home-gallery-content'); loadWorkbenchStatus(); loadAgentJobs(); loadExtensionDraft(); setupDropZone(); setupPubUpload(); setupTagInputs(); loadModelConfig(); setupImportUpload();
+  restoreAgentJobFromStorage();
   const ci=document.getElementById('work-card-input'); if(ci) ci.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addWorkCard();}});
 });
 

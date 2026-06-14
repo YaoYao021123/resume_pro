@@ -60,14 +60,40 @@ ResumeFill.DomUtils = {
    */
   waitForElement(selector, timeout = 5000) {
     return new Promise((resolve, reject) => {
-      const el = document.querySelector(selector);
-      if (el) { resolve(el); return; }
-      const observer = new MutationObserver(() => {
+      const deadline = Date.now() + timeout;
+      let observer = null;
+      let timer = null;
+      const cleanup = () => {
+        if (observer) observer.disconnect();
+        if (timer) clearTimeout(timer);
+      };
+      const find = () => {
         const el = document.querySelector(selector);
-        if (el) { observer.disconnect(); resolve(el); }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => { observer.disconnect(); reject(new Error('Timeout')); }, timeout);
+        if (!el) return false;
+        cleanup();
+        resolve(el);
+        return true;
+      };
+      const attach = () => {
+        if (find()) return;
+        const root = document.body || document.documentElement;
+        if (!root) {
+          if (Date.now() >= deadline) {
+            cleanup();
+            reject(new Error('Timeout'));
+            return;
+          }
+          timer = setTimeout(attach, 50);
+          return;
+        }
+        observer = new MutationObserver(() => find());
+        observer.observe(root, { childList: true, subtree: true });
+        timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('Timeout'));
+        }, Math.max(0, deadline - Date.now()));
+      };
+      attach();
     });
   },
 

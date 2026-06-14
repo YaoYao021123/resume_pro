@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resume Gen</title>
+  <style>
+    :root {
+      --ink: #171717;
+      --muted: #6f6a63;
+      --line: #eaded5;
+      --accent: #c87657;
+      --accent-dark: #9f523b;
+      --paper: #fff;
+      --soft: #fbf8f5;
+      --green: #6f7d55;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 48px 28px 64px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 58px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 750;
+      font-size: 18px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      background: var(--soft);
+    }
+
+    .nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--ink);
+      font-weight: 650;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.86fr) minmax(420px, 1.14fr);
+      gap: 42px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      color: var(--accent-dark);
+      font-size: 14px;
+      font-weight: 750;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(44px, 6vw, 82px);
+      line-height: 0.95;
+      letter-spacing: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+    }
+
+    .lead {
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.8;
+      max-width: 560px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 30px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 34px;
+      max-width: 580px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--soft);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .preview {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--soft);
+      box-shadow: 0 18px 54px rgba(50, 36, 29, 0.08);
+    }
+
+    .preview img {
+      width: 100%;
+      display: block;
+      border-radius: 6px;
+      border: 1px solid rgba(39, 31, 26, 0.08);
+      background: #fff;
+    }
+
+    .section {
+      margin-top: 72px;
+      border-top: 1px solid var(--line);
+      padding-top: 34px;
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 42px;
+    }
+
+    .section h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fff;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .step span {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    code {
+      display: inline-block;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--accent-dark);
+      background: var(--soft);
+      font-size: 0.94em;
+    }
+
+    svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    @media (max-width: 880px) {
+      .shell { padding: 32px 18px 48px; }
+      .topbar { align-items: flex-start; flex-direction: column; margin-bottom: 38px; }
+      .nav { justify-content: flex-start; }
+      .hero { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr; }
+      .section { grid-template-columns: 1fr; gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>
+        </span>
+        Resume Gen
+      </div>
+      <nav class="nav" aria-label="主要链接">
+        <a class="btn" href="https://github.com/YaoYao021123/resume_pro">
+          <svg viewBox="0 0 24 24"><path d="M8 19c-4 1.5-4-2.5-5-3m10 6v-3.9c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6A4.6 4.6 0 0 0 17 7c.1-.3.5-1.5-.1-3 0 0-1.1-.3-3.5 1.3a12.1 12.1 0 0 0-6.4 0C4.6 3.7 3.5 4 3.5 4c-.6 1.5-.2 2.7-.1 3a4.6 4.6 0 0 0-1 3.1c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V22"/></svg>
+          GitHub
+        </a>
+        <a class="btn primary" href="#run">
+          <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          本地运行
+        </a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">用户视角的简历生成工作台</div>
+        <h1>More to Focused</h1>
+        <p class="lead">从资料管理、JD 匹配到单页 PDF 生成，把开发面板收回后台，把首页交还给真实用户的核心任务。</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/YaoYao021123/resume_pro">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+            查看源码
+          </a>
+          <a class="btn" href="screenshots/08-user-workbench-home.png">
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+            打开截图
+          </a>
+        </div>
+        <div class="metrics" aria-label="能力概览">
+          <div class="metric"><strong>1 页</strong><span>LaTeX 简历生成与调优</span></div>
+          <div class="metric"><strong>Loop</strong><span>生成、视觉检查、反馈迭代</span></div>
+          <div class="metric"><strong>本地</strong><span>资料和输出默认保存在本机</span></div>
+        </div>
+      </div>
+      <figure class="preview">
+        <img src="screenshots/08-user-workbench-home.png" alt="Resume Gen 用户视角首页截图">
+      </figure>
+    </section>
+
+    <section class="section" id="run">
+      <div>
+        <h2>运行完整版本</h2>
+        <p class="lead">这个页面是静态预览。完整生成、编译、画廊 PDF 和质量检查需要启动仓库内的本地后端。</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <strong>启动工作台</strong>
+          <span>在项目根目录运行 <code>python3 web/server.py</code>，默认端口为 <code>8765</code></span>
+        </div>
+        <div class="step">
+          <strong>生成简历</strong>
+          <span>打开首页后点击“开始生成简历”，粘贴 JD，进入匹配、生成和视觉复核流程</span>
+        </div>
+        <div class="step">
+          <strong>保留开发排障能力</strong>
+          <span>必要的检查接口仍保留在后端，用于开发排障，不再占据普通用户首页</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

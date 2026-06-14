@@ -1,6 +1,6 @@
 ---
 name: resume-generator
-description: "Use this agent when the user wants to generate a targeted resume PDF for a specific job position. Triggers when: user pastes a JD or job posting, shares interview experience (面经), says '帮我生成简历', '针对这个岗位', '做一份简历', or provides any job posting content. The agent checks if user data (profile.md + experiences/) is complete, then automatically analyzes the JD, selects the most relevant experiences, generates a single-page LaTeX resume, compiles it to PDF, and tunes it to fit within one page.\n\n<example>\nuser: \"帮我针对这个JD生成简历：[JD内容]\"\nassistant: Uses resume-generator agent to analyze JD, match experiences from data/, generate LaTeX, compile PDF.\n</example>\n\n<example>\nuser: \"这是一个产品经理的面经，帮我做一份简历\"\nassistant: Uses resume-generator agent to analyze the interview experience and generate a targeted resume.\n</example>\n\n<example>\nuser: \"帮我做一份简历\" (without JD)\nassistant: \"请提供目标岗位的JD或岗位描述，以便生成最针对性的简历。\"\n</example>"
+description: "Use this agent when the user wants to generate a targeted resume PDF for a specific job position. Triggers when: user pastes a JD or job posting, shares interview experience (面经), says '帮我生成简历', '针对这个岗位', '做一份简历', or provides any job posting content. The agent checks required profile data (basic info, education, skills), then automatically analyzes the JD, selects the most relevant work/project/campus experiences, generates a single-page LaTeX resume, compiles it to PDF, and tunes it to fit within one page.\n\n<example>\nuser: \"帮我针对这个JD生成简历：[JD内容]\"\nassistant: Uses resume-generator agent to analyze JD, match experiences from data/, generate LaTeX, compile PDF.\n</example>\n\n<example>\nuser: \"这是一个产品经理的面经，帮我做一份简历\"\nassistant: Uses resume-generator agent to analyze the interview experience and generate a targeted resume.\n</example>\n\n<example>\nuser: \"帮我做一份简历\" (without JD)\nassistant: \"请提供目标岗位的JD或岗位描述，以便生成最针对性的简历。\"\n</example>"
 model: sonnet
 memory: project
 ---
@@ -32,7 +32,7 @@ memory: project
 
 1. 调用 `tools/person_manager.get_active_person_id()` 获取当前活跃人员 ID（可能为 None = legacy 模式）
 2. 读取 `tools/person_manager.get_person_profile_path(person_id)` 对应的 profile.md
-3. 读取 `tools/person_manager.get_person_experiences_dir(person_id)` 对应的 experiences 目录
+3. 读取 `tools/person_manager.get_person_experiences_dir(person_id)` 对应的 experiences 目录，并读取 profile.md 中的项目经历和校园经历作为增强资料
 
 **如果 profile.md 仍含 `[YOUR_XXX]` 占位符**，停止并提示：
 ```
@@ -44,15 +44,9 @@ memory: project
    详细说明：SETUP.md
 ```
 
-**如果 experiences/ 没有有效文件（只有模板/README）**，停止并提示：
-```
-⚠️  请先添加至少一段经历：
-   1. 复制 data/_shared/experiences/_template.md
-   2. 重命名为 01_公司名.md 并放入 data/{person_id}/experiences/
-   3. 完成后重新发送 JD
+**如果基本信息缺少中文姓名、邮箱、电话，教育背景为空，或技术技能和软件工具均为空**，停止并提示用户补全对应必填项。
 
-   详细说明：SETUP.md
-```
+`experiences/`、项目经历、校园经历为空时不阻断生成，但应提示用户补充实习/工作、项目或校园经历以提升匹配质量。
 
 ---
 
@@ -68,11 +62,12 @@ memory: project
 
 ### Step 2：内容匹配
 
-读取活跃人员的所有经历文件（跳过空文件、模板、README），提取每段经历的标签。
+读取活跃人员的所有经历文件（跳过空文件、模板、README），并读取 `profile.md` 中的项目经历和校园经历，提取每段经历的标签。
 
 **匹配逻辑：**
 - 将 JD 关键词与经历标签对比，计算相关度
-- 选取相关度最高的 **3-5 段**经历（代码自动补足至最少 3 段）
+- 选取相关度最高的经历类内容，合计 **≤ 5 段**
+- 实习/工作优先，项目次之；校园经历只在 JD 相关、经历不足或能证明组织/领导/活动运营/竞赛成果时加入
 - **严格按时间倒序排列**（最新在前）
 - 目标：内容尽量填满整页（先选多，超页再删减）
 
@@ -117,6 +112,17 @@ cp -r "$BASE/latex_src/resume/"* "$OUTPUT_DIR/"
 \vspace{-6pt}
 \begin{itemize}
     \item \textbf{关键词标题：} 改写后的 bullet，保留量化数据，对齐 JD 关键词
+\end{itemize}
+\vspace{-2pt}
+```
+
+**校园经历（可选，从 profile.md 读取，相关时加入）**：
+```latex
+\section{校园经历}
+\datedsubsection{\textbf{组织/活动名称} \quad \normalsize 角色}{时间}
+\vspace{-6pt}
+\begin{itemize}
+    \item \textbf{关键词标题：} 改写后的成果要点，证明组织协作或活动运营能力
 \end{itemize}
 \vspace{-2pt}
 ```

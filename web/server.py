@@ -7,11 +7,11 @@ from __future__ import annotations
 """
 
 import argparse
-import cgi
 import hashlib
 import hmac
 import io
 import json
+import mimetypes
 import os
 import re
 import shutil
@@ -26,9 +26,28 @@ import webbrowser
 import zipfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from email.message import Message
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from uuid import uuid4
+
+try:
+    import cgi
+except ModuleNotFoundError:
+    class _CgiCompat:
+        @staticmethod
+        def parse_header(value):
+            msg = Message()
+            msg['content-type'] = value or ''
+            params = msg.get_params(header='content-type') or []
+            main = params[0][0] if params else ''
+            return main, {k: v for k, v in params[1:]}
+
+        class FieldStorage:
+            def __init__(self, *args, **kwargs):
+                raise RuntimeError('当前 Python 版本缺少 cgi.FieldStorage；请使用 Python 3.11/3.12 运行文件上传功能')
+
+    cgi = _CgiCompat()
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / 'data'
@@ -80,6 +99,11 @@ from tools.language_utils import (
     normalize_language,
     resolve_resume_filenames,
     infer_language_from_output_dir,
+)
+from tools.skill_derivation import (
+    count_skill_values,
+    derive_skills_from_text,
+    existing_skill_values_from_profile,
 )
 
 load_local_env()
@@ -779,6 +803,165 @@ def _ai_parse_resume_text(text: str) -> dict:
         return {}
 
 
+_AI_PROFILE_SUGGEST_PROMPT = """你是一个简历资料补全助手。请基于用户现有资料、补充材料和目标岗位信息，生成可写入资料表单的 JSON 补充建议。
+
+输出格式：
+{
+  "summary": ["简短说明补充了什么"],
+  "warnings": ["无法从材料确认、需要用户核实的点"],
+  "profile_patch": {
+    "basic": {"name_zh": "", "name_en": "", "email": "", "phone": "", "linkedin": "", "github": "", "website": ""},
+    "directions": {"primary": "", "secondary": ""},
+    "education": [{"school": "", "degree": "", "major": "", "department": "", "time_start": "", "time_end": "", "gpa": "", "rank": "", "courses": ""}],
+    "skills": {"tech": "", "software": "", "languages": ""},
+    "projects": [{"name": "", "role": "", "time_start": "", "time_end": "", "desc": "", "tags": ""}],
+    "campus_experiences": [{"name": "", "role": "", "time_start": "", "time_end": "", "highlights": "", "tags": ""}],
+    "awards": [{"name": "", "issuer": "", "date": ""}],
+    "publications": [{"title": "", "authors": "", "venue": "", "year": "", "description": ""}]
+  }
+}
+
+规则：
+- 只输出 JSON，不要 markdown，不要额外解释
+- 优先补齐空字段，不要覆盖用户已有明确内容
+- 技能可以根据补充材料/JD/求职方向提出建议，但必须放入 warnings 提醒用户确认
+- 不要编造学校、公司、奖项、论文、联系方式、日期、量化成果
+- 项目/校园经历只在材料中有明确事实时生成；bullet/成果要点结尾不加句号
+- tags 使用逗号分隔，时间格式使用 YYYY/MM 或 YYYY
+
+现有资料：
+{profile_json}
+
+目标岗位/JD：
+{jd_text}
+
+补充材料：
+{source_text}
+"""
+
+
+def _extract_json_object(text: str) -> dict:
+    json_match = re.search(r'\{[\s\S]*\}', text or '')
+    if not json_match:
+        return {}
+    try:
+        parsed = json.loads(json_match.group())
+        return parsed if isinstance(parsed, dict) else {}
+    except json.JSONDecodeError:
+        return {}
+
+
+def _clean_str(value, max_len: int = 1000) -> str:
+    if value is None:
+        return ''
+    text = str(value).replace('\x00', '').strip()
+    return text[:max_len]
+
+
+def _clean_mapping(raw: dict, allowed: list[str], max_len: int = 1000) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        key: _clean_str(raw.get(key, ''), max_len=max_len)
+        for key in allowed
+        if _clean_str(raw.get(key, ''), max_len=max_len)
+    }
+
+
+def _clean_items(raw_items, allowed: list[str], identity_keys: tuple[str, ...], limit: int = 5) -> list[dict]:
+    if not isinstance(raw_items, list):
+        return []
+    cleaned = []
+    for item in raw_items:
+        obj = _clean_mapping(item, allowed)
+        if any(obj.get(key) for key in identity_keys):
+            cleaned.append(obj)
+        if len(cleaned) >= limit:
+            break
+    return cleaned
+
+
+def sanitize_profile_suggestion(raw: dict) -> dict:
+    """Normalize AI profile suggestions to the web profile payload shape."""
+    if not isinstance(raw, dict):
+        raw = {}
+    patch = raw.get('profile_patch') if isinstance(raw.get('profile_patch'), dict) else raw
+    if not isinstance(patch, dict):
+        patch = {}
+    result = {
+        'summary': [],
+        'warnings': [],
+        'profile_patch': {
+            'basic': _clean_mapping(
+                patch.get('basic', {}),
+                ['name_zh', 'name_en', 'email', 'phone', 'linkedin', 'github', 'website'],
+                max_len=200,
+            ),
+            'directions': _clean_mapping(
+                patch.get('directions', {}),
+                ['primary', 'secondary'],
+                max_len=300,
+            ),
+            'education': _clean_items(
+                patch.get('education', []),
+                ['school', 'degree', 'major', 'department', 'time_start', 'time_end', 'gpa', 'rank', 'courses'],
+                ('school',),
+                limit=3,
+            ),
+            'skills': _clean_mapping(
+                patch.get('skills', {}),
+                ['tech', 'software', 'languages'],
+                max_len=500,
+            ),
+            'projects': _clean_items(
+                patch.get('projects', []),
+                ['name', 'role', 'time_start', 'time_end', 'desc', 'tags'],
+                ('name',),
+                limit=5,
+            ),
+            'campus_experiences': _clean_items(
+                patch.get('campus_experiences', []),
+                ['name', 'role', 'time_start', 'time_end', 'highlights', 'tags'],
+                ('name',),
+                limit=5,
+            ),
+            'awards': _clean_items(
+                patch.get('awards', []),
+                ['name', 'issuer', 'date'],
+                ('name',),
+                limit=5,
+            ),
+            'publications': _clean_items(
+                patch.get('publications', []),
+                ['title', 'authors', 'venue', 'year', 'description'],
+                ('title',),
+                limit=5,
+            ),
+        },
+    }
+    for key in ('summary', 'warnings'):
+        values = raw.get(key, [])
+        if isinstance(values, str):
+            values = [values]
+        if isinstance(values, list):
+            result[key] = [_clean_str(item, max_len=300) for item in values if _clean_str(item, max_len=300)][:6]
+    return result
+
+
+def ai_suggest_profile_completion(profile: dict, source_text: str = '', jd_text: str = '') -> dict:
+    prompt = (
+        _AI_PROFILE_SUGGEST_PROMPT
+        .replace('{profile_json}', json.dumps(profile or {}, ensure_ascii=False, indent=2))
+        .replace('{jd_text}', _clean_str(jd_text, max_len=5000))
+        .replace('{source_text}', _clean_str(source_text, max_len=12000))
+    )
+    raw = _call_ai_simple_chat(prompt, max_tokens=4000)
+    parsed = _extract_json_object(raw)
+    suggestion = sanitize_profile_suggestion(parsed)
+    suggestion['raw_model_output'] = raw[:2000]
+    return suggestion
+
+
 def _extract_docx_text(content: bytes) -> str:
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
         try:
@@ -1067,6 +1250,656 @@ def _save_generation_context(out_dir: Path, context: dict) -> None:
     context_path.write_text(json.dumps(context, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
+def _normalize_fill_ratio_value(value) -> float:
+    try:
+        ratio = float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    return ratio / 100 if ratio > 1.0 else ratio
+
+
+def _measure_resume_metrics(
+    out_dir: Path,
+    language: str,
+    *,
+    context: dict | None = None,
+    existing_review: dict | None = None,
+    compile_result: dict | None = None,
+) -> dict:
+    """Return page/fill metrics, measuring the TeX file when cached data is missing."""
+    context = context if isinstance(context, dict) else {}
+    existing_review = existing_review if isinstance(existing_review, dict) else {}
+    compile_result = compile_result if isinstance(compile_result, dict) else {}
+
+    fill_ratio = _normalize_fill_ratio_value(
+        compile_result.get('fill_rate')
+        or context.get('fill_ratio')
+        or existing_review.get('fill_ratio')
+        or 0.0
+    )
+    try:
+        page_count = int(
+            compile_result.get('pages')
+            or existing_review.get('page_count')
+            or context.get('page_count')
+            or context.get('pages')
+            or 0
+        )
+    except (TypeError, ValueError):
+        page_count = 0
+
+    metrics = {
+        'fill_ratio': fill_ratio,
+        'page_count': page_count,
+        'status': '',
+        'message': '',
+    }
+    if fill_ratio and page_count:
+        return metrics
+
+    try:
+        _, tex_path, _ = _resolve_resume_paths(out_dir, language)
+        if not tex_path.exists():
+            metrics['status'] = 'missing_tex'
+            metrics['message'] = f'未找到 {tex_path.name}，无法检测页数和填充率'
+            return metrics
+
+        from tools.page_fill_check import check_page_fill
+        measured = check_page_fill(str(out_dir), _find_xelatex(), tex_path.name)
+        measured_fill = _normalize_fill_ratio_value(measured.get('ratio') or 0.0)
+        try:
+            measured_pages = int(measured.get('page_count') or 0)
+        except (TypeError, ValueError):
+            measured_pages = 0
+        if measured_fill:
+            metrics['fill_ratio'] = measured_fill
+        if measured_pages:
+            metrics['page_count'] = measured_pages
+        metrics['status'] = str(measured.get('status') or '')
+        metrics['message'] = str(measured.get('message') or '')
+    except Exception as exc:
+        metrics['status'] = 'measure_error'
+        metrics['message'] = str(exc)
+    return metrics
+
+
+def _with_visual_review_screenshot_path(out_dir: Path, visual_review: dict) -> dict:
+    if not isinstance(visual_review, dict) or not visual_review:
+        return {}
+    enriched = dict(visual_review)
+    shots = enriched.get('screenshots') if isinstance(enriched.get('screenshots'), list) else []
+    if shots:
+        try:
+            enriched['screenshot_path'] = str((out_dir / shots[0]).relative_to(_output_dir()))
+        except ValueError:
+            enriched['screenshot_path'] = ''
+    enriched.setdefault('agent_feedback', _build_visual_review_agent_feedback(enriched))
+    return enriched
+
+
+def _load_visual_review_for_output(out_dir: Path, context: dict | None = None) -> dict:
+    context = context if isinstance(context, dict) else {}
+    visual_review = context.get('visual_review') if isinstance(context.get('visual_review'), dict) else {}
+    if not visual_review:
+        review_json = out_dir / 'visual_review' / 'visual_review.json'
+        if review_json.exists():
+            try:
+                loaded_review = json.loads(review_json.read_text(encoding='utf-8'))
+                if isinstance(loaded_review, dict):
+                    visual_review = loaded_review
+            except Exception:
+                visual_review = {}
+    return _with_visual_review_screenshot_path(out_dir, visual_review)
+
+
+def _resolve_gallery_output_dir(dir_name: str) -> Path:
+    safe_name = str(dir_name or '').strip()
+    if not safe_name or '..' in safe_name or '/' in safe_name or safe_name.startswith('.'):
+        raise ValueError('非法路径')
+    out_dir = _output_dir() / safe_name
+    try:
+        out_dir.resolve().relative_to(_output_dir().resolve())
+    except ValueError as exc:
+        raise ValueError('非法路径') from exc
+    if not out_dir.exists() or not out_dir.is_dir():
+        raise FileNotFoundError('目录不存在')
+    return out_dir
+
+
+def _build_visual_review_agent_feedback(visual_review: dict) -> dict:
+    review = visual_review if isinstance(visual_review, dict) else {}
+    status = str(review.get('status') or '').strip()
+    issues = [str(i) for i in (review.get('issues') or []) if str(i).strip()]
+    issue_set = set(issues)
+    fill_ratio = _normalize_fill_ratio_value(review.get('fill_ratio', 0.0))
+    try:
+        page_count = int(review.get('page_count') or 0)
+    except (TypeError, ValueError):
+        page_count = 0
+
+    actions = []
+    prompt_lines = ['根据视觉 QA 结果进行下一轮简历优化：']
+
+    if page_count and page_count != 1 or 'page_count_not_one' in issue_set:
+        actions.append('控制到单页')
+        prompt_lines.append('- 当前 PDF 不是稳定单页，请优先压缩排版和内容，确保最终只有 1 页')
+    if fill_ratio > 1.0 or 'overflow' in issue_set:
+        actions.append('压缩溢出')
+        prompt_lines.append('- 当前内容溢出或过满，请缩短低相关 bullet、降低段落密度，并保留最匹配 JD 的经历')
+    if 0 < fill_ratio < 0.95 or 'underfilled' in issue_set:
+        actions.append('补足页面')
+        prompt_lines.append('- 当前页面偏空，请优先补充与 JD 相关的项目/实习要点，适度展开高价值 bullet')
+    if 'pdf_missing' in issue_set:
+        actions.append('修复 PDF 输出')
+        prompt_lines.append('- PDF 缺失，请先修复 LaTeX 编译或输出路径，再重新做视觉 QA')
+    if 'render_failed' in issue_set:
+        actions.append('修复截图渲染')
+        prompt_lines.append('- PDF 截图渲染失败，请检查 PDF 是否可打开、渲染工具是否可用')
+
+    if status == 'skipped':
+        actions.append('补齐截图环境')
+        prompt_lines.append('- 本轮跳过截图渲染，请补齐 pdftoppm 后再次运行视觉 QA；内容可暂按填充率和页数判断')
+    elif status == 'pass' and not actions:
+        actions.append('保持通过状态')
+        prompt_lines.append('- 当前视觉 QA 已通过，请保持单页、填充率和整体结构稳定，只做必要的轻微措辞或排版优化')
+    elif not actions:
+        actions.append('人工复核截图')
+        prompt_lines.append('- QA 状态未给出明确问题，请先查看截图，围绕可读性、拥挤度和留白进行人工复核')
+
+    if fill_ratio:
+        prompt_lines.append(f'- 当前填充率约为 {fill_ratio * 100:.1f}%')
+    if page_count:
+        prompt_lines.append(f'- 当前页数为 {page_count} 页')
+    prompt_lines.append('- 不要编造经历或数据；只基于已有资料筛选、改写和调优')
+
+    return {
+        'summary': '；'.join(actions),
+        'actions': actions,
+        'prompt': '\n'.join(prompt_lines),
+    }
+
+
+def _build_resume_quality_report(
+    *,
+    pdf_exists: bool,
+    visual_review: dict,
+    version_count: int = 0,
+    context: dict | None = None,
+) -> dict:
+    """Aggregate delivery readiness signals for one generated resume."""
+    review = visual_review if isinstance(visual_review, dict) else {}
+    context = context if isinstance(context, dict) else {}
+    status = str(review.get('status') or '').strip()
+    issues = [str(i) for i in (review.get('issues') or []) if str(i).strip()]
+    issue_set = set(issues)
+    fill_ratio = _normalize_fill_ratio_value(
+        review.get('fill_ratio')
+        or context.get('fill_ratio')
+        or 0.0
+    )
+    try:
+        page_count = int(review.get('page_count') or context.get('pages') or 0)
+    except (TypeError, ValueError):
+        page_count = 0
+    agent_feedback = review.get('agent_feedback') if isinstance(review.get('agent_feedback'), dict) else {}
+    has_screenshot = bool(review.get('screenshot_path') or review.get('screenshots'))
+
+    checks = []
+
+    def add_check(key: str, label: str, check_status: str, detail: str) -> None:
+        checks.append({
+            'key': key,
+            'label': label,
+            'status': check_status,
+            'detail': detail,
+        })
+
+    add_check(
+        'pdf',
+        'PDF 输出',
+        'pass' if pdf_exists else 'fail',
+        '已生成可预览 PDF' if pdf_exists else '未找到 PDF，需要先修复编译或输出路径',
+    )
+
+    if not status:
+        add_check('visual_review', '视觉 QA', 'pending', '尚未运行视觉 QA')
+    elif status == 'pass':
+        add_check('visual_review', '视觉 QA', 'pass', review.get('message') or '视觉 QA 已通过')
+    elif status == 'skipped':
+        add_check('visual_review', '视觉 QA', 'warning', review.get('message') or '截图环境缺失，需补齐后复检')
+    elif status == 'error':
+        add_check('visual_review', '视觉 QA', 'fail', review.get('message') or '视觉 QA 执行失败')
+    else:
+        add_check('visual_review', '视觉 QA', 'warning', review.get('message') or '视觉 QA 需要人工复核')
+
+    if page_count:
+        add_check(
+            'single_page',
+            '单页约束',
+            'pass' if page_count == 1 else 'fail',
+            f'当前 {page_count} 页' if page_count != 1 else '当前为 1 页',
+        )
+    else:
+        add_check('single_page', '单页约束', 'pending', '页数尚未检测')
+
+    if fill_ratio:
+        fill_status = 'pass' if 0.95 <= fill_ratio <= 1.0 else ('fail' if fill_ratio > 1.0 else 'warning')
+        if fill_ratio > 1.0:
+            fill_detail = f'填充率 {fill_ratio * 100:.1f}%，内容可能溢出'
+        elif fill_ratio < 0.95:
+            fill_detail = f'填充率 {fill_ratio * 100:.1f}%，页面偏空'
+        else:
+            fill_detail = f'填充率 {fill_ratio * 100:.1f}%，处于理想范围'
+        add_check('fill_ratio', '页面填充率', fill_status, fill_detail)
+    else:
+        add_check('fill_ratio', '页面填充率', 'pending', '填充率尚未检测')
+
+    if has_screenshot:
+        add_check('screenshot', '截图资产', 'pass', '已生成可视化截图，可用于人工复核')
+    elif status:
+        add_check('screenshot', '截图资产', 'warning', '缺少截图资产，建议重新运行视觉 QA')
+    else:
+        add_check('screenshot', '截图资产', 'pending', '等待视觉 QA 生成截图')
+
+    add_check(
+        'version_history',
+        '版本记录',
+        'pass' if version_count > 0 else 'warning',
+        f'已有 {version_count} 个版本快照' if version_count > 0 else '尚未形成版本快照，建议在关键修改后保存版本',
+    )
+    add_check(
+        'agent_feedback',
+        'Agent 反馈',
+        'pass' if agent_feedback.get('prompt') else 'warning',
+        '已生成下一轮优化提示' if agent_feedback.get('prompt') else '缺少可直接用于重生成的 QA 反馈',
+    )
+
+    has_fail = any(c['status'] == 'fail' for c in checks) or 'pdf_missing' in issue_set or 'render_failed' in issue_set
+    has_warning = any(c['status'] in {'warning', 'pending'} for c in checks)
+    ready = (
+        pdf_exists
+        and status == 'pass'
+        and page_count == 1
+        and 0.95 <= fill_ratio <= 1.0
+        and not has_fail
+    )
+
+    if ready:
+        report_status = 'ready'
+        label = '可投递'
+        summary = 'PDF 单页、填充率理想且视觉 QA 通过'
+        next_action = '投递前人工复核'
+    elif has_fail:
+        report_status = 'fix'
+        label = '需修复'
+        if not pdf_exists or 'pdf_missing' in issue_set:
+            next_action = '修复编译或 PDF 输出'
+        elif fill_ratio > 1.0 or page_count > 1:
+            next_action = '按 QA 反馈重生成'
+        elif 'render_failed' in issue_set:
+            next_action = '修复截图渲染后复检'
+        else:
+            next_action = '修复失败项后复检'
+        summary = '存在会阻断投递的质量问题'
+    elif has_warning:
+        report_status = 'review'
+        label = '需复核'
+        next_action = '运行视觉 QA' if not status else '查看截图并按 QA 反馈优化'
+        summary = '简历可继续推进，但仍有复核项'
+    else:
+        report_status = 'review'
+        label = '需复核'
+        next_action = '人工复核'
+        summary = '质量状态不完整，建议人工复核'
+
+    return {
+        'status': report_status,
+        'label': label,
+        'summary': summary,
+        'next_action': next_action,
+        'fill_ratio': fill_ratio,
+        'fill_label': f'{fill_ratio * 100:.1f}%' if fill_ratio else '',
+        'page_count': page_count,
+        'pdf_exists': bool(pdf_exists),
+        'version_count': int(version_count or 0),
+        'issues': issues,
+        'checks': checks,
+    }
+
+
+def _build_resume_workflow_status(
+    *,
+    pdf_exists: bool,
+    visual_review: dict,
+    quality_report: dict,
+    version_count: int = 0,
+    context: dict | None = None,
+) -> dict:
+    """Describe the user-facing resume production loop as ordered steps."""
+    review = visual_review if isinstance(visual_review, dict) else {}
+    report = quality_report if isinstance(quality_report, dict) else {}
+    context = context if isinstance(context, dict) else {}
+    review_status = str(review.get('status') or '').strip()
+    report_status = str(report.get('status') or '').strip()
+    agent_feedback = review.get('agent_feedback') if isinstance(review.get('agent_feedback'), dict) else {}
+    engine = str(context.get('engine') or '').strip()
+
+    def step(key: str, label: str, status: str, detail: str, action: str = '') -> dict:
+        return {
+            'key': key,
+            'label': label,
+            'status': status,
+            'detail': detail,
+            'action': action,
+        }
+
+    steps = [
+        step(
+            'generate',
+            '生成 PDF',
+            'pass' if pdf_exists else 'pending',
+            f'已通过 {engine or "本地流程"} 生成 PDF' if pdf_exists else '等待输入 JD 后启动本地 Agent 生成',
+            '' if pdf_exists else '开始生成',
+        )
+    ]
+
+    if not review_status:
+        steps.append(step('visual_review', '视觉检查', 'pending', '尚未运行视觉 QA', '运行视觉 QA'))
+    elif review_status == 'pass':
+        steps.append(step('visual_review', '视觉检查', 'pass', review.get('message') or '视觉 QA 已通过'))
+    elif review_status == 'error':
+        steps.append(step('visual_review', '视觉检查', 'fail', review.get('message') or '视觉 QA 执行失败', '修复 QA 后复检'))
+    else:
+        steps.append(step('visual_review', '视觉检查', 'warning', review.get('message') or '视觉 QA 需要复核', '查看截图'))
+
+    if agent_feedback.get('prompt'):
+        feedback_status = 'pass'
+        feedback_detail = '已生成可直接用于下一轮重生成的 QA 反馈'
+        feedback_action = ''
+    elif review_status:
+        feedback_status = 'warning'
+        feedback_detail = '已有 QA 状态，但缺少可直接复用的反馈提示'
+        feedback_action = '补齐 QA 反馈'
+    else:
+        feedback_status = 'pending'
+        feedback_detail = '等待视觉 QA 生成反馈'
+        feedback_action = '先运行视觉 QA'
+    steps.append(step('feedback_loop', '反馈迭代', feedback_status, feedback_detail, feedback_action))
+
+    steps.append(step(
+        'version',
+        '版本快照',
+        'pass' if version_count > 0 else 'warning',
+        f'已有 {version_count} 个版本，可回滚和对比' if version_count > 0 else '建议在关键修改后保存版本快照',
+        '' if version_count > 0 else '保存版本',
+    ))
+
+    if report_status == 'ready':
+        delivery_status = 'pass'
+        delivery_detail = report.get('summary') or '简历已达到可投递状态'
+        delivery_action = report.get('next_action') or '投递前人工复核'
+    elif report_status == 'fix':
+        delivery_status = 'fail'
+        delivery_detail = report.get('summary') or '存在阻断投递的问题'
+        delivery_action = report.get('next_action') or '按 QA 反馈修复'
+    elif report_status:
+        delivery_status = 'warning'
+        delivery_detail = report.get('summary') or '仍有需要复核的项目'
+        delivery_action = report.get('next_action') or '继续复核'
+    else:
+        delivery_status = 'pending'
+        delivery_detail = '等待质量报告'
+        delivery_action = '生成质量报告'
+    steps.append(step('delivery', '投递准备', delivery_status, delivery_detail, delivery_action))
+
+    status_order = {'pass': 1.0, 'warning': 0.55, 'pending': 0.0, 'fail': 0.0}
+    progress = round(sum(status_order.get(s['status'], 0.0) for s in steps) / len(steps) * 100)
+    active_step = next((s for s in steps if s['status'] != 'pass'), steps[-1])
+
+    if not pdf_exists:
+        workflow_status = 'not_started'
+        label = '待生成'
+    elif any(s['status'] == 'fail' for s in steps):
+        workflow_status = 'blocked'
+        label = '需修复'
+    elif all(s['status'] == 'pass' for s in steps):
+        workflow_status = 'complete'
+        label = '闭环完成'
+    elif report_status == 'ready':
+        workflow_status = 'ready'
+        label = '可投递'
+    else:
+        workflow_status = 'in_progress'
+        label = '进行中'
+
+    return {
+        'status': workflow_status,
+        'label': label,
+        'progress': progress,
+        'active_step': active_step,
+        'next_action': active_step.get('action') or report.get('next_action') or '',
+        'steps': steps,
+    }
+
+
+def _agent_user_phase(key: str, label: str, status: str, detail: str = '') -> dict:
+    return {
+        'key': key,
+        'label': label,
+        'status': status,
+        'detail': detail,
+    }
+
+
+def _build_agent_user_status(payload: dict) -> dict:
+    """Build a safe, user-facing status summary for an Agent job."""
+    status = str(payload.get('status') or '').strip()
+    step = str(payload.get('step') or '').strip()
+    progress = int(payload.get('progress') or 0)
+    task_summary = payload.get('task_summary') if isinstance(payload.get('task_summary'), dict) else {}
+    result = payload.get('result') if isinstance(payload.get('result'), dict) else {}
+    quality = result.get('quality_report') if isinstance(result.get('quality_report'), dict) else {}
+    workflow = result.get('workflow_status') if isinstance(result.get('workflow_status'), dict) else {}
+    visual = result.get('visual_review') if isinstance(result.get('visual_review'), dict) else {}
+
+    company = str(task_summary.get('company') or payload.get('company') or result.get('company') or '').strip()
+    role = str(task_summary.get('role') or payload.get('role') or result.get('role') or '').strip()
+    agent = str(task_summary.get('agent') or payload.get('agent') or '').strip()
+    language = str(task_summary.get('language') or payload.get('language') or result.get('language') or '').strip()
+    input_bits = [
+        company or '',
+        role or '',
+        '含面经' if task_summary.get('has_interview') else '',
+        '含确认方案' if task_summary.get('has_selection_plan') else '',
+        '含修改意见' if task_summary.get('has_feedback') else '',
+    ]
+    input_summary = ' · '.join(bit for bit in input_bits if bit) or '未命名任务'
+
+    has_pdf = bool(result.get('pdf_path'))
+    has_output = bool(result.get('output_dir'))
+    has_quality = bool(quality)
+    has_visual = bool(visual)
+    workflow_status = str(workflow.get('status') or '').strip()
+    quality_status = str(quality.get('status') or '').strip()
+
+    if status in {'queued', 'running'}:
+        headline = '本地 Agent 正在处理'
+        detail = '正在匹配经历、改写内容、编译 PDF，并准备进入视觉复检'
+        next_action = '等待完成，或在需要时取消任务'
+        action_kind = 'wait'
+    elif status == 'completed':
+        headline = 'Agent 已生成结果'
+        detail = quality.get('summary') or workflow.get('next_action') or '结果已生成，可继续质量检查、编辑或查看 PDF'
+        next_action = workflow.get('next_action') or quality.get('next_action') or ('查看 PDF' if has_pdf else '查看质量报告')
+        action_kind = 'quality' if quality_status in {'fix', 'review'} or workflow_status in {'blocked', 'in_progress'} else 'open_result'
+    elif status == 'cancelled':
+        headline = '任务已取消'
+        detail = '可以按上次输入重试，也可以先修改 JD、面经或生成方向'
+        next_action = '重试或修改输入'
+        action_kind = 'retry'
+    elif status == 'failed':
+        headline = 'Agent 任务失败'
+        error_code = str(payload.get('error_code') or result.get('error_code') or '').strip()
+        detail = (
+            f'失败代码：{error_code}。建议查看最近日志，修复 CLI、模型 Key 或 LaTeX 环境后重试'
+            if error_code else
+            '建议查看最近日志，修复 CLI、模型 Key 或 LaTeX 环境后重试'
+        )
+        next_action = '查看日志后重试'
+        action_kind = 'retry'
+    else:
+        headline = '等待 Agent 状态'
+        detail = '正在读取本地任务状态'
+        next_action = '刷新状态'
+        action_kind = 'refresh'
+
+    agent_phase_status = 'pending'
+    if status == 'queued':
+        agent_phase_status = 'active'
+    elif status == 'running':
+        agent_phase_status = 'active'
+    elif status in {'completed'}:
+        agent_phase_status = 'pass'
+    elif status in {'failed', 'cancelled'}:
+        agent_phase_status = 'fail' if status == 'failed' else 'warning'
+
+    pdf_phase_status = 'pending'
+    if has_pdf:
+        pdf_phase_status = 'pass'
+    elif status == 'completed':
+        pdf_phase_status = 'fail'
+    elif status == 'running':
+        pdf_phase_status = 'active' if progress >= 55 else 'pending'
+    elif status in {'failed', 'cancelled'}:
+        pdf_phase_status = 'fail' if status == 'failed' else 'warning'
+
+    quality_phase_status = 'pending'
+    if quality_status == 'ready':
+        quality_phase_status = 'pass'
+    elif quality_status == 'fix':
+        quality_phase_status = 'fail'
+    elif quality_status:
+        quality_phase_status = 'warning'
+    elif has_visual:
+        quality_phase_status = 'warning'
+    elif status == 'running' and progress >= 75:
+        quality_phase_status = 'active'
+
+    delivery_phase_status = 'pending'
+    if workflow_status == 'complete':
+        delivery_phase_status = 'pass'
+    elif workflow_status in {'ready', 'in_progress'}:
+        delivery_phase_status = 'warning'
+    elif workflow_status == 'blocked':
+        delivery_phase_status = 'fail'
+
+    phases = [
+        _agent_user_phase('input', '输入已保存', 'pass', input_summary),
+        _agent_user_phase('agent', 'Agent 执行', agent_phase_status, step or status),
+        _agent_user_phase('pdf', 'PDF 生成', pdf_phase_status, '可查看 PDF' if has_pdf else '等待 PDF 输出'),
+        _agent_user_phase('quality', '视觉与质量检查', quality_phase_status, quality.get('label') or visual.get('message') or ''),
+        _agent_user_phase('delivery', '交付准备', delivery_phase_status, workflow.get('label') or ''),
+    ]
+
+    return {
+        'headline': headline,
+        'detail': detail,
+        'next_action': str(next_action or ''),
+        'action_kind': action_kind,
+        'input_summary': input_summary,
+        'agent_label': 'Claude Code' if agent == 'claude' else ('Codex' if agent == 'codex' else agent),
+        'language': language,
+        'progress': progress,
+        'phases': phases,
+        'artifacts': {
+            'has_output_dir': has_output,
+            'output_dir': str(result.get('output_dir') or ''),
+            'has_pdf': has_pdf,
+            'pdf_path': str(result.get('pdf_path') or ''),
+            'has_quality_report': has_quality,
+            'has_visual_review': has_visual,
+            'version_count': int(result.get('version_count') or 0),
+        },
+    }
+
+
+def _enrich_agent_job_payload(payload: dict) -> dict:
+    """Add gallery-derived quality/workflow fields and a safe user-facing summary."""
+    if not isinstance(payload, dict):
+        return payload
+    enriched = dict(payload)
+    result = enriched.get('result') if isinstance(enriched.get('result'), dict) else None
+    if not result:
+        enriched['user_status'] = _build_agent_user_status(enriched)
+        return enriched
+    if result.get('quality_report') and result.get('workflow_status'):
+        enriched['user_status'] = _build_agent_user_status(enriched)
+        return enriched
+
+    dir_name = str(result.get('output_dir') or '').strip()
+    if not dir_name or '..' in dir_name or '/' in dir_name or dir_name.startswith('.'):
+        enriched['user_status'] = _build_agent_user_status(enriched)
+        return enriched
+    out_dir = _output_dir() / dir_name
+    if not out_dir.exists() or not out_dir.is_dir():
+        enriched['user_status'] = _build_agent_user_status(enriched)
+        return enriched
+
+    context = _load_generation_context(out_dir)
+    visual_review = result.get('visual_review') if isinstance(result.get('visual_review'), dict) else {}
+    if not visual_review:
+        visual_review = context.get('visual_review') if isinstance(context.get('visual_review'), dict) else {}
+    if not visual_review:
+        review_json = out_dir / 'visual_review' / 'visual_review.json'
+        if review_json.exists():
+            try:
+                loaded_review = json.loads(review_json.read_text(encoding='utf-8'))
+                if isinstance(loaded_review, dict):
+                    visual_review = loaded_review
+            except Exception:
+                visual_review = {}
+    visual_review = _with_visual_review_screenshot_path(out_dir, visual_review)
+
+    language = result.get('language') or context.get('language')
+    try:
+        _, _, pdf_path = _resolve_resume_paths(out_dir, language)
+    except ValueError:
+        _, _, pdf_path = _resolve_resume_paths(out_dir)
+    pdf_exists = pdf_path.exists()
+    version_count = _get_version_count(out_dir)
+    quality_report = result.get('quality_report') if isinstance(result.get('quality_report'), dict) else {}
+    if not quality_report:
+        quality_report = _build_resume_quality_report(
+            pdf_exists=pdf_exists,
+            visual_review=visual_review,
+            version_count=version_count,
+            context=context,
+        )
+    workflow_status = result.get('workflow_status') if isinstance(result.get('workflow_status'), dict) else {}
+    if not workflow_status:
+        workflow_status = _build_resume_workflow_status(
+            pdf_exists=pdf_exists,
+            visual_review=visual_review,
+            quality_report=quality_report,
+            version_count=version_count,
+            context=context,
+        )
+
+    result = dict(result)
+    if pdf_exists and not result.get('pdf_path'):
+        try:
+            result['pdf_path'] = str(pdf_path.relative_to(_output_dir()))
+        except ValueError:
+            result['pdf_path'] = str(pdf_path)
+    result['visual_review'] = visual_review
+    result['quality_report'] = quality_report
+    result['workflow_status'] = workflow_status
+    result['version_count'] = version_count
+    enriched['result'] = result
+    enriched['user_status'] = _build_agent_user_status(enriched)
+    return enriched
+
+
 def _resolve_output_language(out_dir: Path, explicit_language: str | None = None) -> str:
     if explicit_language is not None and str(explicit_language).strip():
         return normalize_language(explicit_language)
@@ -1327,6 +2160,7 @@ def parse_profile() -> dict:
         'awards': [],
         'skills': {'tech': '', 'software': '', 'languages': ''},
         'projects': [],
+        'campus_experiences': [],
         'publications': [],
         'directions': {'primary': '', 'secondary': ''}
     }
@@ -1363,6 +2197,8 @@ def parse_profile() -> dict:
 
             if section == '项目经历' and '项目' in subsection:
                 # Each project is parsed from its code block
+                pass
+            if section == '校园经历' and '校园' in subsection:
                 pass
             continue
 
@@ -1481,6 +2317,24 @@ def _process_code_block(data, section, subsection, current_edu, code_lines):
                 parts = time_str.split('--')
                 data['projects'][-1]['time_start'] = parts[0].strip()
                 data['projects'][-1]['time_end'] = parts[1].strip()
+
+    elif section == '校园经历':
+        kv = _parse_kv_block(code_lines)
+        if '组织/活动名称' in kv or '组织' in kv or '活动名称' in kv:
+            time_str = kv.get('时间', '')
+            item = {
+                'name': kv.get('组织/活动名称', kv.get('活动名称', kv.get('组织', ''))),
+                'role': kv.get('角色', ''),
+                'time_start': '',
+                'time_end': '',
+                'highlights': kv.get('成果要点', kv.get('成果', '')),
+                'tags': kv.get('标签', ''),
+            }
+            if '--' in time_str:
+                parts = time_str.split('--')
+                item['time_start'] = parts[0].strip()
+                item['time_end'] = parts[1].strip()
+            data['campus_experiences'].append(item)
 
     elif section == '论文发表':
         for line in code_lines:
@@ -1673,6 +2527,33 @@ GPA：{edu.get('gpa', '')}
 
 ---""")
 
+    # 校园经历
+    campus_items = data.get('campus_experiences', [])
+    if campus_items:
+        campus_sections = ['## 校园经历\n\n<!-- 学生会、社团、志愿活动、挑战赛组织等，按时间倒序填写 -->']
+        for i, item in enumerate(campus_items):
+            time_str = f"{item.get('time_start', '')} -- {item.get('time_end', '')}"
+            highlights = item.get('highlights', '')
+            if isinstance(highlights, list):
+                highlights = '；'.join(str(x).strip() for x in highlights if str(x).strip())
+            campus_sections.append(f"""### 校园经历 {i + 1}
+
+```
+组织/活动名称：{item.get('name', '')}
+角色：{item.get('role', '')}
+时间：{time_str}
+成果要点：{highlights}
+标签：{item.get('tags', '')}
+```""")
+        sections.append('\n\n'.join(campus_sections) + '\n\n---')
+    else:
+        sections.append("""## 校园经历
+
+<!-- 学生会、社团、志愿活动、挑战赛组织等，按时间倒序填写 -->
+<!-- 格式：组织/活动名称、角色、时间、成果要点、标签 -->
+
+---""")
+
     # 论文发表
     pubs = data.get('publications', [])
     pub_lines = []
@@ -1705,6 +2586,132 @@ GPA：{edu.get('gpa', '')}
 """)
 
     return '\n\n'.join(sections)
+
+
+LOCAL_SKILL_CATALOG = {
+    'tech': [
+        ('Python', [r'\bPython\b']),
+        ('SQL', [r'\bSQL\b']),
+        ('Pandas', [r'\bPandas\b']),
+        ('NumPy', [r'\bNumPy\b']),
+        ('Selenium', [r'\bSelenium\b']),
+        ('Stata', [r'\bStata\b']),
+        ('R', [r'\bR\b']),
+        ('C', [r'(?<![A-Za-z])C(?![A-Za-z+#])']),
+        ('C++', [r'\bC\+\+\b', r'C\+\+']),
+        ('JavaScript', [r'\bJavaScript\b']),
+        ('TypeScript', [r'\bTypeScript\b']),
+        ('HTML', [r'\bHTML\b']),
+        ('CSS', [r'\bCSS\b']),
+        ('React', [r'\bReact\b']),
+        ('Electron', [r'\bElectron\b']),
+        ('LaTeX', [r'\bLaTeX\b']),
+        ('XeLaTeX', [r'\bXeLaTeX\b']),
+        ('Node.js', [r'\bNode\.js\b', r'\bNodeJS\b']),
+        ('API 对接', [r'\bAPI\b', r'接口对接']),
+        ('Prompt Engineering', [r'\bPrompt\b', r'提示词']),
+        ('Function Call', [r'\bFunction\s+Call\b']),
+        ('AI Agent', [r'\bAgent\b', r'智能体']),
+        ('机器学习', [r'机器学习', r'\bMachine\s+Learning\b']),
+        ('深度学习', [r'深度学习', r'\bDeep\s+Learning\b']),
+        ('NLP', [r'\bNLP\b', r'自然语言处理']),
+        ('LLM', [r'\bLLM\b', r'大模型']),
+        ('数据分析', [r'数据分析', r'\bData\s+Analysis\b']),
+        ('量化研究', [r'量化研究', r'量化']),
+    ],
+    'software': [
+        ('Cursor', [r'\bCursor\b']),
+        ('Codex', [r'\bCodex\b']),
+        ('Claude Code', [r'\bClaude\s+Code\b']),
+        ('Coze', [r'\bCoze\b']),
+        ('n8n', [r'\bn8n\b']),
+        ('Microsoft Office', [r'\bMicrosoft\s+Office\b']),
+        ('Excel', [r'\bExcel\b']),
+        ('PowerPoint', [r'\bPowerPoint\b', r'\bPPT\b']),
+        ('Word', [r'\bWord\b']),
+        ('Visio', [r'\bVisio\b']),
+        ('Figma', [r'\bFigma\b']),
+        ('Notion', [r'\bNotion\b']),
+        ('Tableau', [r'\bTableau\b']),
+        ('Power BI', [r'\bPower\s+BI\b']),
+        ('Git', [r'\bGit\b']),
+        ('GitHub', [r'\bGitHub\b']),
+        ('Docker', [r'\bDocker\b']),
+        ('Bloomberg', [r'\bBloomberg\b']),
+        ('Wind', [r'\bWind\b']),
+        ('CSMAR', [r'\bCSMAR\b']),
+        ('Choice', [r'\bChoice\b']),
+    ],
+}
+
+
+def _existing_skill_values(profile: dict) -> set[str]:
+    skills = profile.get('skills') if isinstance(profile.get('skills'), dict) else {}
+    values = set()
+    for value in skills.values():
+        for item in re.split(r'[,，;；\n]', str(value or '')):
+            item = item.strip()
+            if item:
+                values.add(item.lower())
+    return values
+
+
+def _safe_read_text(path: Path, limit: int = 200_000) -> str:
+    try:
+        text = path.read_text(encoding='utf-8', errors='replace')
+    except Exception:
+        return ''
+    text = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+    return text[:limit]
+
+
+def _iter_skill_suggestion_sources() -> list[Path]:
+    sources: list[Path] = []
+    try:
+        profile_path = _profile_path()
+        if profile_path.exists():
+            sources.append(profile_path)
+    except Exception:
+        pass
+    try:
+        sources.extend(sorted(p for p in _experiences_dir().glob('*.md') if p.is_file()))
+    except Exception:
+        pass
+    try:
+        for folder in sorted(p for p in _work_materials_dir().iterdir() if p.is_dir()):
+            for path in sorted(folder.iterdir()):
+                if path.is_file() and path.suffix.lower() in {'.md', '.txt', '.json', '.csv'}:
+                    sources.append(path)
+    except Exception:
+        pass
+    try:
+        out_dirs = sorted((p for p in _output_dir().iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)
+        for folder in out_dirs[:8]:
+            for name in ('resume-zh_CN.tex', 'resume-en.tex', 'generation_context.json'):
+                path = folder / name
+                if path.is_file():
+                    sources.append(path)
+    except Exception:
+        pass
+    return sources
+
+
+def build_local_skill_suggestions() -> dict:
+    """Suggest profile skills by matching known skill tokens in local user-owned content."""
+    profile = parse_profile()
+    existing = existing_skill_values_from_profile(profile)
+    sources = _iter_skill_suggestion_sources()
+    corpus = '\n'.join(_safe_read_text(path) for path in sources)
+    suggestions = derive_skills_from_text(corpus, existing=existing)
+    derived_count = count_skill_values(suggestions)
+
+    return {
+        'success': True,
+        'suggestions': suggestions,
+        'derived_count': derived_count,
+        'source_count': len(sources),
+        'summary': f'从 {len(sources)} 个本地资料文件中提取 {derived_count} 个技能候选；请只应用你确认真实掌握的项目',
+    }
 
 
 def parse_experience_file(filepath: Path) -> dict:
@@ -2144,6 +3151,232 @@ def _get_version_count(out_dir: Path) -> int:
         return 0
 
 
+def _set_version_snapshot_note(out_dir: Path, version_num: int, note: str) -> None:
+    clean_note = str(note or '').strip()
+    if not clean_note:
+        return
+    versions_json = out_dir / 'versions' / 'versions.json'
+    if not versions_json.exists():
+        return
+    try:
+        versions = json.loads(versions_json.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, OSError):
+        return
+    if not isinstance(versions, list):
+        return
+    changed = False
+    for item in versions:
+        if isinstance(item, dict) and item.get('version') == version_num:
+            item['note'] = clean_note
+            changed = True
+            break
+    if changed:
+        versions_json.write_text(json.dumps(versions, ensure_ascii=False, indent=2), encoding='utf-8')
+
+
+def _create_manual_version_snapshot(
+    out_dir: Path,
+    *,
+    note: str = '',
+    language: str | None = None,
+    context: dict | None = None,
+    visual_review: dict | None = None,
+) -> dict:
+    """Create a user-triggered gallery version snapshot and return refreshed UI payload."""
+    context = context if isinstance(context, dict) else _load_generation_context(out_dir)
+    resolved_language = _resolve_output_language(out_dir, language or context.get('language'))
+    _, tex_path, pdf_path = _resolve_resume_paths(out_dir, resolved_language)
+    if not tex_path.exists():
+        raise FileNotFoundError(f'找不到 {tex_path.name}，无法保存版本')
+
+    review = (
+        _with_visual_review_screenshot_path(out_dir, visual_review)
+        if isinstance(visual_review, dict) and visual_review
+        else _load_visual_review_for_output(out_dir, context)
+    )
+    fill_ratio = _normalize_fill_ratio_value(
+        context.get('fill_ratio')
+        or review.get('fill_ratio')
+        or 0.0
+    )
+    try:
+        page_count = int(review.get('page_count') or context.get('page_count') or 1)
+    except (TypeError, ValueError):
+        page_count = 1
+
+    version_num = _create_version_snapshot(
+        out_dir,
+        fill_rate=round(fill_ratio * 100, 1) if fill_ratio else 0,
+        pages=page_count,
+        language=resolved_language,
+    )
+    _set_version_snapshot_note(out_dir, version_num, note or '手动保存版本')
+
+    version_count = _get_version_count(out_dir)
+    quality_report = _build_resume_quality_report(
+        pdf_exists=pdf_path.exists(),
+        visual_review=review,
+        version_count=version_count,
+        context=context,
+    )
+    workflow_status = _build_resume_workflow_status(
+        pdf_exists=pdf_path.exists(),
+        visual_review=review,
+        quality_report=quality_report,
+        version_count=version_count,
+        context=context,
+    )
+    return {
+        'success': True,
+        'output_dir': out_dir.name,
+        'version': version_num,
+        'version_count': version_count,
+        'language': resolved_language,
+        'pdf_path': str(pdf_path.relative_to(_output_dir())) if pdf_path.exists() else '',
+        'visual_review': review,
+        'quality_report': quality_report,
+        'workflow_status': workflow_status,
+    }
+
+
+def _safe_zip_name(value: str, fallback: str = 'resume_delivery') -> str:
+    cleaned = re.sub(r'[^\w\u4e00-\u9fff.-]+', '_', str(value or '').strip(), flags=re.UNICODE)
+    cleaned = cleaned.strip('._')
+    return cleaned or fallback
+
+
+def _parse_resume_dir_metadata(dir_name: str) -> dict:
+    parts = str(dir_name or '').split('_')
+    company = parts[0] if len(parts) >= 1 else str(dir_name or '')
+    role = parts[1] if len(parts) >= 2 else ''
+    date = parts[2] if len(parts) >= 3 else ''
+    if date and len(date) == 8 and date.isdigit():
+        date = f'{date[:4]}/{date[4:6]}/{date[6:]}'
+    return {
+        'company': company,
+        'role': role,
+        'date': date,
+    }
+
+
+def _build_delivery_package(out_dir: Path) -> tuple[bytes, str, dict]:
+    """Build a self-contained delivery archive for one generated resume."""
+    context = _load_generation_context(out_dir)
+    fallback_meta = _parse_resume_dir_metadata(out_dir.name)
+    language = _resolve_output_language(out_dir, context.get('language'))
+    _, _, pdf_path = _resolve_resume_paths(out_dir, language)
+    review = _load_visual_review_for_output(out_dir, context)
+    version_count = _get_version_count(out_dir)
+    quality_report = _build_resume_quality_report(
+        pdf_exists=pdf_path.exists(),
+        visual_review=review,
+        version_count=version_count,
+        context=context,
+    )
+    workflow_status = _build_resume_workflow_status(
+        pdf_exists=pdf_path.exists(),
+        visual_review=review,
+        quality_report=quality_report,
+        version_count=version_count,
+        context=context,
+    )
+
+    safe_context = {
+        'company': context.get('company') or fallback_meta.get('company') or '',
+        'role': context.get('role') or fallback_meta.get('role') or '',
+        'language': language,
+        'engine': context.get('engine') or '',
+        'generated_at': context.get('generated_at') or fallback_meta.get('date') or '',
+        'fill_ratio': _normalize_fill_ratio_value(context.get('fill_ratio') or review.get('fill_ratio') or 0.0),
+        'output_dir': out_dir.name,
+    }
+    manifest = {
+        'package_type': 'resume_delivery',
+        'created_at': datetime.now().isoformat(timespec='seconds'),
+        'resume': safe_context,
+        'quality': {
+            'status': quality_report.get('status') or '',
+            'label': quality_report.get('label') or '',
+            'summary': quality_report.get('summary') or '',
+            'next_action': quality_report.get('next_action') or '',
+        },
+        'workflow': {
+            'status': workflow_status.get('status') or '',
+            'label': workflow_status.get('label') or '',
+            'progress': workflow_status.get('progress') or 0,
+        },
+        'files': [],
+        'privacy': {
+            'excluded': ['generation_context.json', 'full_jd_text', 'full_interview_text', 'api_keys'],
+            'note': '交付包不直接包含 generation_context.json，避免把完整 JD、面经或敏感配置作为元数据导出',
+        },
+    }
+
+    candidate_files: list[Path] = []
+    for name in (
+        'resume-zh_CN.pdf',
+        'resume-en.pdf',
+        'resume-zh_CN.tex',
+        'resume-en.tex',
+        'resume.cls',
+        'zh_CN-Adobefonts_external.sty',
+        'linespacing_fix.sty',
+        'generation_log.md',
+    ):
+        path = out_dir / name
+        if path.exists() and path.is_file():
+            candidate_files.append(path)
+
+    review_dir = out_dir / 'visual_review'
+    if review_dir.exists():
+        for path in sorted(review_dir.glob('*')):
+            if path.is_file() and path.suffix.lower() in {'.json', '.png', '.jpg', '.jpeg', '.webp'}:
+                candidate_files.append(path)
+
+    versions_dir = out_dir / 'versions'
+    if versions_dir.exists():
+        for path in sorted(versions_dir.glob('*')):
+            if path.is_file() and path.suffix.lower() in {'.json', '.tex'}:
+                candidate_files.append(path)
+
+    buffer = io.BytesIO()
+    root_name = _safe_zip_name(out_dir.name)
+    with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        manifest['files'].extend([
+            f'{root_name}/delivery_manifest.json',
+            f'{root_name}/quality_report.json',
+            f'{root_name}/workflow_status.json',
+        ])
+        generated_files = {
+            'quality_report.json': quality_report,
+            'workflow_status.json': workflow_status,
+        }
+        for filename, payload in generated_files.items():
+            zf.writestr(
+                f'{root_name}/{filename}',
+                json.dumps(payload, ensure_ascii=False, indent=2),
+            )
+
+        for path in candidate_files:
+            try:
+                rel = path.resolve().relative_to(out_dir.resolve())
+            except ValueError:
+                continue
+            arcname = f'{root_name}/{rel.as_posix()}'
+            zf.write(path, arcname)
+            manifest['files'].append(arcname)
+
+        zf.writestr(
+            f'{root_name}/delivery_manifest.json',
+            json.dumps(manifest, ensure_ascii=False, indent=2),
+        )
+
+    company = safe_context.get('company') or out_dir.name
+    role = safe_context.get('role') or 'resume'
+    filename = f'{_safe_zip_name(company)}_{_safe_zip_name(role)}_delivery.zip'
+    return buffer.getvalue(), filename, manifest
+
+
 def _find_xelatex() -> str:
     """查找 xelatex 二进制路径"""
     candidates = [
@@ -2154,6 +3387,1121 @@ def _find_xelatex() -> str:
         if c.exists():
             return str(c)
     return 'xelatex'
+
+
+def _binary_available(binary: str) -> tuple[bool, str]:
+    if not binary:
+        return False, ''
+    candidate = Path(binary).expanduser()
+    if candidate.is_absolute() and candidate.exists():
+        return True, str(candidate)
+    resolved = shutil.which(binary)
+    return bool(resolved), resolved or binary
+
+
+def _profile_readiness(profile: dict) -> tuple[str, str, str, bool]:
+    basic = profile.get('basic') if isinstance(profile.get('basic'), dict) else {}
+    skills = profile.get('skills') if isinstance(profile.get('skills'), dict) else {}
+    has_name = bool(str(basic.get('name_zh') or basic.get('name_en') or '').strip())
+    has_basic = has_name and all(str(basic.get(k) or '').strip() for k in ('email', 'phone'))
+    has_education = bool(profile.get('education'))
+    has_skills = any(str(skills.get(k) or '').strip() for k in ('tech', 'software', 'languages'))
+    missing = []
+    if not has_basic:
+        missing.append('基本信息')
+    if not has_education:
+        missing.append('教育背景')
+    if missing:
+        if not has_basic:
+            target_page = 'basic'
+        else:
+            target_page = 'education'
+        return 'fail', '缺少' + '、'.join(missing), target_page, has_skills
+    return 'pass', '姓名、联系方式和教育背景已填写', '', has_skills
+
+
+def _check_output_writable() -> tuple[bool, str]:
+    try:
+        out_dir = _output_dir()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        probe = out_dir / '.system_check_write'
+        probe.write_text(datetime.now().isoformat(), encoding='utf-8')
+        probe.unlink(missing_ok=True)
+        return True, str(out_dir)
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _agent_health_report(agent_health: list[dict]) -> list[dict]:
+    """Normalize local Agent health for the Web UI without exposing noisy internals."""
+    labels = {
+        'codex': 'Codex',
+        'claude': 'Claude Code',
+        'claude_code': 'Claude Code',
+        'claude-code': 'Claude Code',
+    }
+    reports: list[dict] = []
+    for item in agent_health:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get('name') or '').strip() or 'agent'
+        normalized = name.lower()
+        error_code = str(item.get('error_code') or '').strip()
+        steps: list[str] = []
+        if normalized == 'codex' and error_code == 'CODEX_CONFIG_INVALID_SERVICE_TIER':
+            config_path = str(item.get('config_path') or '~/.codex/config.toml')
+            steps = [
+                f'打开 {config_path}',
+                '将 service_tier 改为 "fast" 或 "flex"',
+                '保存后重新自检；也可以临时切换到 Claude Code',
+            ]
+        elif error_code == 'AGENT_NOT_AVAILABLE':
+            executable = str(item.get('executable') or name)
+            steps = [
+                f'确认 {executable} CLI 已安装并在 PATH 中',
+                '在终端完成登录或授权',
+                '重新启动本地服务后点击重新自检',
+            ]
+        elif not item.get('ok'):
+            steps = [
+                '按详情修复本地 CLI 或配置',
+                '修复后点击重新自检',
+                '若存在其他可用 Agent，可先切换继续生成',
+            ]
+
+        reports.append({
+            'name': name,
+            'label': labels.get(normalized, name),
+            'ok': bool(item.get('ok')),
+            'status': item.get('status') or ('pass' if item.get('ok') else 'fail'),
+            'detail': str(item.get('detail') or ''),
+            'action': str(item.get('action') or ''),
+            'error_code': error_code,
+            'executable': str(item.get('executable') or ''),
+            'path': str(item.get('path') or ''),
+            'config_path': str(item.get('config_path') or ''),
+            'recovery_steps': steps,
+        })
+    return reports
+
+
+def build_system_check() -> dict:
+    """Build a user-facing readiness report for ordinary local usage."""
+    checks = []
+    agent_health: list[dict] = []
+
+    def add_check(
+        key: str,
+        label: str,
+        status: str,
+        detail: str,
+        action: str = '',
+        required: bool = False,
+        target_page: str = '',
+    ) -> None:
+        checks.append({
+            'key': key,
+            'label': label,
+            'status': status,
+            'detail': detail,
+            'action': action,
+            'required': required,
+            'target_page': target_page,
+        })
+
+    try:
+        profile = parse_profile()
+    except Exception as exc:
+        profile = {}
+        add_check('profile', '个人资料', 'fail', f'读取 profile.md 失败：{exc}', '打开资料页修复', True, 'basic')
+    if profile:
+        profile_status, profile_detail, profile_target_page, profile_has_skills = _profile_readiness(profile)
+        profile_action = ''
+        if profile_status != 'pass':
+            profile_action = '完善资料'
+        add_check(
+            'profile',
+            '个人资料',
+            profile_status,
+            profile_detail,
+            profile_action,
+            True,
+            profile_target_page,
+        )
+        if profile_status == 'pass' and not profile_has_skills:
+            derived_skills = build_local_skill_suggestions()
+            derived_count = int(derived_skills.get('derived_count') or 0)
+            if derived_count > 0:
+                add_check(
+                    'profile_skills',
+                    '技能上下文',
+                    'pass',
+                    f'已从本地资料识别 {derived_count} 项技能，生成时会自动使用；可选择保存到档案',
+                    '查看/保存',
+                    False,
+                    'skills',
+                )
+                checks[-1]['derived'] = True
+                checks[-1]['derived_count'] = derived_count
+            else:
+                add_check(
+                    'profile_skills',
+                    '技能标签',
+                    'warning',
+                    '技能栏为空，且暂未从本地资料识别出可用技能；建议补充或导入经历材料',
+                    '从资料提取',
+                    False,
+                    'skills',
+                )
+    elif not any(c['key'] == 'profile' for c in checks):
+        add_check('profile', '个人资料', 'fail', '尚未创建或填写 profile.md', '完善资料', True, 'basic')
+
+    try:
+        exp_count = len([p for p in _experiences_dir().glob('*.md') if p.is_file()])
+    except Exception:
+        exp_count = 0
+    project_count = len(profile.get('projects') or []) if isinstance(profile, dict) else 0
+    campus_count = len(profile.get('campus_experiences') or []) if isinstance(profile, dict) else 0
+    total_content = exp_count + project_count + campus_count
+    add_check(
+        'content_library',
+        '经历素材',
+        'pass' if total_content > 0 else 'warning',
+        f'已有 {exp_count} 段实习/工作、{project_count} 个项目、{campus_count} 段校园经历'
+        if total_content > 0 else '经历库为空，生成质量会明显受限',
+        '' if total_content > 0 else '补充经历',
+        False,
+        'experiences' if total_content <= 0 else '',
+    )
+
+    xelatex_bin = _find_xelatex()
+    has_xelatex, xelatex_path = _binary_available(xelatex_bin)
+    add_check(
+        'xelatex',
+        'LaTeX 编译',
+        'pass' if has_xelatex else 'fail',
+        f'已找到 {xelatex_path}' if has_xelatex else '未找到 xelatex，无法稳定生成 PDF',
+        '' if has_xelatex else '安装 TinyTeX / XeLaTeX',
+        True,
+    )
+
+    try:
+        from tools.generate_resume import _find_pdftoppm
+        pdftoppm_path = _find_pdftoppm()
+    except Exception:
+        pdftoppm_path = shutil.which('pdftoppm')
+    add_check(
+        'pdftoppm',
+        '视觉截图',
+        'pass' if pdftoppm_path else 'warning',
+        f'已找到 {pdftoppm_path}' if pdftoppm_path else '未找到 pdftoppm；视觉 QA 可运行但会跳过截图',
+        '' if pdftoppm_path else '安装 poppler / pdftoppm',
+        False,
+    )
+
+    out_writable, out_detail = _check_output_writable()
+    add_check(
+        'output_writable',
+        '输出目录',
+        'pass' if out_writable else 'fail',
+        f'可写入 {out_detail}' if out_writable else f'输出目录不可写：{out_detail}',
+        '' if out_writable else '检查目录权限',
+        True,
+    )
+
+    try:
+        from tools.agent_adapters.codex import CodexAdapter
+        from tools.agent_adapters.claude_code import ClaudeCodeAdapter
+        agent_health = [
+            CodexAdapter(PROJECT_ROOT).health_check(),
+            ClaudeCodeAdapter(PROJECT_ROOT).health_check(),
+        ]
+    except Exception as exc:
+        agent_health = [{
+            'ok': False,
+            'status': 'fail',
+            'name': 'agent',
+            'detail': f'本地 Agent 检查失败：{exc}',
+            'action': '检查本地 Agent CLI',
+        }]
+    agent_names = []
+    unavailable_agents = []
+    unhealthy_agents = []
+    for item in agent_health:
+        if item.get('ok'):
+            agent_names.append('Codex' if item.get('name') == 'codex' else 'Claude Code')
+        elif item.get('error_code') == 'AGENT_NOT_AVAILABLE':
+            if item.get('detail'):
+                unavailable_agents.append(str(item.get('detail')))
+        elif item.get('detail'):
+            unhealthy_agents.append(str(item.get('detail')))
+    if agent_names:
+        agent_status = 'pass'
+        agent_detail = '可用：' + ' / '.join(agent_names)
+        if unhealthy_agents:
+            agent_detail += '；以下 Agent 可稍后修复，不影响自动选择：' + '；'.join(unhealthy_agents[:2])
+        agent_action = ''
+    else:
+        agent_status = 'fail'
+        all_issues = unhealthy_agents + unavailable_agents
+        agent_detail = '；'.join(all_issues[:2]) if all_issues else '未找到 Codex 或 Claude Code CLI，后台 Agent 无法启动'
+        agent_action = '安装或登录本地 Agent CLI'
+    add_check(
+        'local_agent',
+        '本地 Agent',
+        agent_status,
+        agent_detail,
+        agent_action,
+        True,
+    )
+
+    try:
+        gallery_count = len(list_gallery_resumes())
+    except Exception:
+        gallery_count = 0
+    add_check(
+        'gallery',
+        '简历画廊',
+        'pass' if gallery_count > 0 else 'warning',
+        f'已有 {gallery_count} 份生成结果' if gallery_count > 0 else '尚无生成结果，可先用一段 JD 试跑',
+        '' if gallery_count > 0 else '生成第一份简历',
+        False,
+        'generate' if gallery_count <= 0 else '',
+    )
+
+    required_failures = [c for c in checks if c['required'] and c['status'] == 'fail']
+    warnings = [c for c in checks if c['status'] == 'warning']
+    if required_failures:
+        status = 'blocked'
+        label = '需先修复'
+        summary = '存在会阻断生成或后台 Agent 的本地问题'
+        next_action = required_failures[0]['action'] or '修复阻断项'
+    elif warnings:
+        status = 'attention'
+        label = '可用，建议完善'
+        summary = '核心链路可运行，但仍有影响体验或质量的项目'
+        next_action = warnings[0]['action'] or '继续完善'
+    else:
+        status = 'ready'
+        label = '系统就绪'
+        summary = '本地生成、编译、视觉 QA 和 Agent 后台能力已就绪'
+        next_action = '粘贴 JD 开始生成'
+
+    score_map = {'pass': 1.0, 'warning': 0.5, 'fail': 0.0}
+    readiness = round(sum(score_map.get(c['status'], 0.0) for c in checks) / max(1, len(checks)) * 100)
+    return {
+        'status': status,
+        'label': label,
+        'summary': summary,
+        'next_action': next_action,
+        'readiness': readiness,
+        'checked_at': datetime.now().isoformat(timespec='seconds'),
+        'checks': checks,
+        'agent_health': _agent_health_report(agent_health),
+    }
+
+
+def build_runtime_info(host: str | None = None, port: int | None = None) -> dict:
+    """Build local delivery metadata for the Web UI landing guide."""
+    normalized_host = (host or '').strip()
+    if not normalized_host:
+        normalized_host = f'127.0.0.1:{port or 8765}'
+    if '://' in normalized_host:
+        app_url = normalized_host.rstrip('/')
+    else:
+        app_url = f'http://{normalized_host.rstrip("/")}'
+
+    launch_port = port
+    if launch_port is None:
+        try:
+            parsed = urllib.parse.urlparse(app_url)
+            launch_port = parsed.port or 8765
+        except ValueError:
+            launch_port = 8765
+
+    launch_command = f'python3 web/server.py --port {launch_port or 8765}'
+    return {
+        'success': True,
+        'app_url': app_url,
+        'project_root': str(PROJECT_ROOT),
+        'data_dir': str(DATA_DIR),
+        'output_dir': str(_output_dir()),
+        'launch_command': launch_command,
+        'health_url': f'{app_url}/api/system-check',
+        'agent_jobs_url': f'{app_url}/api/agent/jobs',
+        'docs': {
+            'readme': str(PROJECT_ROOT / 'README.md'),
+            'setup': str(PROJECT_ROOT / 'SETUP.md'),
+        },
+        'steps': [
+            {
+                'key': 'start',
+                'title': '启动本地工作台',
+                'detail': '用固定命令启动服务，浏览器访问当前地址即可继续使用',
+                'action': '复制启动命令',
+            },
+            {
+                'key': 'check',
+                'title': '完成系统自检',
+                'detail': '确认资料、XeLaTeX、视觉截图和本地 Agent 都处于可用状态',
+                'action': '重新自检',
+            },
+            {
+                'key': 'generate',
+                'title': '粘贴 JD 生成简历',
+                'detail': '选择 Codex 或 Claude Code，让后台 Agent 完成匹配、改写和编译',
+                'action': '开始生成',
+            },
+            {
+                'key': 'loop',
+                'title': '视觉复检与版本留存',
+                'detail': '用质量报告修正间距、溢出和填充率，再保存可投递版本',
+                'action': '查看画廊',
+            },
+        ],
+    }
+
+
+def _status_rank(status: str) -> int:
+    return {
+        'complete': 5,
+        'ready': 4,
+        'in_progress': 3,
+        'review': 2,
+        'attention': 2,
+        'blocked': 1,
+        'fix': 1,
+    }.get(str(status or '').strip(), 0)
+
+
+def _latest_resume_for_workbench(resumes: list[dict]) -> dict | None:
+    if not resumes:
+        return None
+    return resumes[0]
+
+
+def _resume_workbench_action(resume: dict) -> dict:
+    workflow = resume.get('workflow_status') if isinstance(resume.get('workflow_status'), dict) else {}
+    quality = resume.get('quality_report') if isinstance(resume.get('quality_report'), dict) else {}
+    next_action = str(workflow.get('next_action') or quality.get('next_action') or '').strip()
+    workflow_status = str(workflow.get('status') or '').strip()
+    quality_status = str(quality.get('status') or '').strip()
+    dir_name = str(resume.get('dir_name') or '').strip()
+
+    if next_action and ('视觉' in next_action or '复检' in next_action):
+        action_type = 'visual_review'
+        label = '运行视觉 QA'
+    elif next_action and '保存版本' in next_action:
+        action_type = 'save_version'
+        label = '保存版本'
+    elif next_action and ('重生成' in next_action or '修复' in next_action):
+        action_type = 'regen'
+        label = '按 QA 重生成'
+    elif workflow_status == 'complete' or quality_status == 'ready':
+        action_type = 'quality_report'
+        label = '打开质量报告'
+    else:
+        action_type = 'quality_report'
+        label = next_action or '查看质量报告'
+
+    return {
+        'type': action_type,
+        'label': label,
+        'target_dir': dir_name,
+    }
+
+
+def _safe_resume_summary(resume: dict | None) -> dict | None:
+    if not isinstance(resume, dict):
+        return None
+    quality = resume.get('quality_report') if isinstance(resume.get('quality_report'), dict) else {}
+    workflow = resume.get('workflow_status') if isinstance(resume.get('workflow_status'), dict) else {}
+    visual = resume.get('visual_review') if isinstance(resume.get('visual_review'), dict) else {}
+    return {
+        'company': resume.get('company') or '',
+        'role': resume.get('role') or '',
+        'dir_name': resume.get('dir_name') or '',
+        'date': resume.get('date') or '',
+        'pdf_path': resume.get('pdf_path') or '',
+        'language': resume.get('language') or '',
+        'quality_status': quality.get('status') or '',
+        'quality_label': quality.get('label') or '',
+        'quality_summary': quality.get('summary') or '',
+        'workflow_status': workflow.get('status') or '',
+        'workflow_label': workflow.get('label') or '',
+        'workflow_progress': workflow.get('progress') or 0,
+        'next_action': workflow.get('next_action') or quality.get('next_action') or '',
+        'fill_label': quality.get('fill_label') or '',
+        'page_count': quality.get('page_count') or visual.get('page_count') or 0,
+        'version_count': resume.get('version_count') or quality.get('version_count') or 0,
+        'action': _resume_workbench_action(resume),
+    }
+
+
+def build_workbench_status() -> dict:
+    """Build a single next-step status for ordinary workbench usage."""
+    system_check = build_system_check()
+    system_checks = [
+        check for check in system_check.get('checks', [])
+        if isinstance(check, dict)
+    ]
+    safe_system_checks = [
+        {
+            'key': str(check.get('key') or ''),
+            'label': str(check.get('label') or ''),
+            'status': str(check.get('status') or ''),
+            'detail': str(check.get('detail') or ''),
+            'action': str(check.get('action') or ''),
+            'required': bool(check.get('required')),
+            'target_page': str(check.get('target_page') or ''),
+        }
+        for check in system_checks
+    ]
+    system_blockers = [
+        check for check in safe_system_checks
+        if check.get('required') and check.get('status') == 'fail'
+    ]
+    system_warnings = [
+        check for check in safe_system_checks
+        if check.get('status') == 'warning'
+    ]
+    resumes = list_gallery_resumes()
+    latest_resume = _latest_resume_for_workbench(resumes)
+
+    jobs: list[dict] = []
+    try:
+        from tools.agent_orchestrator import list_agent_jobs
+        _, job_payload = list_agent_jobs(limit=6)
+        jobs = job_payload.get('jobs') if isinstance(job_payload.get('jobs'), list) else []
+    except Exception:
+        jobs = []
+
+    running_job = next((job for job in jobs if job.get('recoverable')), None)
+    unfinished_job = running_job or next((job for job in jobs if job.get('status') in {'failed', 'cancelled'}), None)
+
+    if system_check.get('status') == 'blocked':
+        primary = next(
+            (
+                check for check in system_blockers
+            ),
+            {},
+        )
+        status = 'blocked'
+        label = '先修复本地环境'
+        summary = system_check.get('summary') or '存在会阻断生成的本地问题'
+        action = {
+            'type': 'system_check',
+            'label': primary.get('action') or system_check.get('next_action') or '查看自检',
+            'target_page': primary.get('target_page') or '',
+            'check_key': primary.get('key') or '',
+        }
+    elif running_job:
+        status = 'running'
+        label = '后台 Agent 正在运行'
+        summary = '当前有本地 Agent 任务未结束，建议先恢复查看状态'
+        action = {
+            'type': 'resume_agent_job',
+            'label': '恢复查看',
+            'job_id': running_job.get('job_id') or '',
+        }
+    elif unfinished_job:
+        status = 'recover'
+        label = '有未完成任务'
+        summary = '最近一次 Agent 任务未完成，可查看详情或按上次输入重试'
+        action = {
+            'type': 'agent_recovery',
+            'label': '查看详情',
+            'job_id': unfinished_job.get('job_id') or '',
+        }
+    elif latest_resume:
+        resume_summary = _safe_resume_summary(latest_resume) or {}
+        workflow_status = resume_summary.get('workflow_status') or ''
+        quality_status = resume_summary.get('quality_status') or ''
+        if workflow_status == 'complete' or quality_status == 'ready':
+            status = 'ready'
+            label = '最近简历可投递'
+            summary = resume_summary.get('quality_summary') or '最近一份简历已完成核心质量检查'
+        else:
+            status = 'in_progress'
+            label = '继续最近简历 Loop'
+            summary = resume_summary.get('quality_summary') or '最近一份简历仍有待完成步骤'
+        action = resume_summary.get('action') or {'type': 'quality_report', 'label': '查看质量报告'}
+    else:
+        status = 'empty'
+        label = '从第一份 JD 开始'
+        summary = '粘贴目标岗位 JD，让后台 Agent 生成第一份可复检简历'
+        action = {
+            'type': 'generate',
+            'label': '开始生成',
+            'target_page': 'generate',
+        }
+
+    latest = _safe_resume_summary(latest_resume)
+    return {
+        'success': True,
+        'status': status,
+        'label': label,
+        'summary': summary,
+        'action': action,
+        'checked_at': datetime.now().isoformat(timespec='seconds'),
+        'system': {
+            'status': system_check.get('status') or '',
+            'label': system_check.get('label') or '',
+            'readiness': system_check.get('readiness') or 0,
+            'next_action': system_check.get('next_action') or '',
+            'blockers': system_blockers,
+            'warnings': system_warnings[:3],
+        },
+        'agent': {
+            'running_job': running_job,
+            'latest_unfinished_job': unfinished_job,
+            'recent_count': len(jobs),
+        },
+        'gallery': {
+            'count': len(resumes),
+            'latest_resume': latest,
+            'complete_count': sum(
+                1
+                for item in resumes
+                if _status_rank((item.get('workflow_status') or {}).get('status') if isinstance(item.get('workflow_status'), dict) else '') >= 5
+            ),
+            'needs_action_count': sum(
+                1
+                for item in resumes
+                if ((item.get('workflow_status') or {}).get('status') if isinstance(item.get('workflow_status'), dict) else '') != 'complete'
+            ),
+        },
+    }
+
+
+def _web_index_has_tokens(tokens: list[str]) -> tuple[bool, list[str]]:
+    try:
+        text = (WEB_DIR / 'index.html').read_text(encoding='utf-8')
+    except OSError:
+        return False, tokens
+    missing = [token for token in tokens if token not in text]
+    return not missing, missing
+
+
+def _product_check(
+    key: str,
+    label: str,
+    ok: bool,
+    detail: str,
+    *,
+    required: bool = True,
+    action: str = '',
+    evidence: dict | None = None,
+) -> dict:
+    return {
+        'key': key,
+        'label': label,
+        'status': 'pass' if ok else 'fail',
+        'detail': detail,
+        'required': required,
+        'action': action,
+        'evidence': evidence or {},
+    }
+
+
+def build_product_readiness(host: str | None = None, port: int | None = None) -> dict:
+    """Verify the product-level Agent workbench requirements as an acceptance gate."""
+    runtime_info = build_runtime_info(host=host, port=port)
+    system_check = build_system_check()
+    workbench_status = build_workbench_status()
+    resumes = list_gallery_resumes()
+    latest_resume = _latest_resume_for_workbench(resumes)
+    latest_summary = _safe_resume_summary(latest_resume)
+
+    checks: list[dict] = []
+
+    gui_ok, gui_missing = _web_index_has_tokens([
+        'id="jd-text"',
+        'id="gen-agent"',
+        'id="home-gallery-content"',
+        'id="pdf-modal-iframe"',
+        'id="editor-pdf-iframe"',
+        'id="qa-modal-img"',
+    ])
+    checks.append(_product_check(
+        'gui_input_preview',
+        '图形界面输入与预览',
+        gui_ok,
+        '已检测到 JD 输入、Agent 选择、画廊、PDF 预览、编辑预览和视觉 QA 截图入口'
+        if gui_ok else '缺少关键 UI 节点：' + '、'.join(gui_missing),
+        action='' if gui_ok else '修复 Web UI 入口',
+        evidence={'missing_tokens': gui_missing},
+    ))
+
+    runtime_steps = runtime_info.get('steps') if isinstance(runtime_info.get('steps'), list) else []
+    runtime_step_keys = [str(step.get('key') or '') for step in runtime_steps if isinstance(step, dict)]
+    runtime_ok = bool(runtime_info.get('app_url')) and bool(runtime_info.get('launch_command')) and runtime_step_keys == ['start', 'check', 'generate', 'loop']
+    checks.append(_product_check(
+        'ordinary_user_path',
+        '普通用户稳定使用路径',
+        runtime_ok,
+        '已提供启动、自检、生成、视觉复检与留版的固定路径'
+        if runtime_ok else '运行指引不完整，普通用户无法按固定步骤完成闭环',
+        action='' if runtime_ok else '补齐运行指引',
+        evidence={
+            'app_url': runtime_info.get('app_url') or '',
+            'launch_command': runtime_info.get('launch_command') or '',
+            'step_keys': runtime_step_keys,
+        },
+    ))
+
+    local_agent = next(
+        (check for check in system_check.get('checks', []) if isinstance(check, dict) and check.get('key') == 'local_agent'),
+        {},
+    )
+    agent_jobs_url = str(runtime_info.get('agent_jobs_url') or '')
+    agent_ok = local_agent.get('status') == 'pass' and bool(agent_jobs_url)
+    checks.append(_product_check(
+        'local_agent_backend',
+        '本地 Agent 后台运行',
+        agent_ok,
+        local_agent.get('detail') or ('Agent jobs API 已配置' if agent_jobs_url else '缺少 Agent jobs API'),
+        action='' if agent_ok else (local_agent.get('action') or '配置本地 Agent'),
+        evidence={'agent_jobs_url': agent_jobs_url, 'system_check': local_agent},
+    ))
+
+    system_ok = str(system_check.get('status') or '') in {'ready', 'attention'}
+    workbench_action = workbench_status.get('action') if isinstance(workbench_status.get('action'), dict) else {}
+    generation_ok = system_ok and bool(workbench_action)
+    checks.append(_product_check(
+        'generation_entry',
+        '生成入口与下一步状态',
+        generation_ok,
+        f"系统状态 {system_check.get('label') or system_check.get('status')}，工作台下一步：{workbench_action.get('label') or ''}"
+        if generation_ok else '系统自检或工作台下一步不可用',
+        action='' if generation_ok else (system_check.get('next_action') or '重新自检'),
+        evidence={
+            'system_status': system_check.get('status') or '',
+            'workbench_status': workbench_status.get('status') or '',
+            'action': workbench_action,
+        },
+    ))
+
+    quality = latest_resume.get('quality_report') if isinstance(latest_resume, dict) and isinstance(latest_resume.get('quality_report'), dict) else {}
+    workflow = latest_resume.get('workflow_status') if isinstance(latest_resume, dict) and isinstance(latest_resume.get('workflow_status'), dict) else {}
+    visual = latest_resume.get('visual_review') if isinstance(latest_resume, dict) and isinstance(latest_resume.get('visual_review'), dict) else {}
+    feedback = visual.get('agent_feedback') if isinstance(visual.get('agent_feedback'), dict) else {}
+    loop_ok = bool(latest_resume) and visual.get('status') == 'pass' and bool(feedback.get('prompt'))
+    checks.append(_product_check(
+        'visual_feedback_loop',
+        '生成-视觉检查-反馈迭代 Loop',
+        loop_ok,
+        '最近简历已完成视觉 QA，并生成可复用的下一轮反馈提示'
+        if loop_ok else '缺少已通过的视觉 QA 或可复用的 Agent 反馈提示',
+        action='' if loop_ok else '运行视觉 QA',
+        evidence={
+            'latest_resume': latest_summary or {},
+            'visual_status': visual.get('status') or '',
+            'has_agent_feedback': bool(feedback.get('prompt')),
+        },
+    ))
+
+    version_count = int((latest_resume or {}).get('version_count') or quality.get('version_count') or 0) if isinstance(latest_resume, dict) else 0
+    versions_ui_ok, versions_missing = _web_index_has_tokens([
+        'id="versions-drawer"',
+        'id="versions-list"',
+        'version-snapshot',
+    ])
+    version_ok = bool(latest_resume) and version_count > 0 and versions_ui_ok
+    checks.append(_product_check(
+        'version_management',
+        '版本管理',
+        version_ok,
+        f'最近简历已有 {version_count} 个版本快照，版本抽屉和保存入口可用'
+        if version_ok else '缺少版本快照或版本管理 UI/API 入口',
+        action='' if version_ok else '保存版本',
+        evidence={'version_count': version_count, 'missing_ui_tokens': versions_missing},
+    ))
+
+    quality_ok = bool(latest_resume) and quality.get('status') == 'ready' and workflow.get('status') == 'complete'
+    checks.append(_product_check(
+        'quality_gate',
+        '质量检查与可投递状态',
+        quality_ok,
+        quality.get('summary') or ('最近简历质量状态完整' if quality_ok else '最近简历尚未达到可投递质量状态'),
+        action='' if quality_ok else (quality.get('next_action') or '打开质量报告'),
+        evidence={
+            'quality_status': quality.get('status') or '',
+            'workflow_status': workflow.get('status') or '',
+            'fill_label': quality.get('fill_label') or '',
+            'page_count': quality.get('page_count') or 0,
+        },
+    ))
+
+    delivery_ok = False
+    delivery_detail = '尚无可验证的交付包'
+    delivery_evidence: dict = {}
+    if isinstance(latest_resume, dict) and latest_resume.get('dir_name'):
+        try:
+            out_dir = _resolve_gallery_output_dir(str(latest_resume.get('dir_name')))
+            _, _, delivery_manifest = _build_delivery_package(out_dir)
+            delivery_quality = delivery_manifest.get('quality') if isinstance(delivery_manifest.get('quality'), dict) else {}
+            delivery_workflow = delivery_manifest.get('workflow') if isinstance(delivery_manifest.get('workflow'), dict) else {}
+            delivery_files = delivery_manifest.get('files') if isinstance(delivery_manifest.get('files'), list) else []
+            delivery_ok = (
+                delivery_quality.get('status') == 'ready'
+                and delivery_workflow.get('status') == 'complete'
+                and any(str(name).endswith('.pdf') for name in delivery_files)
+                and any(str(name).endswith('quality_report.json') for name in delivery_files)
+                and any(str(name).endswith('workflow_status.json') for name in delivery_files)
+            )
+            delivery_detail = (
+                f'交付包可构建，包含 {len(delivery_files)} 个文件，质量状态 {delivery_quality.get("label") or delivery_quality.get("status")}'
+                if delivery_ok else '交付包可构建但缺少 ready/complete 状态或关键文件'
+            )
+            delivery_evidence = {
+                'quality': delivery_quality,
+                'workflow': delivery_workflow,
+                'file_count': len(delivery_files),
+            }
+        except Exception as exc:
+            delivery_detail = f'交付包构建失败：{exc}'
+            delivery_evidence = {'error': str(exc)}
+    checks.append(_product_check(
+        'delivery_package',
+        '可交付包',
+        delivery_ok,
+        delivery_detail,
+        action='' if delivery_ok else '导出交付包',
+        evidence=delivery_evidence,
+    ))
+
+    diagnostics_ok = bool(runtime_info.get('success')) and bool(system_check.get('checks')) and bool(workbench_status.get('success'))
+    checks.append(_product_check(
+        'diagnostics',
+        '诊断与支持材料',
+        diagnostics_ok,
+        '诊断包可导出运行信息、系统自检、工作台状态、任务摘要和画廊摘要'
+        if diagnostics_ok else '诊断信息不完整',
+        required=False,
+        action='' if diagnostics_ok else '导出诊断包',
+        evidence={
+            'runtime': bool(runtime_info.get('success')),
+            'system_checks': len(system_check.get('checks') or []),
+            'workbench_success': bool(workbench_status.get('success')),
+        },
+    ))
+
+    required_failures = [check for check in checks if check.get('required') and check.get('status') != 'pass']
+    optional_failures = [check for check in checks if not check.get('required') and check.get('status') != 'pass']
+    if required_failures:
+        status = 'blocked'
+        label = '产品链路未就绪'
+        summary = f'还有 {len(required_failures)} 个必需产品化环节未通过'
+        next_action = required_failures[0].get('action') or '修复产品化阻断项'
+    elif optional_failures:
+        status = 'attention'
+        label = '核心可交付，建议完善'
+        summary = '必需产品链路已通过，但仍有辅助支持项可完善'
+        next_action = optional_failures[0].get('action') or '完善辅助项'
+    else:
+        status = 'ready'
+        label = '产品就绪'
+        summary = '图形界面、后台 Agent、视觉 QA loop、版本、质量检查和交付包均已通过验收'
+        next_action = '交付使用'
+
+    score_map = {'pass': 1.0, 'fail': 0.0}
+    readiness = round(sum(score_map.get(c['status'], 0.0) for c in checks) / max(1, len(checks)) * 100)
+    return {
+        'success': True,
+        'status': status,
+        'label': label,
+        'summary': summary,
+        'next_action': next_action,
+        'readiness': readiness,
+        'checked_at': datetime.now().isoformat(timespec='seconds'),
+        'checks': checks,
+        'latest_resume': latest_summary,
+        'requirements': {
+            'gui_input_preview': next(c for c in checks if c['key'] == 'gui_input_preview')['status'] == 'pass',
+            'local_agent_backend': next(c for c in checks if c['key'] == 'local_agent_backend')['status'] == 'pass',
+            'visual_feedback_loop': next(c for c in checks if c['key'] == 'visual_feedback_loop')['status'] == 'pass',
+            'version_management': next(c for c in checks if c['key'] == 'version_management')['status'] == 'pass',
+            'quality_gate': next(c for c in checks if c['key'] == 'quality_gate')['status'] == 'pass',
+            'ordinary_user_path': next(c for c in checks if c['key'] == 'ordinary_user_path')['status'] == 'pass',
+            'delivery_package': next(c for c in checks if c['key'] == 'delivery_package')['status'] == 'pass',
+        },
+    }
+
+
+def _safe_agent_job_summary(job: dict | None) -> dict | None:
+    if not isinstance(job, dict):
+        return None
+    task_summary = job.get('task_summary') if isinstance(job.get('task_summary'), dict) else {}
+    return {
+        'job_id': job.get('job_id') or '',
+        'status': job.get('status') or '',
+        'agent': job.get('agent') or task_summary.get('agent') or '',
+        'task_type': job.get('task_type') or '',
+        'company': job.get('company') or task_summary.get('company') or '',
+        'role': job.get('role') or task_summary.get('role') or '',
+        'language': job.get('language') or task_summary.get('language') or '',
+        'step': job.get('step') or '',
+        'progress': job.get('progress') or 0,
+        'created_at': job.get('created_at') or '',
+        'started_at': job.get('started_at') or '',
+        'completed_at': job.get('completed_at') or '',
+        'updated_at': job.get('updated_at') or '',
+        'error_code': job.get('error_code') or '',
+        'recoverable': bool(job.get('recoverable')),
+        'terminal': bool(job.get('terminal')),
+        'task_summary': {
+            'agent': task_summary.get('agent') or job.get('agent') or '',
+            'company': task_summary.get('company') or job.get('company') or '',
+            'role': task_summary.get('role') or job.get('role') or '',
+            'language': task_summary.get('language') or job.get('language') or '',
+            'has_interview': bool(task_summary.get('has_interview')),
+            'has_selection_plan': bool(task_summary.get('has_selection_plan')),
+            'has_feedback': bool(task_summary.get('has_feedback')),
+        },
+    }
+
+
+def _sanitize_workbench_status_for_export(status: dict) -> dict:
+    sanitized = dict(status or {})
+    agent = sanitized.get('agent') if isinstance(sanitized.get('agent'), dict) else {}
+    sanitized['agent'] = {
+        'running_job': _safe_agent_job_summary(agent.get('running_job')),
+        'latest_unfinished_job': _safe_agent_job_summary(agent.get('latest_unfinished_job')),
+        'recent_count': agent.get('recent_count') or 0,
+    }
+    return sanitized
+
+
+def build_diagnostics_payload(host: str | None = None, port: int | None = None) -> dict:
+    """Build a safe diagnostics snapshot for product support and local debugging."""
+    runtime_info = build_runtime_info(host=host, port=port)
+    system_check = build_system_check()
+    workbench_status = _sanitize_workbench_status_for_export(build_workbench_status())
+    product_readiness = build_product_readiness(host=host, port=port)
+    gallery = [_safe_resume_summary(item) for item in list_gallery_resumes()[:12]]
+    gallery = [item for item in gallery if item]
+
+    jobs: list[dict] = []
+    try:
+        from tools.agent_orchestrator import list_agent_jobs
+        _, job_payload = list_agent_jobs(limit=12)
+        jobs = job_payload.get('jobs') if isinstance(job_payload.get('jobs'), list) else []
+    except Exception:
+        jobs = []
+    safe_jobs = [item for item in (_safe_agent_job_summary(job) for job in jobs) if item]
+
+    return {
+        'package_type': 'resume_generator_pro_diagnostics',
+        'created_at': datetime.now().isoformat(timespec='seconds'),
+        'runtime_info': runtime_info,
+        'system_check': system_check,
+        'workbench_status': workbench_status,
+        'product_readiness': product_readiness,
+        'agent_jobs': safe_jobs,
+        'gallery_resumes': gallery,
+        'privacy': {
+            'excluded': [
+                'generation_context.json',
+                'full_jd_text',
+                'full_interview_text',
+                'agent_prompt.md',
+                'stdout.log',
+                'stderr.log',
+                'api_keys',
+            ],
+            'note': '诊断包只包含运行状态和质量摘要，不包含完整 JD、面经、Agent prompt、原始日志或模型密钥',
+        },
+    }
+
+
+def _build_diagnostics_package(host: str | None = None, port: int | None = None) -> tuple[bytes, str, dict]:
+    payload = build_diagnostics_payload(host=host, port=port)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    root_name = f'resume_generator_pro_diagnostics_{timestamp}'
+    files = {
+        'diagnostics.json': payload,
+        'runtime_info.json': payload['runtime_info'],
+        'system_check.json': payload['system_check'],
+        'workbench_status.json': payload['workbench_status'],
+        'product_readiness.json': payload['product_readiness'],
+        'agent_jobs.json': {'jobs': payload['agent_jobs']},
+        'gallery_resumes.json': {'resumes': payload['gallery_resumes']},
+    }
+    manifest = {
+        'package_type': payload['package_type'],
+        'created_at': payload['created_at'],
+        'files': [f'{root_name}/{name}' for name in files],
+        'privacy': payload['privacy'],
+    }
+    readme = '\n'.join([
+        'Resume Generator Pro diagnostics package',
+        '',
+        'This archive contains safe runtime and workflow summaries for local troubleshooting.',
+        'It intentionally excludes full JD/interview text, generation_context.json, agent prompts, raw logs, and API keys.',
+        '',
+        'Start with diagnostics.json or system_check.json.',
+        '',
+    ])
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f'{root_name}/README.txt', readme)
+        for name, value in files.items():
+            zf.writestr(
+                f'{root_name}/{name}',
+                json.dumps(value, ensure_ascii=False, indent=2),
+            )
+        zf.writestr(
+            f'{root_name}/manifest.json',
+            json.dumps(manifest, ensure_ascii=False, indent=2),
+        )
+    return buffer.getvalue(), f'{root_name}.zip', manifest
+
+
+def _selected_agent_health(agent_name: str) -> dict:
+    """Return health for the exact Agent selected by the user."""
+    normalized = str(agent_name or 'codex').strip().lower()
+    if normalized in {'auto', 'automatic'}:
+        fallback = _healthy_agent_fallback('auto')
+        if fallback:
+            return {
+                'ok': True,
+                'status': 'pass',
+                'name': fallback['agent'],
+                'detail': f'自动选择：{fallback["label"]}；{fallback["detail"]}',
+                'action': '',
+                'selected_agent': 'auto',
+            }
+        return {
+            'ok': False,
+            'status': 'fail',
+            'name': 'auto',
+            'detail': '没有可用的本地 Agent',
+            'action': '安装或登录本地 Agent CLI',
+            'error_code': 'NO_HEALTHY_AGENT',
+        }
+    try:
+        from tools.agent_adapters.codex import CodexAdapter
+        from tools.agent_adapters.claude_code import ClaudeCodeAdapter
+        if normalized == 'codex':
+            health = CodexAdapter(PROJECT_ROOT).health_check()
+        elif normalized in {'claude', 'claude_code', 'claude-code'}:
+            health = ClaudeCodeAdapter(PROJECT_ROOT).health_check()
+        else:
+            return {
+                'ok': False,
+                'status': 'fail',
+                'name': normalized,
+                'detail': f'未知本地 Agent：{agent_name}',
+                'action': '选择可用 Agent',
+                'error_code': 'UNKNOWN_AGENT',
+            }
+    except Exception as exc:
+        return {
+            'ok': False,
+            'status': 'fail',
+            'name': normalized,
+            'detail': f'所选 Agent 检查失败：{exc}',
+            'action': '修复本地 Agent',
+            'error_code': 'AGENT_HEALTH_CHECK_FAILED',
+        }
+    return health if isinstance(health, dict) else {
+        'ok': False,
+        'status': 'fail',
+        'name': normalized,
+        'detail': '所选 Agent 未返回有效健康状态',
+        'action': '修复本地 Agent',
+        'error_code': 'AGENT_HEALTH_CHECK_INVALID',
+    }
+
+
+def _agent_display_label(agent_name: str) -> str:
+    normalized = str(agent_name or '').strip().lower()
+    if normalized in {'auto', 'automatic'}:
+        return '自动选择'
+    if normalized == 'codex':
+        return 'Codex'
+    if normalized in {'claude', 'claude_code', 'claude-code'}:
+        return 'Claude Code'
+    return agent_name or 'Agent'
+
+
+def _healthy_agent_fallback(selected_agent: str) -> dict | None:
+    """Find a healthy alternative Agent the UI can switch to directly."""
+    selected = str(selected_agent or 'codex').strip().lower()
+    candidates = [
+        ('codex', 'Codex'),
+        ('claude', 'Claude Code'),
+    ]
+    for agent_value, label in candidates:
+        if agent_value == selected or (selected in {'claude_code', 'claude-code'} and agent_value == 'claude'):
+            continue
+        health = _selected_agent_health(agent_value)
+        if health.get('ok'):
+            return {
+                'agent': agent_value,
+                'label': label,
+                'detail': health.get('detail') or f'{label} 可用',
+            }
+    return None
+
+
+def build_agent_run_preflight_failure(data: dict | None = None) -> dict | None:
+    """Return a structured blocking payload when an Agent job should not start."""
+    system_check = build_system_check()
+    checks = system_check.get('checks') if isinstance(system_check.get('checks'), list) else []
+    checks = list(checks)
+    selected_agent_failure = None
+
+    if isinstance(data, dict):
+        selected_agent = str(data.get('agent') or 'auto').strip()
+        selected_health = _selected_agent_health(selected_agent)
+        if not selected_health.get('ok'):
+            fallback = _healthy_agent_fallback(selected_agent)
+            selected_agent_failure = {
+                'key': 'selected_agent',
+                'label': f'所选 Agent（{_agent_display_label(selected_agent)}）',
+                'status': 'fail',
+                'detail': selected_health.get('detail') or '所选本地 Agent 当前不可用',
+                'action': selected_health.get('action') or '修复本地 Agent',
+                'required': True,
+                'target_page': '',
+                'agent': selected_health.get('name') or selected_agent,
+                'error_code': selected_health.get('error_code') or 'SELECTED_AGENT_UNHEALTHY',
+            }
+            if fallback:
+                selected_agent_failure.update({
+                    'fallback_agent': fallback['agent'],
+                    'fallback_label': fallback['label'],
+                    'fallback_detail': fallback['detail'],
+                    'fallback_action': f'切换到 {fallback["label"]}',
+                })
+            checks.append(selected_agent_failure)
+            system_check = {
+                **system_check,
+                'status': 'blocked',
+                'label': '需先修复',
+                'summary': '所选后台 Agent 当前不可用',
+                'next_action': selected_agent_failure['action'],
+                'checks': checks,
+            }
+
+    required_failures = [
+        c for c in checks
+        if isinstance(c, dict) and c.get('required') and c.get('status') == 'fail'
+    ]
+    if not required_failures:
+        return None
+    first = selected_agent_failure or required_failures[0]
+    label = first.get('label') or '本地自检'
+    detail = first.get('detail') or '存在阻断项'
+    return {
+        'error': f'启动前检查未通过：{label} - {detail}',
+        'error_code': 'SELECTED_AGENT_UNHEALTHY' if selected_agent_failure else 'SYSTEM_CHECK_BLOCKED',
+        'system_check': system_check,
+        'blocking_check': first,
+    }
 
 
 # ─── 简历画廊 ─────────────────────────────────────────────────
@@ -2191,15 +4539,38 @@ def list_gallery_resumes() -> list:
                 continue
             pdf = sorted(pdf_files, reverse=True)[0]
 
-        parts = d.name.split('_')
-        parsed_company = parts[0] if len(parts) >= 1 else d.name
-        parsed_role = parts[1] if len(parts) >= 2 else ''
+        parsed_meta = _parse_resume_dir_metadata(d.name)
+        parsed_company = parsed_meta.get('company') or d.name
+        parsed_role = parsed_meta.get('role') or ''
         company = context.get('company', '') or parsed_company
         role = context.get('role', '') or parsed_role
-        date = parts[2] if len(parts) >= 3 else ''
-        if date and len(date) == 8:
-            date = f'{date[:4]}/{date[4:6]}/{date[6:]}'
+        date = parsed_meta.get('date') or ''
         rel_path = str(pdf.relative_to(_output_dir()))
+        visual_review = context.get('visual_review') if isinstance(context.get('visual_review'), dict) else {}
+        if not visual_review:
+            review_json = d / 'visual_review' / 'visual_review.json'
+            if review_json.exists():
+                try:
+                    loaded_review = json.loads(review_json.read_text(encoding='utf-8'))
+                    if isinstance(loaded_review, dict):
+                        visual_review = loaded_review
+                except Exception:
+                    visual_review = {}
+        visual_review = _with_visual_review_screenshot_path(d, visual_review)
+        version_count = _get_version_count(d)
+        quality_report = _build_resume_quality_report(
+            pdf_exists=pdf.exists(),
+            visual_review=visual_review,
+            version_count=version_count,
+            context=context,
+        )
+        workflow_status = _build_resume_workflow_status(
+            pdf_exists=pdf.exists(),
+            visual_review=visual_review,
+            quality_report=quality_report,
+            version_count=version_count,
+            context=context,
+        )
 
         resumes.append({
             'company': company,
@@ -2209,7 +4580,7 @@ def list_gallery_resumes() -> list:
             'pdf_name': pdf.name,
             'pdf_path': rel_path,
             'size': pdf.stat().st_size,
-            'version_count': _get_version_count(d),
+            'version_count': version_count,
             'jd_text': context.get('jd_text', '') or '',
             'interview_text': context.get('interview_text', '') or '',
             'interview_notes': context.get('interview_notes', '') or '',
@@ -2218,6 +4589,9 @@ def list_gallery_resumes() -> list:
             'engine': context.get('engine', ''),
             'ai_provider': context.get('ai_provider', ''),
             'ai_model': context.get('ai_model', ''),
+            'visual_review': visual_review,
+            'quality_report': quality_report,
+            'workflow_status': workflow_status,
             'language': language,
         })
 
@@ -2339,12 +4713,26 @@ class ResumeHandler(BaseHTTPRequestHandler):
 
         if path == '/' or path == '/index.html':
             self._serve_html()
+        elif path.startswith('/assets/'):
+            self._serve_asset(path)
         elif path == '/api/persons':
             self._get_persons()
         elif path == '/api/profile':
             self._get_profile()
+        elif path == '/api/profile/skill-suggestions':
+            self._get_profile_skill_suggestions()
         elif path == '/api/model-config':
             self._get_model_config()
+        elif path == '/api/runtime-info':
+            self._get_runtime_info()
+        elif path == '/api/system-check':
+            self._get_system_check()
+        elif path == '/api/workbench-status':
+            self._get_workbench_status()
+        elif path == '/api/product-readiness':
+            self._get_product_readiness()
+        elif path == '/api/diagnostics-package':
+            self._export_diagnostics_package()
         elif path == '/api/extra-info':
             self._get_extra_info()
         elif path == '/api/experiences':
@@ -2354,9 +4742,18 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._get_experience_content(filename)
         elif path == '/api/gallery':
             self._get_gallery()
+        elif path.startswith('/api/gallery/') and path.endswith('/delivery-package'):
+            dir_name = urllib.parse.unquote(path[len('/api/gallery/'):-len('/delivery-package')])
+            self._export_gallery_delivery_package(dir_name)
         elif path.startswith('/api/gallery/pdf/'):
             rel_path = urllib.parse.unquote(path[len('/api/gallery/pdf/'):])
             self._serve_gallery_pdf(rel_path)
+        elif path.startswith('/api/gallery/asset/'):
+            rel_path = urllib.parse.unquote(path[len('/api/gallery/asset/'):])
+            self._serve_gallery_asset(rel_path)
+        elif path.startswith('/gallery/asset/'):
+            rel_path = urllib.parse.unquote(path[len('/gallery/asset/'):])
+            self._serve_gallery_asset(rel_path)
         elif path.startswith('/api/editor/tex'):
             query = urllib.parse.urlparse(self.path).query
             params = urllib.parse.parse_qs(query)
@@ -2389,6 +4786,14 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._serve_monitor_html()
         elif path == '/api/monitor/logs':
             self._get_monitor_logs()
+        elif path == '/api/agent/jobs':
+            self._list_agent_jobs()
+        elif path.startswith('/api/agent/jobs/') and path.endswith('/log'):
+            job_id = urllib.parse.unquote(path[len('/api/agent/jobs/'):-len('/log')])
+            self._get_agent_job_log(job_id)
+        elif path.startswith('/api/agent/jobs/'):
+            job_id = urllib.parse.unquote(path[len('/api/agent/jobs/'):])
+            self._get_agent_job(job_id)
         else:
             self.send_error(404)
 
@@ -2407,6 +4812,8 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._set_active_person()
         elif path == '/api/profile':
             self._save_profile()
+        elif path == '/api/profile/ai-suggest':
+            self._suggest_profile_with_ai()
         elif path == '/api/model-config':
             self._save_model_config()
         elif path == '/api/extra-info':
@@ -2421,6 +4828,8 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._generate_resume_plan()
         elif path == '/api/generate':
             self._generate_resume()
+        elif path == '/api/agent/run':
+            self._run_agent_job()
         elif path == '/api/import-resume/create-empty':
             self._create_import_draft()
         elif path == '/api/import-resume/parse':
@@ -2435,6 +4844,15 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._saveas_editor_tex()
         elif path == '/api/editor/compile':
             self._compile_editor_tex()
+        elif path.startswith('/api/gallery/') and path.endswith('/visual-review'):
+            dir_name = urllib.parse.unquote(path[len('/api/gallery/'):-len('/visual-review')])
+            self._rerun_gallery_visual_review(dir_name)
+        elif path.startswith('/api/gallery/') and path.endswith('/version-snapshot'):
+            dir_name = urllib.parse.unquote(path[len('/api/gallery/'):-len('/version-snapshot')])
+            self._create_gallery_version_snapshot(dir_name)
+        elif path.startswith('/api/gallery/') and path.endswith('/snapshot'):
+            dir_name = urllib.parse.unquote(path[len('/api/gallery/'):-len('/snapshot')])
+            self._create_gallery_version_snapshot(dir_name)
         elif path == '/api/editor/versions/note':
             self._update_version_note()
         elif path == '/api/editor/versions/restore':
@@ -2458,6 +4876,12 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self._send_error_json('飞书同步尚未实现', 501)
         elif path == '/api/monitor/clear':
             self._clear_monitor_logs()
+        elif path.startswith('/api/agent/jobs/') and path.endswith('/cancel'):
+            job_id = urllib.parse.unquote(path[len('/api/agent/jobs/'):-len('/cancel')])
+            self._cancel_agent_job(job_id)
+        elif path.startswith('/api/memory/suggestions/') and path.endswith('/apply'):
+            job_id = urllib.parse.unquote(path[len('/api/memory/suggestions/'):-len('/apply')])
+            self._apply_memory_suggestions(job_id)
         else:
             self.send_error(404)
 
@@ -2519,6 +4943,27 @@ class ResumeHandler(BaseHTTPRequestHandler):
         content = html_path.read_bytes()
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', len(content))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _serve_asset(self, path):
+        rel_path = urllib.parse.unquote(path.lstrip('/'))
+        asset_path = (WEB_DIR / rel_path).resolve()
+        assets_root = (WEB_DIR / 'assets').resolve()
+        try:
+            asset_path.relative_to(assets_root)
+        except ValueError:
+            self.send_error(404)
+            return
+        if not asset_path.is_file():
+            self.send_error(404)
+            return
+
+        content = asset_path.read_bytes()
+        content_type = mimetypes.guess_type(str(asset_path))[0] or 'application/octet-stream'
+        self.send_response(200)
+        self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', len(content))
         self.end_headers()
         self.wfile.write(content)
@@ -2612,9 +5057,58 @@ class ResumeHandler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send_error_json(str(e), 500)
 
+    def _get_profile_skill_suggestions(self):
+        try:
+            self._send_json(build_local_skill_suggestions())
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
     def _get_model_config(self):
         try:
             self._send_json(get_model_config())
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_system_check(self):
+        try:
+            self._send_json(build_system_check())
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_workbench_status(self):
+        try:
+            self._send_json(build_workbench_status())
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_product_readiness(self):
+        try:
+            host = self.headers.get('Host') or ''
+            port = int(getattr(self.server, 'server_port', 8765) or 8765)
+            self._send_json(build_product_readiness(host=host, port=port))
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _export_diagnostics_package(self):
+        try:
+            host = self.headers.get('Host') or ''
+            port = int(getattr(self.server, 'server_port', 8765) or 8765)
+            content, filename, _ = _build_diagnostics_package(host=host, port=port)
+            quoted = urllib.parse.quote(filename)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/zip')
+            self.send_header('Content-Length', len(content))
+            self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quoted}")
+            self.end_headers()
+            self.wfile.write(content)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_runtime_info(self):
+        try:
+            host = self.headers.get('Host') or ''
+            port = int(getattr(self.server, 'server_port', 8765) or 8765)
+            self._send_json(build_runtime_info(host=host, port=port))
         except Exception as e:
             self._send_error_json(str(e), 500)
 
@@ -2629,6 +5123,22 @@ class ResumeHandler(BaseHTTPRequestHandler):
             _profile_path().write_text(md_content, encoding='utf-8')
 
             self._send_json({'success': True, 'message': '个人信息已保存'})
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _suggest_profile_with_ai(self):
+        """POST /api/profile/ai-suggest — 用 AI 生成资料补充建议，不直接写入 profile.md"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8')) if body else {}
+            profile = data.get('profile') if isinstance(data.get('profile'), dict) else parse_profile()
+            source_text = data.get('source_text', '')
+            jd_text = data.get('jd_text', '')
+            suggestion = ai_suggest_profile_completion(profile, source_text=source_text, jd_text=jd_text)
+            self._send_json({'success': True, **suggestion})
+        except RuntimeError as e:
+            self._send_error_json(str(e), 400)
         except Exception as e:
             self._send_error_json(str(e), 500)
 
@@ -2747,6 +5257,190 @@ class ResumeHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Disposition', f'inline; filename="{pdf_path.name}"')
             self.end_headers()
             self.wfile.write(content)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _serve_gallery_asset(self, rel_path):
+        try:
+            if '..' in rel_path or rel_path.startswith('/'):
+                self._send_error_json('非法路径', 403)
+                return
+            asset_path = _output_dir() / rel_path
+            if not asset_path.exists() or not asset_path.is_file():
+                self._send_error_json('文件不存在', 404)
+                return
+            try:
+                asset_path.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            content_type = mimetypes.guess_type(str(asset_path))[0] or 'application/octet-stream'
+            allowed = {'image/png', 'image/jpeg', 'image/webp', 'application/json', 'text/plain'}
+            if content_type not in allowed:
+                self._send_error_json('不支持的文件类型', 403)
+                return
+            content = asset_path.read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', len(content))
+            self.send_header('Content-Disposition', f'inline; filename="{asset_path.name}"')
+            self.end_headers()
+            self.wfile.write(content)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _rerun_gallery_visual_review(self, dir_name):
+        try:
+            if not dir_name or '..' in dir_name or '/' in dir_name or dir_name.startswith('.'):
+                self._send_error_json('非法路径', 403)
+                return
+            out_dir = _output_dir() / dir_name
+            try:
+                out_dir.resolve().relative_to(_output_dir().resolve())
+            except ValueError:
+                self._send_error_json('非法路径', 403)
+                return
+            if not out_dir.exists() or not out_dir.is_dir():
+                self._send_error_json('目录不存在', 404)
+                return
+
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length) if content_length else b'{}'
+            data = json.loads(body.decode('utf-8') or '{}')
+            context = _load_generation_context(out_dir)
+            requested_language = data.get('language') or context.get('language')
+            language = _resolve_output_language(out_dir, requested_language)
+            _, _, pdf_path = _resolve_resume_paths(out_dir, language)
+
+            existing_review = context.get('visual_review') if isinstance(context.get('visual_review'), dict) else {}
+            if not existing_review:
+                review_json = out_dir / 'visual_review' / 'visual_review.json'
+                if review_json.exists():
+                    try:
+                        loaded_review = json.loads(review_json.read_text(encoding='utf-8'))
+                        if isinstance(loaded_review, dict):
+                            existing_review = loaded_review
+                    except Exception:
+                        existing_review = {}
+
+            compile_result = {'success': True, 'log_tail': ''}
+            should_compile = bool(data.get('compile')) or not pdf_path.exists()
+            if should_compile:
+                compile_result = _compile_resume_dir(out_dir, language=language)
+                if not compile_result.get('success'):
+                    self._send_json({
+                        'success': False,
+                        'output_dir': dir_name,
+                        'language': language,
+                        'error': compile_result.get('error', '编译失败'),
+                        'log_tail': compile_result.get('log_tail', ''),
+                    })
+                    return
+
+            metrics = _measure_resume_metrics(
+                out_dir,
+                language,
+                context=context,
+                existing_review=existing_review,
+                compile_result=compile_result,
+            )
+            fill_ratio = metrics.get('fill_ratio', 0.0)
+            page_count = int(metrics.get('page_count') or 0)
+            from tools.generate_resume import run_visual_review
+            visual_review = run_visual_review(
+                out_dir,
+                pdf_filename=pdf_path.name,
+                fill_ratio=fill_ratio,
+                page_count=page_count,
+            )
+            visual_review['reviewed_at'] = datetime.now().isoformat(timespec='seconds')
+            visual_review['agent_feedback'] = _build_visual_review_agent_feedback(visual_review)
+            review_json = out_dir / 'visual_review' / 'visual_review.json'
+            review_json.write_text(json.dumps(visual_review, ensure_ascii=False, indent=2), encoding='utf-8')
+            enriched_review = _with_visual_review_screenshot_path(out_dir, visual_review)
+
+            context.update({
+                'language': language,
+                'fill_ratio': fill_ratio,
+                'page_count': page_count,
+                'pages': page_count,
+                'visual_review': visual_review,
+                'visual_review_updated_at': visual_review['reviewed_at'],
+            })
+            _save_generation_context(out_dir, context)
+            version_count = _get_version_count(out_dir)
+            quality_report = _build_resume_quality_report(
+                pdf_exists=pdf_path.exists(),
+                visual_review=enriched_review,
+                version_count=version_count,
+                context=context,
+            )
+            workflow_status = _build_resume_workflow_status(
+                pdf_exists=pdf_path.exists(),
+                visual_review=enriched_review,
+                quality_report=quality_report,
+                version_count=version_count,
+                context=context,
+            )
+
+            self._send_json({
+                'success': True,
+                'output_dir': dir_name,
+                'pdf_path': str(pdf_path.relative_to(_output_dir())),
+                'language': language,
+                'pages': page_count,
+                'fill_ratio': fill_ratio,
+                'visual_review': enriched_review,
+                'quality_report': quality_report,
+                'workflow_status': workflow_status,
+                'version_count': version_count,
+                'log_tail': compile_result.get('log_tail', ''),
+            })
+        except json.JSONDecodeError:
+            self._send_error_json('请求 JSON 格式错误', 400)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _create_gallery_version_snapshot(self, dir_name):
+        try:
+            out_dir = _resolve_gallery_output_dir(dir_name)
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length) if content_length else b'{}'
+            data = json.loads(body.decode('utf-8') or '{}')
+            payload = _create_manual_version_snapshot(
+                out_dir,
+                note=str(data.get('note') or '').strip()[:160],
+                language=data.get('language'),
+            )
+            self._send_json(payload)
+        except ValueError as e:
+            self._send_error_json(str(e), 403)
+        except FileNotFoundError as e:
+            self._send_error_json(str(e), 404)
+        except json.JSONDecodeError:
+            self._send_error_json('请求 JSON 格式错误', 400)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _export_gallery_delivery_package(self, dir_name):
+        """GET /api/gallery/{dir}/delivery-package — 下载单份简历交付包"""
+        try:
+            out_dir = _resolve_gallery_output_dir(dir_name)
+            content, filename, _ = _build_delivery_package(out_dir)
+            quoted = urllib.parse.quote(filename)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/zip')
+            self.send_header('Content-Length', len(content))
+            self.send_header(
+                'Content-Disposition',
+                f"attachment; filename*=UTF-8''{quoted}",
+            )
+            self.end_headers()
+            self.wfile.write(content)
+        except ValueError as e:
+            self._send_error_json(str(e), 403)
+        except FileNotFoundError as e:
+            self._send_error_json(str(e), 404)
         except Exception as e:
             self._send_error_json(str(e), 500)
 
@@ -3057,6 +5751,89 @@ class ResumeHandler(BaseHTTPRequestHandler):
         except Exception as e:
             import traceback
             traceback.print_exc()
+            self._send_error_json(str(e), 500)
+
+    def _run_agent_job(self):
+        """创建本地 coding-agent 生成任务并立即返回 job 状态"""
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8')) if body else {}
+
+            preflight_failure = build_agent_run_preflight_failure(data)
+            if preflight_failure:
+                self._send_json(preflight_failure, status=409)
+                return
+
+            from tools.agent_orchestrator import start_agent_job
+
+            status, result = start_agent_job(
+                data,
+                active_person_id=get_active_person_id(),
+            )
+            self._send_json(result, status=status)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_error_json(str(e), 500)
+
+    def _list_agent_jobs(self):
+        """GET /api/agent/jobs — 查询最近本地 agent 任务，不返回完整 JD"""
+        try:
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            try:
+                limit = int(params.get('limit', ['8'])[0] or 8)
+            except ValueError:
+                limit = 8
+            from tools.agent_orchestrator import list_agent_jobs
+            status, result = list_agent_jobs(limit=limit)
+            self._send_json(result, status=status)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_agent_job(self, job_id):
+        """GET /api/agent/jobs/{job_id} — 查询本地 agent 任务状态"""
+        try:
+            from tools.agent_orchestrator import get_agent_job
+            status, result = get_agent_job(job_id)
+            result = _enrich_agent_job_payload(result)
+            self._send_json(result, status=status)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _get_agent_job_log(self, job_id):
+        """GET /api/agent/jobs/{job_id}/log?since_seq=N — 查询增量日志"""
+        try:
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            try:
+                since_seq = int(params.get('since_seq', ['0'])[0] or 0)
+            except ValueError:
+                since_seq = 0
+            from tools.agent_orchestrator import get_agent_job_log
+            status, result = get_agent_job_log(job_id, since_seq=since_seq)
+            self._send_json(result, status=status)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _cancel_agent_job(self, job_id):
+        """POST /api/agent/jobs/{job_id}/cancel — 取消本地 agent 任务"""
+        try:
+            from tools.agent_orchestrator import cancel_agent_job
+            status, result = cancel_agent_job(job_id)
+            self._send_json(result, status=status)
+        except Exception as e:
+            self._send_error_json(str(e), 500)
+
+    def _apply_memory_suggestions(self, job_id):
+        """POST /api/memory/suggestions/{job_id}/apply — 确认写入长期记忆建议"""
+        try:
+            from tools.agent_orchestrator import apply_memory_suggestions
+            status, result = apply_memory_suggestions(job_id)
+            self._send_json(result, status=status)
+        except Exception as e:
             self._send_error_json(str(e), 500)
 
     # ─── LaTeX Editor API ──────────────────────────────────────
@@ -4015,7 +6792,7 @@ def main():
     _experiences_dir().mkdir(parents=True, exist_ok=True)
     _work_materials_dir().mkdir(parents=True, exist_ok=True)
 
-    server = HTTPServer((args.host, args.port), ResumeHandler)
+    server = ThreadingHTTPServer((args.host, args.port), ResumeHandler)
     url = f'http://{"localhost" if args.host == "127.0.0.1" else args.host}:{args.port}'
     print(f'Resume Generator Pro Web UI')
     print(f'服务地址: {url}')

@@ -55,6 +55,13 @@ from tools.person_manager import (
 from tools.migrate_to_multi_person import maybe_migrate as _maybe_migrate
 from tools.model_config import get_model_config, load_local_env
 from tools.language_utils import normalize_language, resolve_resume_filenames
+from tools.skill_derivation import (
+    count_skill_values,
+    derive_skills_from_text,
+    existing_skill_values_from_profile,
+    merge_skill_strings,
+    safe_read_text,
+)
 from tools import gen_log
 
 load_local_env()
@@ -231,6 +238,24 @@ GEMINI_PLAN_SCHEMA: dict[str, Any] = {
                 'required': ['name', 'relevance_reason', 'rewritten_bullets'],
             },
         },
+        'selected_campus_experiences': {
+            'type': 'array',
+            'maxItems': 2,
+            'items': {
+                'type': 'object',
+                'properties': {
+                    'name': {'type': 'string', 'description': '必须等于候选校园经历中的 name'},
+                    'relevance_reason': {'type': 'string', 'description': '解释这段校园经历如何证明候选人符合candidate_portrait的描述'},
+                    'rewritten_bullets': {
+                        'type': 'array',
+                        'items': {'type': 'string'},
+                        'minItems': 1,
+                        'maxItems': 2,
+                    },
+                },
+                'required': ['name', 'relevance_reason', 'rewritten_bullets'],
+            },
+        },
         'selected_awards': {
             'type': 'array',
             'maxItems': 3,
@@ -250,6 +275,7 @@ GEMINI_PLAN_SCHEMA: dict[str, Any] = {
         'jd_understanding',
         'selected_experiences',
         'selected_projects',
+        'selected_campus_experiences',
         'selected_awards',
     ],
 }
@@ -343,7 +369,8 @@ def _redact_text_with_ai_config(text: str, ai_config: dict) -> str:
 def _write_generation_context(output_dir: Path, *, jd_text: str, interview_text: str,
                               company: str, role: str, engine: str,
                               ai_provider: str | None, ai_model: str | None,
-                              fill_ratio: float, language: str = 'zh') -> None:
+                              fill_ratio: float, language: str = 'zh',
+                              visual_review: dict | None = None) -> None:
     payload = {
         'company': company,
         'role': role,
@@ -354,6 +381,7 @@ def _write_generation_context(output_dir: Path, *, jd_text: str, interview_text:
         'ai_model': ai_model,
         'fill_ratio': fill_ratio,
         'language': normalize_language(language),
+        'visual_review': visual_review or {},
         'generated_at': datetime.now().isoformat(timespec='seconds'),
     }
     (output_dir / 'generation_context.json').write_text(
@@ -627,24 +655,84 @@ def _profile_setup_error(person_id: str | None = None) -> str | None:
         return '⚠️ 请先完成个人信息设置：\n1. 打开 data/profile.md\n2. 将所有 [YOUR_XXX] 占位符替换为你的真实信息\n3. 完成后重新发送 JD\n\n详细说明请参考 SETUP.md'
     profile = _parse_profile(person_id)
     has_education = any(edu.get('school') for edu in profile.get('education', []))
-    has_skills = any(profile.get(key, '').strip() for key in ('skills_tech', 'skills_software', 'skills_lang'))
     required_fields = (profile.get('name_zh', ''), profile.get('email', ''), profile.get('phone', ''))
-    if not all(field.strip() for field in required_fields) or not has_education or not has_skills:
+    if not all(field.strip() for field in required_fields) or not has_education:
         return '⚠️ 请先完成个人信息设置：\n1. 打开 data/profile.md\n2. 将所有 [YOUR_XXX] 占位符替换为你的真实信息\n3. 完成后重新发送 JD\n\n详细说明请参考 SETUP.md'
     return None
 
 
+def _iter_derived_skill_sources(person_id: str | None) -> list[Path]:
+    sources: list[Path] = []
+    try:
+        profile_path = get_person_profile_path(person_id)
+        if profile_path.exists():
+            sources.append(profile_path)
+    except Exception:
+        pass
+    try:
+        sources.extend(sorted(p for p in get_person_experiences_dir(person_id).glob('*.md') if p.is_file()))
+    except Exception:
+        pass
+    try:
+        work_dir = get_person_work_materials_dir(person_id)
+        for folder in sorted(p for p in work_dir.iterdir() if p.is_dir()):
+            for path in sorted(folder.iterdir()):
+                if path.is_file() and path.suffix.lower() in {'.md', '.txt', '.json', '.csv'}:
+                    sources.append(path)
+    except Exception:
+        pass
+    try:
+        output_dirs = sorted(
+            (p for p in get_person_output_dir(person_id).iterdir() if p.is_dir()),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for folder in output_dirs[:8]:
+            for name in ('resume-zh_CN.tex', 'resume-en.tex', 'generation_context.json'):
+                path = folder / name
+                if path.is_file():
+                    sources.append(path)
+    except Exception:
+        pass
+    return sources
+
+
+def _profile_with_derived_skills(profile: dict, person_id: str | None) -> tuple[dict, dict]:
+    sources = _iter_derived_skill_sources(person_id)
+    corpus = '\n'.join(safe_read_text(path) for path in sources)
+    suggestions = derive_skills_from_text(
+        corpus,
+        existing=existing_skill_values_from_profile(profile),
+    )
+    derived_count = count_skill_values(suggestions)
+    if derived_count <= 0:
+        return profile, {'suggestions': suggestions, 'derived_count': 0, 'source_count': len(sources)}
+
+    enriched = dict(profile)
+    enriched['skills_tech'] = merge_skill_strings(
+        enriched.get('skills_tech', ''),
+        suggestions.get('tech', []),
+        max_items=14,
+    )
+    enriched['skills_software'] = merge_skill_strings(
+        enriched.get('skills_software', ''),
+        suggestions.get('software', []),
+        max_items=10,
+    )
+    enriched['skills_lang'] = merge_skill_strings(
+        enriched.get('skills_lang', ''),
+        suggestions.get('languages', []),
+        max_items=3,
+    )
+    return enriched, {
+        'suggestions': suggestions,
+        'derived_count': derived_count,
+        'source_count': len(sources),
+    }
+
+
 def _experiences_setup_error(person_id: str | None = None) -> str | None:
-    exp_dir = get_person_experiences_dir(person_id)
-    valid_files = []
-    if exp_dir.exists():
-        for file_path in exp_dir.iterdir():
-            if file_path.suffix == '.md' and file_path.name not in ('_template.md', 'README.md'):
-                if file_path.read_text(encoding='utf-8').strip():
-                    valid_files.append(file_path)
-    if valid_files:
-        return None
-    return '⚠️ 请先添加至少一段经历：\n1. 复制 data/experiences/_template.md\n2. 重命名为 01_公司名.md 并填写\n3. 完成后重新发送 JD\n\n详细说明请参考 SETUP.md'
+    return None
 
 
 def _keywords_set(jd_keywords: dict) -> set[str]:
@@ -711,6 +799,36 @@ def _score_project(project: dict, jd_keywords: dict) -> int:
     return sum(3 for keyword in _keywords_set(jd_keywords) if keyword in full_text)
 
 
+def _split_campus_highlights(raw) -> list[str]:
+    if isinstance(raw, list):
+        items = raw
+    else:
+        items = re.split(r'[\n；;]+', str(raw or ''))
+    return [_sanitize_bullet(str(item).strip().lstrip('-•· ')) for item in items if str(item).strip()]
+
+
+def _fallback_campus_bullets(item: dict, max_count: int = 2) -> list[str]:
+    bullets = _split_campus_highlights(item.get('highlights', ''))
+    if not bullets and item.get('role'):
+        bullets = [_sanitize_bullet(f"{item.get('role')}：{item.get('name', '')}")]
+    return bullets[:max_count]
+
+
+def _score_campus_experience(item: dict, jd_keywords: dict) -> int:
+    full_text = ' '.join(
+        [
+            item.get('name', ''),
+            item.get('role', ''),
+            item.get('highlights', '') if isinstance(item.get('highlights', ''), str) else ' '.join(item.get('highlights', [])),
+            item.get('tags', ''),
+        ]
+    ).lower()
+    score = sum(3 for keyword in _keywords_set(jd_keywords) if keyword in full_text)
+    campus_boost_tokens = ('组织', '学生会', '社团', '志愿', '竞赛', '挑战赛', '负责人', '运营', '活动', '社群', '领导')
+    score += sum(1 for token in campus_boost_tokens if token in full_text)
+    return score
+
+
 def _filter_projects(profile: dict, jd_keywords: dict,
                      preferred_entries: list[dict] | None = None,
                      remaining_slots: int = 2) -> list[dict]:
@@ -752,6 +870,56 @@ def _filter_projects(profile: dict, jd_keywords: dict,
         if not project['selected_bullets']:
             continue
         selected.append(project)
+        if len(selected) >= min(2, remaining_slots):
+            break
+    return selected
+
+
+def _filter_campus_experiences(profile: dict, jd_keywords: dict,
+                               preferred_entries: list[dict] | None = None,
+                               remaining_slots: int = 2) -> list[dict]:
+    if remaining_slots <= 0:
+        return []
+    campus_map = {
+        item.get('name', ''): item
+        for item in profile.get('campus_experiences', [])
+        if item.get('name')
+    }
+    selected = []
+    used_names = set()
+    for entry in preferred_entries or []:
+        name = entry.get('name', '')
+        if name in used_names or name not in campus_map:
+            continue
+        item = dict(campus_map[name])
+        ai_bullets = [_sanitize_bullet(bullet) for bullet in entry.get('rewritten_bullets', [])]
+        ai_bullets = [bullet for bullet in ai_bullets if bullet][:3]
+        item['selected_bullets'] = _select_best_bullets(
+            ai_bullets,
+            _fallback_campus_bullets(item, 3),
+            min_count=1,
+            max_count=2,
+        )
+        if not item['selected_bullets']:
+            continue
+        item['_reason'] = entry.get('relevance_reason', '')
+        selected.append(item)
+        used_names.add(name)
+        if len(selected) >= min(2, remaining_slots):
+            return selected
+    ranked = sorted(
+        (item for item in campus_map.values() if item.get('name') not in used_names),
+        key=lambda item: (_score_campus_experience(item, jd_keywords), _time_sort_key(item.get('time_start', ''))),
+        reverse=True,
+    )
+    for item in ranked:
+        if _score_campus_experience(item, jd_keywords) <= 0:
+            continue
+        item = dict(item)
+        item['selected_bullets'] = _fallback_campus_bullets(item, 2)
+        if not item['selected_bullets']:
+            continue
+        selected.append(item)
         if len(selected) >= min(2, remaining_slots):
             break
     return selected
@@ -905,6 +1073,40 @@ def _select_projects_from_plan(profile: dict, selected_entries: list[dict] | Non
             continue
         project['_reason'] = entry.get('relevance_reason', '')
         selected.append(project)
+        used_names.add(name)
+        if len(selected) >= min(2, remaining_slots):
+            break
+    return selected
+
+
+def _select_campus_from_plan(profile: dict, selected_entries: list[dict] | None,
+                             remaining_slots: int = 2) -> list[dict]:
+    if remaining_slots <= 0 or not selected_entries:
+        return []
+    campus_map = {
+        item.get('name', ''): item
+        for item in profile.get('campus_experiences', [])
+        if item.get('name')
+    }
+    selected = []
+    used_names = set()
+    for entry in selected_entries:
+        name = entry.get('name', '')
+        if name in used_names or name not in campus_map:
+            continue
+        item = dict(campus_map[name])
+        ai_bullets = [_sanitize_bullet(bullet) for bullet in entry.get('rewritten_bullets', [])]
+        ai_bullets = [bullet for bullet in ai_bullets if bullet][:3]
+        item['selected_bullets'] = _select_best_bullets(
+            ai_bullets,
+            _fallback_campus_bullets(item, 3),
+            min_count=1,
+            max_count=2,
+        )
+        if not item['selected_bullets']:
+            continue
+        item['_reason'] = entry.get('relevance_reason', '')
+        selected.append(item)
         used_names.add(name)
         if len(selected) >= min(2, remaining_slots):
             break
@@ -1069,6 +1271,14 @@ def _build_ai_prompt(profile: dict, experiences: list, projects: list,
         'tags': project.get('tags', ''),
     } for project in projects if project.get('name')]
 
+    campus_payload = [{
+        'name': item.get('name', ''),
+        'role': item.get('role', ''),
+        'time': item.get('time', '') or f"{item.get('time_start', '')} -- {item.get('time_end', '')}",
+        'highlights': item.get('highlights', ''),
+        'tags': item.get('tags', ''),
+    } for item in profile.get('campus_experiences', []) if item.get('name')]
+
     award_payload = [{
         'name': award.get('name', ''),
         'org': award.get('org', ''),
@@ -1087,7 +1297,7 @@ def _build_ai_prompt(profile: dict, experiences: list, projects: list,
     jd_clipped = _truncate(jd_text, max_jd_chars, 'JD')
     interview_clipped = _truncate(interview_text, max_interview_chars, '面经') if interview_text.strip() else '无'
 
-    output_example = ('{"company":"目标公司","role":"目标岗位","jd_understanding":{"candidate_portrait":"这个岗位在找能将复杂业务需求转化为可落地AI方案的人，核心诉求是具备产品策略判断、跨团队推动能力和可量化产出","core_demands":["具备AI产品或数据分析经验，能将分散信息整合为有逻辑的方案并支撑决策","能够跨部门协同推进需求从PoC到交付闭环，形成可复用的方法与流程","在项目中有可验证的效率提升或业务价值产出，而非仅描述参与过程"]},"selected_experiences":[{"filename":"必须等于候选经历的filename字段","relevance_reason":"说明这段经历如何证明候选人符合candidate_portrait的描述","rewritten_bullets":["AI产品方案设计与落地：基于WebSocket SDK实现健康管家Agent能力并集成Function Call工具调用，推动需求分析到客户交付全流程落地","全球AI产品研究与策略支持：研究15+家全球AI产品并输出50页分析报告，关键结论被采纳并推动2个Q3规划项目调整","效率工具开发：搭建自动化流程生成日报/周报/会议纪要，将周报准备时间从30min缩短至5min，准时率达100%"]}],"selected_projects":[{"name":"必须等于候选项目name字段","relevance_reason":"说明项目如何体现candidate_portrait要求的能力","rewritten_bullets":["数据产品化落地：使用XXX搭建YYY模块，覆盖ZZZ用户场景并形成可复用流程"]}],"selected_awards":[{"name":"必须等于候选奖项name字段","reason":"选择原因"}]}')
+    output_example = ('{"company":"目标公司","role":"目标岗位","jd_understanding":{"candidate_portrait":"这个岗位在找能将复杂业务需求转化为可落地AI方案的人，核心诉求是具备产品策略判断、跨团队推动能力和可量化产出","core_demands":["具备AI产品或数据分析经验，能将分散信息整合为有逻辑的方案并支撑决策","能够跨部门协同推进需求从PoC到交付闭环，形成可复用的方法与流程","在项目中有可验证的效率提升或业务价值产出，而非仅描述参与过程"]},"selected_experiences":[{"filename":"必须等于候选经历的filename字段","relevance_reason":"说明这段经历如何证明候选人符合candidate_portrait的描述","rewritten_bullets":["AI产品方案设计与落地：基于WebSocket SDK实现健康管家Agent能力并集成Function Call工具调用，推动需求分析到客户交付全流程落地","全球AI产品研究与策略支持：研究15+家全球AI产品并输出50页分析报告，关键结论被采纳并推动2个Q3规划项目调整","效率工具开发：搭建自动化流程生成日报/周报/会议纪要，将周报准备时间从30min缩短至5min，准时率达100%"]}],"selected_projects":[{"name":"必须等于候选项目name字段","relevance_reason":"说明项目如何体现candidate_portrait要求的能力","rewritten_bullets":["数据产品化落地：使用XXX搭建YYY模块，覆盖ZZZ用户场景并形成可复用流程"]}],"selected_campus_experiences":[{"name":"必须等于候选校园经历name字段","relevance_reason":"说明校园经历如何体现组织、领导、运营或竞赛成果","rewritten_bullets":["校园活动运营：组织跨院系活动并协调20+名成员完成招募、排期和现场执行，提升活动参与度"]}],"selected_awards":[{"name":"必须等于候选奖项name字段","reason":"选择原因"}]}')
 
     return textwrap.dedent(
         f"""
@@ -1107,6 +1317,9 @@ def _build_ai_prompt(profile: dict, experiences: list, projects: list,
 
         【候选项目】
         {json.dumps(project_payload, ensure_ascii=False, indent=2)}
+
+        【候选校园经历】
+        {json.dumps(campus_payload, ensure_ascii=False, indent=2)}
 
         【候选奖项】
         {json.dumps(award_payload, ensure_ascii=False, indent=2)}
@@ -1476,6 +1689,7 @@ def _parse_profile(person_id: str | None = None) -> dict:
         'awards': [],
         'skills_tech': '', 'skills_software': '', 'skills_lang': '',
         'projects': [],
+        'campus_experiences': [],
         'publications': [],
     }
 
@@ -1552,6 +1766,22 @@ def _parse_profile(person_id: str | None = None) -> dict:
                         'role': kv.get('角色', ''),
                         'time': kv.get('时间', ''),
                         'desc': kv.get('描述', ''),
+                        'tags': kv.get('标签', ''),
+                    })
+
+        elif sec.startswith('校园经历'):
+            subsections = re.split(r'### ', sec)
+            for sub in subsections[1:]:
+                blocks = re.findall(r'```\n(.*?)```', sub, re.DOTALL)
+                if blocks:
+                    kv = extract_kv(blocks[0])
+                    result['campus_experiences'].append({
+                        'name': kv.get('组织/活动名称', kv.get('活动名称', kv.get('组织', ''))),
+                        'role': kv.get('角色', ''),
+                        'time': kv.get('时间', ''),
+                        'time_start': (kv.get('时间', '').split('--')[0].strip() if '--' in kv.get('时间', '') else ''),
+                        'time_end': (kv.get('时间', '').split('--')[1].strip() if '--' in kv.get('时间', '') else ''),
+                        'highlights': kv.get('成果要点', kv.get('成果', '')),
                         'tags': kv.get('标签', ''),
                     })
 
@@ -1787,6 +2017,36 @@ def _gen_project_section(projects: list, language: str = 'zh') -> str:
     return '\n'.join(lines)
 
 
+def _gen_campus_section(campus_items: list, language: str = 'zh') -> str:
+    """生成校园经历 section"""
+    if not campus_items:
+        return ''
+
+    language = normalize_language(language)
+    section_title = 'Campus Experience' if language == 'en' else '校园经历'
+    lines = [rf'\section{{{section_title}}}']
+    for item in campus_items:
+        name = tex_escape(item.get('name', ''))
+        role = tex_escape(item.get('role', ''))
+        time_raw = item.get('time', '') or f"{item.get('time_start', '')} -- {item.get('time_end', '')}"
+        time = tex_escape(_localize_date_text(_to_year_month_range(time_raw), language))
+        tags = tex_escape(item.get('tags', ''))
+
+        lines.append(rf'\datedsubsection{{\textbf{{{name}}}}}{{{time}}}')
+        if role:
+            lines.append(rf'\role{{{role}}}{{{tags}}}')
+        lines.append(r'\vspace{-8pt}')
+        lines.append(r'\begin{itemize}')
+        bullets = [bullet for bullet in item.get('selected_bullets', []) if bullet] or _fallback_campus_bullets(item, 2)
+        for bullet in bullets[:2]:
+            lines.append(_render_bullet_latex(bullet))
+        lines.append(r'\end{itemize}')
+        lines.append(r'\vspace{-4pt}')
+        lines.append('')
+
+    return '\n'.join(lines)
+
+
 def _gen_publications_section(profile: dict, language: str = 'zh') -> str:
     """生成论文发表 section"""
     pubs = profile.get('publications', [])
@@ -1872,6 +2132,7 @@ def _gen_skills_section(profile: dict, jd_keywords: dict, language: str = 'zh') 
 
 def generate_latex(profile: dict, experiences: list, jd_keywords: dict,
                    selected_projects: list | None = None,
+                   selected_campus_experiences: list | None = None,
                    selected_awards: list | None = None,
                    language: str = 'zh') -> str:
     """组装完整 .tex 文件"""
@@ -1948,6 +2209,12 @@ def generate_latex(profile: dict, experiences: list, jd_keywords: dict,
     # 项目
     sections.append(_gen_project_section(
         selected_projects if selected_projects is not None else profile.get('projects', [])[:2],
+        language=language,
+    ))
+
+    # 校园经历
+    sections.append(_gen_campus_section(
+        selected_campus_experiences if selected_campus_experiences is not None else profile.get('campus_experiences', [])[:2],
         language=language,
     ))
 
@@ -2357,6 +2624,98 @@ def compile_latex(output_dir: Path, xelatex: str = None, *, tex_filename: str = 
     }
 
 
+def _find_pdftoppm() -> str | None:
+    """Find a pdftoppm binary for rendering PDF visual QA screenshots."""
+    env_path = os.getenv('RESUME_PDFTOPPM')
+    candidates = [
+        Path(env_path) if env_path else None,
+        Path.home() / '.cache' / 'codex-runtimes' / 'codex-primary-runtime' / 'dependencies' / 'bin' / 'pdftoppm',
+        Path('/opt/homebrew/bin/pdftoppm'),
+        Path('/usr/local/bin/pdftoppm'),
+        Path('/usr/bin/pdftoppm'),
+    ]
+    which_path = shutil.which('pdftoppm')
+    if which_path:
+        candidates.insert(0, Path(which_path))
+    for candidate in candidates:
+        if candidate and candidate.exists() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    return None
+
+
+def run_visual_review(output_dir: Path, *, pdf_filename: str, fill_ratio: float = 0.0,
+                      page_count: int = 0) -> dict:
+    """Render the generated PDF and write a lightweight visual QA artifact.
+
+    This is intentionally deterministic. It creates evidence that the GUI and
+    local Agent loop can inspect, while leaving higher-judgment visual review to
+    the next agent iteration.
+    """
+    output_dir = output_dir.resolve()
+    review_dir = output_dir / 'visual_review'
+    review_dir.mkdir(parents=True, exist_ok=True)
+    pdf_path = output_dir / pdf_filename
+    result = {
+        'status': 'pending',
+        'message': '',
+        'page_count': int(page_count or 0),
+        'fill_ratio': float(fill_ratio or 0.0),
+        'screenshots': [],
+        'issues': [],
+    }
+
+    if not pdf_path.exists():
+        result.update({
+            'status': 'error',
+            'message': 'PDF 文件不存在，无法执行视觉 QA',
+            'issues': ['pdf_missing'],
+        })
+        (review_dir / 'visual_review.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+        return result
+
+    if result['page_count'] and result['page_count'] != 1:
+        result['issues'].append('page_count_not_one')
+    if fill_ratio > 1.0:
+        result['issues'].append('overflow')
+    elif 0 < fill_ratio < 0.95:
+        result['issues'].append('underfilled')
+
+    pdftoppm = _find_pdftoppm()
+    if not pdftoppm:
+        result.update({
+            'status': 'skipped',
+            'message': '未找到 pdftoppm，已跳过 PDF 截图渲染',
+        })
+        (review_dir / 'visual_review.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+        return result
+
+    output_prefix = review_dir / 'page-1'
+    render = subprocess.run(
+        [pdftoppm, '-png', '-r', '140', '-f', '1', '-l', '1', '-singlefile', pdf_path.name, str(output_prefix)],
+        cwd=str(output_dir),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    screenshot = review_dir / 'page-1.png'
+    if render.returncode != 0 or not screenshot.exists():
+        result.update({
+            'status': 'error',
+            'message': 'PDF 截图渲染失败',
+            'issues': result['issues'] + ['render_failed'],
+            'stderr': (render.stderr or '')[-1000:],
+        })
+    else:
+        result['screenshots'].append(str(screenshot.relative_to(output_dir)))
+        result.update({
+            'status': 'warning' if result['issues'] else 'pass',
+            'message': '视觉 QA 截图已生成' if not result['issues'] else '视觉 QA 截图已生成，但存在需复核项',
+        })
+
+    (review_dir / 'visual_review.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+    return result
+
+
 # ─── Plan Mode ────────────────────────────────────────────────
 
 def build_resume_plan(jd_text: str, interview_text: str = '', *,
@@ -2390,7 +2749,14 @@ def build_resume_plan(jd_text: str, interview_text: str = '', *,
         return {'success': False, 'error': experiences_error}
 
     profile = _parse_profile(person_id)
+    profile, derived_skills = _profile_with_derived_skills(profile, person_id)
     experiences = load_all_experiences(person_id)
+    if derived_skills.get('derived_count'):
+        gen_log.emit(
+            'info',
+            f"已从本地资料推导 {derived_skills['derived_count']} 项技能用于本次方案生成",
+            data={'source_count': derived_skills.get('source_count', 0)},
+        )
     combined_text = jd_text + (('\n' + interview_text) if interview_text else '')
     jd_keywords = extract_jd_keywords(combined_text)
     if company:
@@ -2404,6 +2770,7 @@ def build_resume_plan(jd_text: str, interview_text: str = '', *,
     ai_plan: dict = {}
     matched = _apply_experience_selection_rules(experiences, jd_keywords)
     selected_projects = _filter_projects(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched)))
+    selected_campus = _filter_campus_experiences(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched) - len(selected_projects)))
     selected_awards = _filter_awards(profile, jd_keywords)
 
     if _should_try_ai(ai_config, prefer_ai=prefer_ai):
@@ -2432,6 +2799,12 @@ def build_resume_plan(jd_text: str, interview_text: str = '', *,
                 preferred_entries=ai_plan.get('selected_projects', []),
                 remaining_slots=max(0, 5 - len(matched)),
             )
+            selected_campus = _filter_campus_experiences(
+                profile,
+                jd_keywords,
+                preferred_entries=ai_plan.get('selected_campus_experiences', []),
+                remaining_slots=max(0, 5 - len(matched) - len(selected_projects)),
+            )
             selected_awards = _filter_awards(
                 profile,
                 jd_keywords,
@@ -2449,11 +2822,14 @@ def build_resume_plan(jd_text: str, interview_text: str = '', *,
 
     selected_filenames = {item.get('filename', '') for item in matched}
     selected_project_names = {item.get('name', '') for item in selected_projects}
+    selected_campus_names = {item.get('name', '') for item in selected_campus}
     selected_award_names = {item.get('name', '') for item in selected_awards}
     reason_by_filename = {item.get('filename', ''): item.get('_reason', '') for item in matched}
     bullets_by_filename = {item.get('filename', ''): item.get('selected_bullets', []) for item in matched}
     project_reason_by_name = {item.get('name', ''): item.get('_reason', '') for item in selected_projects}
     project_bullets_by_name = {item.get('name', ''): item.get('selected_bullets', []) for item in selected_projects}
+    campus_reason_by_name = {item.get('name', ''): item.get('_reason', '') for item in selected_campus}
+    campus_bullets_by_name = {item.get('name', ''): item.get('selected_bullets', []) for item in selected_campus}
 
     candidate_experiences = []
     for exp in match_experiences(experiences, jd_keywords, max_count=len(experiences)):
@@ -2489,6 +2865,22 @@ def build_resume_plan(jd_text: str, interview_text: str = '', *,
             'selected': name in selected_project_names,
             'relevance_reason': project_reason_by_name.get(name, ''),
             'rewritten_bullets': project_bullets_by_name.get(name, _fallback_project_bullets(project, 2)),
+        })
+
+    candidate_campus = []
+    for item in profile.get('campus_experiences', []):
+        name = item.get('name', '')
+        if not name:
+            continue
+        candidate_campus.append({
+            'name': name,
+            'role': item.get('role', ''),
+            'time': item.get('time', '') or f"{item.get('time_start', '')} -- {item.get('time_end', '')}",
+            'tags': item.get('tags', ''),
+            'score': _score_campus_experience(item, jd_keywords),
+            'selected': name in selected_campus_names,
+            'relevance_reason': campus_reason_by_name.get(name, ''),
+            'rewritten_bullets': campus_bullets_by_name.get(name, _fallback_campus_bullets(item, 2)),
         })
 
     preferred_order = {name: index for index, name in enumerate(selected_award_names)}
@@ -2535,6 +2927,7 @@ def build_resume_plan(jd_text: str, interview_text: str = '', *,
         },
         'candidate_experiences': candidate_experiences,
         'candidate_projects': candidate_projects,
+        'candidate_campus_experiences': candidate_campus,
         'candidate_awards': candidate_awards[:12],
         'warning': ai_plan.get('_error', ''),
     }
@@ -2608,9 +3001,20 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
     if experiences_error:
         return {'success': False, 'error': experiences_error}
     profile = _parse_profile(person_id)
+    profile, derived_skills = _profile_with_derived_skills(profile, person_id)
     experiences = load_all_experiences(person_id)
     log_lines.append(f'- 个人信息: {profile["name_zh"]}')
     log_lines.append(f'- 经历数量: {len(experiences)} 段')
+    if derived_skills.get('derived_count'):
+        log_lines.append(
+            f"- 推导技能: 从 {derived_skills.get('source_count', 0)} 个本地资料文件识别 "
+            f"{derived_skills['derived_count']} 项技能，本次生成自动使用但不写回 profile.md"
+        )
+        gen_log.emit(
+            'info',
+            f"已从本地资料推导 {derived_skills['derived_count']} 项技能用于本次生成",
+            data={'source_count': derived_skills.get('source_count', 0)},
+        )
 
     # Step 2: 分析 JD
     log_lines.append('\n## 步骤 2: 分析 JD 关键词')
@@ -2634,6 +3038,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
     gen_log.emit('step', '步骤 3: 匹配经历')
     matched = _apply_experience_selection_rules(experiences, jd_keywords)
     selected_projects = _filter_projects(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched)))
+    selected_campus = _filter_campus_experiences(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched) - len(selected_projects)))
     selected_awards = _filter_awards(profile, jd_keywords)
 
     if selection_plan:
@@ -2644,6 +3049,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
 
         plan_exp_entries = selection_plan.get('selected_experiences', [])
         plan_project_entries = selection_plan.get('selected_projects', [])
+        plan_campus_entries = selection_plan.get('selected_campus_experiences', [])
         plan_award_names = selection_plan.get('selected_awards', [])
 
         if _should_try_ai(ai_config, prefer_ai=prefer_ai):
@@ -2657,6 +3063,11 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
                 plan_project_entries = _merge_plan_entries(
                     plan_project_entries,
                     ai_plan.get('selected_projects', []),
+                    'name',
+                )
+                plan_campus_entries = _merge_plan_entries(
+                    plan_campus_entries,
+                    ai_plan.get('selected_campus_experiences', []),
                     'name',
                 )
                 _jd_understanding = ai_plan.get('jd_understanding') or {}
@@ -2687,11 +3098,17 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
             plan_project_entries,
             remaining_slots=max(0, 5 - len(matched)),
         )
+        selected_campus = _select_campus_from_plan(
+            profile,
+            plan_campus_entries,
+            remaining_slots=max(0, 5 - len(matched) - len(selected_projects)),
+        )
         selected_awards = _select_awards_from_plan(profile, plan_award_names)
 
         if not matched:
             matched = _apply_experience_selection_rules(experiences, jd_keywords)
             selected_projects = _filter_projects(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched)))
+            selected_campus = _filter_campus_experiences(profile, jd_keywords, remaining_slots=max(0, 5 - len(matched) - len(selected_projects)))
             selected_awards = _filter_awards(profile, jd_keywords)
             log_lines.append('- 已确认方案没有有效经历，回退为自动匹配')
 
@@ -2721,6 +3138,12 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
                 jd_keywords,
                 preferred_entries=ai_plan.get('selected_projects', []),
                 remaining_slots=max(0, 5 - len(matched)),
+            )
+            selected_campus = _filter_campus_experiences(
+                profile,
+                jd_keywords,
+                preferred_entries=ai_plan.get('selected_campus_experiences', []),
+                remaining_slots=max(0, 5 - len(matched) - len(selected_projects)),
             )
             selected_awards = _filter_awards(
                 profile,
@@ -2754,11 +3177,14 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         log_lines.append(f'- [{score}分] {exp["company"]} - {exp["role"]} (匹配: {kws}){reason_suffix}')
     if selected_projects:
         log_lines.append('- 项目经历: ' + '；'.join(project.get('name', '') for project in selected_projects))
+    if selected_campus:
+        log_lines.append('- 校园经历: ' + '；'.join(item.get('name', '') for item in selected_campus))
     if selected_awards:
         log_lines.append('- 获奖情况: ' + '；'.join(award.get('name', '') for award in selected_awards))
-    gen_log.emit('info', f'选中经历: {len(matched)} 段 | 项目: {len(selected_projects)} | 奖项: {len(selected_awards)}',
+    gen_log.emit('info', f'选中经历: {len(matched)} 段 | 项目: {len(selected_projects)} | 校园: {len(selected_campus)} | 奖项: {len(selected_awards)}',
                  data={'experiences': [f'{e["company"]} - {e["role"]}' for e in matched],
                        'projects': [p.get('name') for p in selected_projects],
+                       'campus': [c.get('name') for c in selected_campus],
                        'awards': [a.get('name') for a in selected_awards]})
 
     # Step 4: 生成 LaTeX
@@ -2769,6 +3195,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         matched,
         jd_keywords,
         selected_projects=selected_projects,
+        selected_campus_experiences=selected_campus,
         selected_awards=selected_awards,
         language=language,
     )
@@ -2883,11 +3310,29 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         if compile_result2['success']:
             try:
                 fill_result2 = check_page_fill(str(output_dir), tex_filename=tex_filename)
+                fill_result = fill_result2
                 fill_ratio = fill_result2.get('ratio', fill_ratio)
                 log_lines.append(f'- 最终填充率: {fill_ratio * 100:.1f}%')
                 log_lines.append(f'- 最终页数: {fill_result2.get("page_count", 1)}')
             except Exception:
                 pass
+
+    # Step 9: render a visual QA screenshot for GUI/Agent review loops
+    log_lines.append('\n## 步骤 8: 视觉 QA')
+    visual_review = run_visual_review(
+        output_dir,
+        pdf_filename=pdf_filename,
+        fill_ratio=fill_ratio,
+        page_count=(fill_result or {}).get('page_count', 0),
+    )
+    log_lines.append(f'- 状态: {visual_review.get("status", "")}')
+    log_lines.append(f'- 说明: {visual_review.get("message", "")}')
+    if visual_review.get('screenshots'):
+        log_lines.append('- 截图: ' + '；'.join(visual_review.get('screenshots', [])))
+    if visual_review.get('issues'):
+        log_lines.append('- 待复核项: ' + '；'.join(visual_review.get('issues', [])))
+    gen_log.emit('info', f'视觉 QA: {visual_review.get("status")} | {visual_review.get("message", "")}',
+                 data=visual_review)
 
     # 写 generation_log.md
     log_lines.append(f'\n## 生成时间\n{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
@@ -2904,6 +3349,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         ai_model=ai_model,
         fill_ratio=fill_ratio,
         language=language,
+        visual_review=visual_review,
     )
 
     pdf_rel = f'{dir_name}/{pdf_filename}'
@@ -2920,6 +3366,7 @@ def generate_resume(jd_text: str, interview_text: str = '', *,
         'role': role_,
         'fill_ratio': fill_ratio,
         'generation_log': '\n'.join(log_lines),
+        'visual_review': visual_review,
         'engine': engine,
         'ai_provider': ai_provider,
         'ai_model': ai_model,

@@ -10,22 +10,26 @@
 
 ## 效果展示
 
-### Web UI 数据管理
+### 用户视角首页
 
 <p align="center">
-  <img src="docs/screenshots/01-web-home.png" width="720" alt="Web UI 首页" />
+  <img src="docs/screenshots/08-user-workbench-home.png" width="720" alt="用户视角首页：生成简历与最近生成" />
 </p>
 
 <details>
 <summary>更多截图</summary>
 
-| 个人信息填写 | 经历管理 |
+| 数据管理首页 | 个人信息填写 |
 |:---:|:---:|
-| <img src="docs/screenshots/02-web-profile.png" width="360" /> | <img src="docs/screenshots/03-web-experience.png" width="360" /> |
+| <img src="docs/screenshots/01-web-home.png" width="360" /> | <img src="docs/screenshots/02-web-profile.png" width="360" /> |
 
-| AI 简历生成 | 简历画廊 |
+| 经历管理 | AI 简历生成 |
 |:---:|:---:|
-| <img src="docs/screenshots/04-web-generate.png" width="360" /> | <img src="docs/screenshots/05-web-gallery.png" width="360" /> |
+| <img src="docs/screenshots/03-web-experience.png" width="360" /> | <img src="docs/screenshots/04-web-generate.png" width="360" /> |
+
+| 简历画廊 | PDF 输出 |
+|:---:|:---:|
+| <img src="docs/screenshots/05-web-gallery.png" width="360" /> | <img src="docs/screenshots/06-pdf-output.png" width="360" /> |
 
 </details>
 

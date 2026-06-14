@@ -53,9 +53,9 @@ Four-layer system: **Data → Generation → Web/API → Layout/Quality**.
 
 - Zero core Python dependencies — web server and all tools run on stdlib only. Backend requires `fastapi` + `uvicorn`.
 - XeLaTeX required (not pdflatex) for Chinese font support via TinyTeX.
-- AI config sources must stay consistent: `AGENTS.md`, `skills/resume-gen/SKILL.md`, `.Codex/agents/resume-generator.md`, and `tools/generate_resume.py` business rules. Update all together when behavior changes.
+- AI config sources must stay consistent: `AGENTS.md`, `skills/resume-gen/SKILL.md`, `.claude/agents/resume-generator.md`, and `tools/generate_resume.py` business rules. Update all together when behavior changes.
 - Experience classification is strict: intern/work vs research experiences go in separate LaTeX sections, never mixed. Each experience appears in exactly one section.
-- Selection caps: total experiences ≤ 5, awards ≤ 3. Bullets: 2-3 per experience (max 4), no trailing punctuation, no fabricated data.
+- Selection caps: total work/research/project/campus experiences ≤ 5, awards ≤ 3. Bullets: 2-3 per work experience (max 4), 1-2 per project/research/campus entry, no trailing punctuation, no fabricated data.
 
 ---
 
@@ -71,7 +71,7 @@ Four-layer system: **Data → Generation → Web/API → Layout/Quality**.
 
 **六步流程：**
 
-1. **前置检查** — 确认活跃人员的 `profile.md` 和 `experiences/` 已填写，否则引导用户先完成设置
+1. **前置检查** — 确认活跃人员的 `profile.md` 已填写基本信息、教育背景、技能；经历类内容作为增强项引导补充
 2. **分析岗位** — 提取 JD 核心关键词（技术栈、职能、行业、软技能）
 3. **匹配内容** — 从经历库中选出最相关的经历，决定展示顺序
 4. **生成 LaTeX** — 基于模板生成 `.tex` 文件，改写 bullet 对齐 JD
@@ -121,25 +121,15 @@ Four-layer system: **Data → Generation → Web/API → Layout/Quality**.
 详细说明请参考 SETUP.md
 ```
 
-### 检查 experiences/
-读取活跃人员的 `experiences/` 目录，排除 `_template.md` 和 `README.md`，检查是否存在至少一个有效经历文件。
-
-**如果为空**，停止生成流程，输出：
-```
-⚠️ 请先添加至少一段经历：
-1. 复制 data/experiences/_template.md
-2. 重命名为 01_公司名.md 并填写
-3. 完成后重新发送 JD
-
-详细说明请参考 SETUP.md
-```
+### 检查经历丰富度
+读取活跃人员的 `experiences/` 目录、`profile.md` 中的项目经历和校园经历。实习/工作、项目、校园经历至少有一个可用内容时质量最佳，但不作为硬阻断；为空时继续生成基础简历，并引导用户补充增强资料。
 
 ---
 
 ## 内容读取规则
 
 ### 个人信息
-从活跃人员的 `profile.md` 读取姓名、邮箱、电话、教育背景、技能、获奖情况、项目经历、论文发表。
+从活跃人员的 `profile.md` 读取姓名、邮箱、电话、教育背景、技能、获奖情况、项目经历、校园经历、论文发表。
 
 ### 经历内容（优先级）
 1. **原始工作材料**（`data/{person_id}/work_materials/{公司名}/` 下的非空文件）— 最优先
@@ -174,6 +164,7 @@ AI 模型在选择经历之前，需先构建候选人画像（STRICT_AI_RULES R
 | 实习/工作 | 文件名不含 `研究_`，且标签中**不同时**包含 `研究` + `学术` | `\section{实习经历}` |
 | 研究 | 文件名含 `研究_`，**或**标签同时包含 `研究` + `学术` | `\section{研究经历}` 或 `\section{项目经历}` |
 | 项目 | profile.md 中的项目经历 | `\section{项目经历}` |
+| 校园经历 | profile.md 中的校园经历，且与 JD 相关或能证明组织/领导/活动运营/竞赛成果 | `\section{校园经历}` / `\section{Campus Experience}` |
 
 **关键规则：**
 - 大学/学院内的课题研究 **不是实习**，必须放入「研究经历」或「项目经历」
@@ -181,8 +172,9 @@ AI 模型在选择经历之前，需先构建候选人画像（STRICT_AI_RULES R
 
 ### 展示数量
 - 实习经历选择 **2-4 段**（核心内容）
-- 研究/项目经历选择 **0-2 段**（JD 要求研究能力时加入）
-- **合计不超过 5 段经历**，代码会自动补足至最少 3 段，根据内容填充程度决定，目标占满整页
+- 研究/项目经历选择 **0-2 段**（JD 要求研究能力或项目能力时加入）
+- 校园经历仅在 JD 相关、经历不足、或能证明组织/领导/活动运营/竞赛成果时加入
+- **经历类内容合计不超过 5 段**，代码会根据内容填充程度决定，目标占满整页
 - **严格按时间倒序排列**（最新经历在最前）
 
 ### 去重规则（强制）
@@ -199,12 +191,13 @@ AI 模型在选择经历之前，需先构建候选人画像（STRICT_AI_RULES R
 - **金融/咨询/研究岗位**：优先有研究、分析、建模、财务标签的经历
 - **销售/商务/运营岗位**：优先有客户管理、增长、指标达成标签的经历
 - **研究经历**：JD 明确要求研究/学术能力时加入，超页时优先删除
+- **校园经历**：只作为可选补充，不因填写就默认展示；已有足够实习/项目且低相关时不展示
 
 ---
 
 ## Bullet 改写原则
 
-- **实习/工作经历 2-3 条** bullet，最多 4 条；**项目/研究经历 1-2 条**
+- **实习/工作经历 2-3 条** bullet，最多 4 条；**项目/研究/校园经历 1-2 条**
 - **保留量化数据**（百分比、数量、时间、金额）— 不捏造
 - **动词和名词向 JD 关键词靠拢**（但不改变事实）
 - **结果导向**：描述你做了什么并产生了什么结果，而不是"负责了什么"
@@ -325,7 +318,7 @@ python3 tools/page_fill_check.py <output_dir> [xelatex_path]
 
 ### 偏空时的充实策略（按优先级）
 1. 增加一段经历（实习/项目/研究），每段 ~60mm
-2. 加入项目经历或论文发表 section
+2. 加入项目经历、校园经历或论文发表 section
 3. 给现有经历增加 bullet（每段最多 4 条）
 4. 展开 bullet 描述，补充量化数据
 5. 增大列表间距 / section 间距 / 页边距
@@ -337,7 +330,7 @@ python3 tools/page_fill_check.py <output_dir> [xelatex_path]
 在输出 `.tex` 文件前，**必须逐项核对**以下条件。任何一项不通过，必须先修正再输出：
 
 - [ ] **获奖 ≤ 3 条**，同类奖学金仅保留最高等级 1 条，无低含金量奖项
-- [ ] **经历总段数 ≤ 5**（实习 2-4 段 + 研究/项目 0-2 段）
+- [ ] **经历总段数 ≤ 5**（实习/研究/项目/校园经历合计）
 - [ ] **每段经历仅出现在一个 section**（无跨 section 重复）
 - [ ] **所有 bullet 无句号结尾**（`。` 和 `.` 均不加）
 - [ ] **无领域专有术语**或引号内自定义概念（如"三大鸿沟"、"高房价城市轮化效应"等）

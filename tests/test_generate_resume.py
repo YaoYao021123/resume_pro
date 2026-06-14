@@ -7,8 +7,10 @@ extraction, and selection caps.
 """
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -32,6 +34,12 @@ from tools.generate_resume import (
     _award_score,
     _filter_projects,
     _score_project,
+    _filter_campus_experiences,
+    _score_campus_experience,
+    _experiences_setup_error,
+    _profile_setup_error,
+    _profile_with_derived_skills,
+    generate_latex,
     _apply_experience_selection_rules,
     _keywords_set,
     _merge_ai_keywords,
@@ -46,6 +54,7 @@ from tools.generate_resume import (
     _redact_text_with_ai_config,
     extract_jd_keywords,
     match_experiences,
+    run_visual_review,
 )
 
 
@@ -89,6 +98,26 @@ class TexEscapeTests(unittest.TestCase):
         result = tex_escape('A & B % C')
         self.assertIn(r'\&', result)
         self.assertIn(r'\%', result)
+
+
+class VisualReviewTests(unittest.TestCase):
+
+    def test_visual_review_skips_when_renderer_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = Path(tmp)
+            (out_dir / 'resume-zh_CN.pdf').write_bytes(b'%PDF-1.4\n')
+
+            with mock.patch('tools.generate_resume._find_pdftoppm', return_value=None):
+                result = run_visual_review(
+                    out_dir,
+                    pdf_filename='resume-zh_CN.pdf',
+                    fill_ratio=0.98,
+                    page_count=1,
+                )
+
+            self.assertEqual(result['status'], 'skipped')
+            self.assertEqual(result['issues'], [])
+            self.assertTrue((out_dir / 'visual_review' / 'visual_review.json').exists())
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -747,6 +776,122 @@ class AwardScoreTests(unittest.TestCase):
         score_preferred = _award_score(award, {'tech': [], 'domain': [], 'skill': []}, {'特定奖': 0})
         score_normal = _award_score(award, {'tech': [], 'domain': [], 'skill': []}, {})
         self.assertGreater(score_preferred, score_normal)
+
+
+class CampusExperienceTests(unittest.TestCase):
+
+    def test_filter_campus_by_jd_relevance(self):
+        profile = {
+            'campus_experiences': [
+                {
+                    'name': '学生会活动运营',
+                    'role': '负责人',
+                    'time_start': '2024/03',
+                    'time_end': '2024/06',
+                    'highlights': '组织校园活动并协调20名成员；活动参与人数提升30%',
+                    'tags': '活动运营, 组织协调',
+                },
+                {
+                    'name': '合唱团',
+                    'role': '成员',
+                    'highlights': '参与日常排练',
+                    'tags': '艺术',
+                },
+            ]
+        }
+        jd = {'tech': [], 'domain': ['活动运营'], 'skill': ['组织协调']}
+        result = _filter_campus_experiences(profile, jd, remaining_slots=2)
+        self.assertEqual(result[0]['name'], '学生会活动运营')
+        self.assertIn('selected_bullets', result[0])
+
+    def test_score_campus_uses_keywords_and_campus_tokens(self):
+        item = {'name': '挑战赛组织', 'role': '负责人', 'highlights': '负责活动运营', 'tags': '活动运营'}
+        score = _score_campus_experience(item, {'tech': [], 'domain': ['活动运营'], 'skill': []})
+        self.assertGreater(score, 0)
+
+    def test_experiences_setup_no_longer_blocks_generation(self):
+        self.assertIsNone(_experiences_setup_error('nonexistent_person_for_unit_test'))
+
+    def test_profile_setup_no_longer_blocks_when_only_skills_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            profile_path = Path(tmp) / 'profile.md'
+            profile_path.write_text('profile', encoding='utf-8')
+            parsed_profile = {
+                'name_zh': '张同学',
+                'email': 'a@example.com',
+                'phone': '13800000000',
+                'education': [{'school': '上海大学'}],
+                'skills_tech': '',
+                'skills_software': '',
+                'skills_lang': '',
+            }
+            with (
+                mock.patch('tools.generate_resume.get_person_profile_path', return_value=profile_path),
+                mock.patch('tools.generate_resume._parse_profile', return_value=parsed_profile),
+            ):
+                self.assertIsNone(_profile_setup_error('default'))
+
+    def test_profile_with_derived_skills_merges_local_context_without_saving(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            profile_path = root / 'profile.md'
+            profile_path.write_text('姚尧', encoding='utf-8')
+            exp_dir = root / 'experiences'
+            exp_dir.mkdir()
+            (exp_dir / '百度.md').write_text('使用 Python、SQL、Pandas 和 Function Call 搭建 AI Agent', encoding='utf-8')
+            work_dir = root / 'work_materials'
+            work_dir.mkdir()
+            output_dir = root / 'output'
+            output_dir.mkdir()
+            profile = {
+                'name_zh': '姚尧',
+                'email': 'a@example.com',
+                'phone': '13800000000',
+                'education': [{'school': '上海大学'}],
+                'skills_tech': '',
+                'skills_software': '',
+                'skills_lang': '',
+            }
+            with (
+                mock.patch('tools.generate_resume.get_person_profile_path', return_value=profile_path),
+                mock.patch('tools.generate_resume.get_person_experiences_dir', return_value=exp_dir),
+                mock.patch('tools.generate_resume.get_person_work_materials_dir', return_value=work_dir),
+                mock.patch('tools.generate_resume.get_person_output_dir', return_value=output_dir),
+            ):
+                enriched, meta = _profile_with_derived_skills(profile, 'default')
+
+        self.assertEqual(profile['skills_tech'], '')
+        self.assertIn('Python', enriched['skills_tech'])
+        self.assertIn('SQL', enriched['skills_tech'])
+        self.assertIn('Function Call', enriched['skills_tech'])
+        self.assertGreaterEqual(meta['derived_count'], 4)
+
+    def test_generate_latex_includes_campus_sections(self):
+        profile = {
+            'name_zh': '张同学',
+            'email': 'a@example.com',
+            'phone': '13800000000',
+            'education': [],
+            'skills_tech': 'Python',
+            'skills_software': '',
+            'skills_lang': '',
+            'campus_experiences': [{
+                'name': '学生会活动运营',
+                'role': '负责人',
+                'time_start': '2024/03',
+                'time_end': '2024/06',
+                'highlights': '组织校园活动并协调20名成员',
+                'tags': '活动运营',
+            }],
+            'projects': [],
+            'awards': [],
+            'publications': [],
+        }
+        jd = {'tech': [], 'domain': ['活动运营'], 'skill': []}
+        zh_tex = generate_latex(profile, [], jd, language='zh')
+        en_tex = generate_latex({**profile, 'name_en': 'Alex Zhang'}, [], jd, language='en')
+        self.assertIn('\\section{校园经历}', zh_tex)
+        self.assertIn('\\section{Campus Experience}', en_tex)
 
 
 if __name__ == '__main__':

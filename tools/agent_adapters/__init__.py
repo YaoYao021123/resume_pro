@@ -1,0 +1,2 @@
+"""Local coding agent adapters."""
+

@@ -2,6 +2,7 @@ import io
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 import zipfile
 from pathlib import Path
@@ -204,6 +205,89 @@ Some custom achievements line that parser cannot map directly
         self.assertIn('\\section{Experience}', tex)
         self.assertIn('\\section{Skills}', tex)
         self.assertNotIn('zh_CN-Adobefonts_external', tex)
+
+    def test_profile_render_and_parse_preserves_campus_experiences(self):
+        profile_data = {
+            'basic': {'name_zh': '张同学', 'email': 'a@example.com', 'phone': '13800000000'},
+            'education': [],
+            'awards': [],
+            'skills': {'tech': 'Python', 'software': '', 'languages': ''},
+            'projects': [],
+            'campus_experiences': [{
+                'name': '学生会活动运营',
+                'role': '负责人',
+                'time_start': '2024/03',
+                'time_end': '2024/06',
+                'highlights': '组织校园活动；协调20名成员',
+                'tags': '活动运营, 组织协调',
+            }],
+            'publications': [],
+            'directions': {},
+        }
+        rendered = server.render_profile(profile_data)
+        self.assertIn('## 校园经历', rendered)
+        self.assertIn('组织/活动名称：学生会活动运营', rendered)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'profile.md'
+            path.write_text(rendered, encoding='utf-8')
+            with mock.patch('web.server._profile_path', return_value=path):
+                parsed = server.parse_profile()
+
+        self.assertEqual(parsed['campus_experiences'][0]['name'], '学生会活动运营')
+        self.assertEqual(parsed['campus_experiences'][0]['role'], '负责人')
+        self.assertIn('协调20名成员', parsed['campus_experiences'][0]['highlights'])
+
+    def test_parse_old_profile_defaults_empty_campus_experiences(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'profile.md'
+            path.write_text('# 个人信息档案\n\n## 基本信息\n\n```\n姓名（中文）：张同学\n邮箱：a@example.com\n电话：13800000000\n```\n', encoding='utf-8')
+            with mock.patch('web.server._profile_path', return_value=path):
+                parsed = server.parse_profile()
+
+        self.assertEqual(parsed['campus_experiences'], [])
+
+    def test_sanitize_profile_suggestion_limits_shape(self):
+        raw = {
+            'summary': ['补充技能'],
+            'warnings': ['技能来自 JD，需要确认'],
+            'profile_patch': {
+                'basic': {'email': 'new@example.com', 'unknown': 'drop'},
+                'skills': {'tech': 'Python, SQL', 'software': 'Excel'},
+                'projects': [
+                    {'name': '数据看板', 'desc': '搭建销售数据看板', 'extra': 'drop'},
+                    {'role': '无名称项目'},
+                ],
+            },
+        }
+        result = server.sanitize_profile_suggestion(raw)
+        patch = result['profile_patch']
+        self.assertEqual(patch['basic'], {'email': 'new@example.com'})
+        self.assertEqual(patch['skills']['tech'], 'Python, SQL')
+        self.assertEqual(len(patch['projects']), 1)
+        self.assertNotIn('extra', patch['projects'][0])
+        self.assertEqual(result['warnings'], ['技能来自 JD，需要确认'])
+
+    @mock.patch('web.server._call_ai_simple_chat')
+    def test_ai_suggest_profile_completion_extracts_json(self, mock_chat):
+        mock_chat.return_value = """```json
+{
+  "summary": ["补齐技能"],
+  "warnings": ["请确认技能真实掌握"],
+  "profile_patch": {
+    "skills": {"tech": "Python, SQL", "software": "Excel"},
+    "campus_experiences": [{"name": "学生会活动运营", "role": "负责人"}]
+  }
+}
+```"""
+        result = server.ai_suggest_profile_completion(
+            {'basic': {'name_zh': '张同学'}},
+            source_text='会 Python 和 SQL',
+            jd_text='数据分析实习生',
+        )
+        self.assertEqual(result['profile_patch']['skills']['software'], 'Excel')
+        self.assertEqual(result['profile_patch']['campus_experiences'][0]['name'], '学生会活动运营')
+        self.assertIn('raw_model_output', result)
 
 
 if __name__ == '__main__':
