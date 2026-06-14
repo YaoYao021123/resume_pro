@@ -1,4 +1,4 @@
-# Resume Generator Pro
+# Resume Gen
 
 > 输入 JD，自动生成单页 PDF 简历 — 基于 Claude Code + LaTeX 的岗位针对性简历生成系统
 

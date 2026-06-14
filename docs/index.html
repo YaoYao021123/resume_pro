@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Resume Generator Pro</title>
-<link rel="icon" href="assets/resumegen-logo.png">
+<title>Resume Gen</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='white'/%3E%3Ctext x='50%25' y='55%25' text-anchor='middle' dominant-baseline='middle' font-family='Arial,sans-serif' font-size='38' font-weight='700' fill='%23141413'%3ER%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -81,11 +81,21 @@ body {
   gap: 12px;
 }
 .sidebar-brand { min-width: 0; flex: 1; }
-.brand-logo {
-  display: block;
-  width: 132px;
-  max-width: 100%;
-  height: auto;
+.brand-logo-mark {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: var(--surface);
+  font-family: var(--font-heading);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
 }
 .sidebar-header h1 {
   font-family: var(--font-heading);
@@ -4040,7 +4050,6 @@ select { cursor: pointer; font-family: var(--font-heading); font-size: 13px; }
   .sidebar-header .btn-manage,
   .person-selector,
   .progress-section,
-  .brand-logo,
   .sidebar-header h1,
   .sidebar-header p,
   .progress-label,
@@ -4234,7 +4243,7 @@ select.app-edit-input { cursor: pointer; }
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-brand">
-        <img class="brand-logo" src="assets/resumegen-logo.png" alt="ResumeGen">
+        <div class="brand-logo-mark" aria-label="Resume Gen">R</div>
         <p>简历数据管理</p>
       </div>
       <button class="btn-manage" onclick="showModelConfigDialog()" title="模型配置">
@@ -11489,7 +11498,7 @@ async function fetchAppResumeContent(dirName) {
   window.fetch = async (input, init = {}) => {
     const raw = typeof input === 'string' ? input : input.url;
     const url = new URL(raw, window.location.origin);
-    const apiPath = url.pathname.replace(/^\/resume_pro/, '');
+    const apiPath = url.pathname.replace(/^\/(?:resume_pro|resume-gen)/, '');
     const method = String(init.method || 'GET').toUpperCase();
     if (!apiPath.startsWith('/api/')) return originalFetch(input, init);
 
